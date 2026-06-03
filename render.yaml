@@ -3,7 +3,7 @@ services:
     name: ai-bid-demo
     runtime: node
     plan: free
-    buildCommand: npm ci
+    buildCommand: npm ci && python3 -m pip install -r requirements.txt
     startCommand: npm start
     healthCheckPath: /api/health
     envVars:

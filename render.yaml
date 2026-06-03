@@ -5,7 +5,7 @@ services:
     plan: free
     buildCommand: npm ci
     startCommand: npm start
-    healthCheckPath: /AI投标/api/health
+    healthCheckPath: /api/health
     envVars:
       - key: PROJECT_BASE_PATH
         value: AI投标

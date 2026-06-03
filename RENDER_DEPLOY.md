@@ -50,6 +50,17 @@ Render 免费服务适合演示，不适合正式存数据：
   - `DEEPSEEK_MODEL=deepseek-v4-flash`
   - `DEEPSEEK_API_KEY=你的 DeepSeek Key`
 
+如果手动创建 Web Service，请把 Build Command 改成：
+
+```bash
+npm ci && python3 -m pip install -r requirements.txt
+```
+
+系统解析 PDF 和 DOCX 需要 Python 依赖：
+
+- `pdfplumber`
+- `python-docx`
+
 ## 部署后验证
 
 前台：

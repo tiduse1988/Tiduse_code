@@ -1,0 +1,402 @@
+<!DOCTYPE html><html lang="zh-CN" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>AI投标系统 - 生成目录</title>
+<!-- BEGIN: External Resources -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
+<!-- END: External Resources -->
+<script data-purpose="tailwind-config">
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#2563eb',
+            primaryHover: '#1d4ed8',
+            surface: {
+              50: '#f8fafc',
+              100: '#f1f5f9',
+              200: '#e2e8f0',
+              300: '#cbd5e1',
+              400: '#94a3b8',
+              500: '#64748b',
+              600: '#475569',
+              700: '#334155',
+              800: '#1e293b',
+              900: '#0f172a',
+            }
+          }
+        }
+      }
+    }
+  </script>
+<style data-purpose="global-styles">
+    * {
+      font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    body {
+      min-width: 1220px;
+    }
+    /* Custom scrollbar for better aesthetics */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+  </style>
+<style data-purpose="component-styles">
+    /* Directory Tree Item Hover Effects */
+    .tree-item .item-actions {
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+    .tree-item:hover .item-actions {
+      opacity: 1;
+    }
+    .tree-item.active {
+      background-color: #eff6ff;
+      border-left: 3px solid #2563eb;
+    }
+    /* Tooltip Helper */
+    .tooltip {
+      position: relative;
+    }
+    .tooltip::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 4px 8px;
+      background: #1e293b;
+      color: white;
+      font-size: 11px;
+      border-radius: 4px;
+      white-space: nowrap;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.2s ease;
+      margin-bottom: 6px;
+      z-index: 50;
+    }
+    .tooltip:hover::after {
+      opacity: 1;
+      visibility: visible;
+    }
+  </style>
+</head>
+<body class="bg-surface-100 h-screen flex flex-col text-surface-700 antialiased overflow-hidden">
+<!-- BEGIN: TopNavigation -->
+<header class="h-14 bg-white border-b border-surface-200 flex items-center justify-between px-6 shrink-0 z-30 relative">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+<i class="fas fa-file-signature text-white text-sm"></i>
+</div>
+<span class="font-bold text-surface-800 text-lg tracking-tight">AI投标系统</span>
+</div>
+<div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center">
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold ring-4 ring-primary/15">1</div>
+<span class="text-sm font-bold text-primary">生成目录</span>
+</div>
+<div class="w-20 h-px bg-surface-200"></div>
+<div class="flex items-center gap-2 opacity-50">
+<div class="w-8 h-8 rounded-full bg-surface-200 text-surface-500 flex items-center justify-center text-sm font-bold">2</div>
+<span class="text-sm font-medium text-surface-600">生成标书</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="w-9 h-9 rounded-lg hover:bg-surface-100 flex items-center justify-center text-surface-500 transition-colors">
+<i class="fas fa-bell"></i>
+</button>
+<button class="w-9 h-9 rounded-lg hover:bg-surface-100 flex items-center justify-center text-surface-500 transition-colors">
+<i class="fas fa-question-circle"></i>
+</button>
+<div class="h-6 w-px bg-surface-200 mx-2"></div>
+<div class="flex items-center gap-3">
+<div class="text-right">
+<p class="text-xs font-medium text-surface-800">张工</p>
+<p class="text-[10px] text-surface-400">高级商务经理</p>
+</div>
+<div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
+<i class="fas fa-user text-primary text-xs"></i>
+</div>
+</div>
+</div>
+</header>
+<!-- END: TopNavigation -->
+<!-- BEGIN: MainWorkspace -->
+<main class="flex-1 flex overflow-hidden">
+<!-- Left/Center: Directory Editing -->
+<div class="flex-1 flex flex-col items-center py-8 overflow-hidden">
+<div class="w-full max-w-4xl h-full flex flex-col bg-white rounded-xl shadow-lg border border-surface-200 overflow-hidden">
+<!-- Editor Header -->
+<div class="p-5 border-b border-surface-100 flex items-center justify-between bg-white shrink-0">
+<div class="flex items-center gap-4">
+<h2 class="text-base font-bold text-surface-800 flex items-center gap-2">
+<i class="fas fa-list-ul text-primary"></i>
+            目录结构编辑
+          </h2>
+<span class="text-[11px] font-bold text-surface-400 bg-surface-100 px-2.5 py-1 rounded-full uppercase tracking-wider">5 Chapters</span>
+</div>
+<div class="flex items-center gap-2">
+<button class="tooltip p-2 rounded-lg hover:bg-surface-50 transition-all border border-transparent hover:border-surface-200" data-tooltip="批量编辑">
+<i class="fas fa-edit text-primary text-sm"></i>
+</button>
+<button class="tooltip p-2 rounded-lg hover:bg-surface-50 transition-all border border-transparent hover:border-surface-200" data-tooltip="批量删除">
+<i class="fas fa-trash-alt text-red-500 text-sm"></i>
+</button>
+<div class="w-px h-5 bg-surface-200 mx-1"></div>
+<button class="tooltip p-2 rounded-lg hover:bg-surface-50 transition-all border border-transparent hover:border-surface-200" data-tooltip="从Word导入">
+<i class="fas fa-file-import text-green-600 text-sm"></i>
+</button>
+<button class="tooltip p-2 rounded-lg hover:bg-surface-50 transition-all border border-transparent hover:border-surface-200" data-tooltip="导出目录">
+<i class="fas fa-file-export text-surface-500 text-sm"></i>
+</button>
+</div>
+</div>
+<!-- Scrollable Tree List -->
+<div class="flex-1 overflow-y-auto p-6 custom-scrollbar space-y-1" data-purpose="directory-tree-list">
+<!-- Item: Chapter 1 (Active) -->
+<div class="tree-item active rounded-lg cursor-pointer group/item border border-transparent p-2">
+<div class="flex items-center gap-3">
+<div class="cursor-grab text-surface-300 hover:text-surface-500">
+<i class="fas fa-grip-vertical text-xs"></i>
+</div>
+<div class="flex-1 flex items-center justify-between min-w-0">
+<div class="flex items-center gap-3 min-w-0">
+<span class="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded shrink-0">第1章</span>
+<span class="text-base font-bold text-surface-800 truncate">投标函</span>
+</div>
+<div class="item-actions flex items-center gap-2">
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-primary text-xs hover:border-primary transition-colors"><i class="fas fa-pen text-[10px]"></i> 编辑</button>
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-green-600 text-xs hover:border-green-600 transition-colors"><i class="fas fa-plus text-[10px]"></i> 子项</button>
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-red-500 text-xs hover:bg-red-50 hover:border-red-200 transition-colors"><i class="fas fa-trash-alt text-[10px]"></i> 删除</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Item: Chapter 2 -->
+<div class="tree-item rounded-lg cursor-pointer hover:bg-surface-50 border border-transparent hover:border-surface-200 group/item transition-colors p-2">
+<div class="flex items-center gap-3">
+<div class="cursor-grab text-surface-300 pt-1.5"><i class="fas fa-grip-vertical text-xs"></i></div>
+<div class="flex-1 flex items-center justify-between min-w-0">
+<div class="flex items-center gap-3 min-w-0">
+<span class="text-xs font-bold text-surface-500 bg-surface-100 px-2 py-0.5 rounded shrink-0">第2章</span>
+<span class="text-base font-medium text-surface-700 truncate">法定代表人身份证明</span>
+</div>
+<div class="item-actions flex items-center gap-2">
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-primary text-xs hover:border-primary transition-colors"><i class="fas fa-pen text-[10px]"></i> 编辑</button>
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-green-600 text-xs hover:border-green-600 transition-colors"><i class="fas fa-plus text-[10px]"></i> 子项</button>
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-red-500 text-xs hover:bg-red-50 hover:border-red-200 transition-colors"><i class="fas fa-trash-alt text-[10px]"></i> 删除</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Sub-item: 2.1 -->
+<div class="tree-item rounded-lg ml-10 cursor-pointer hover:bg-surface-50 border border-transparent hover:border-surface-200 group/item transition-colors p-2">
+<div class="flex items-center gap-3">
+<div class="cursor-grab text-surface-300 pt-1.5"><i class="fas fa-grip-vertical text-xs"></i></div>
+<div class="flex-1 flex items-center justify-between min-w-0">
+<div class="flex items-center gap-3 min-w-0">
+<span class="text-xs text-surface-400 shrink-0 font-medium">2.1</span>
+<span class="text-sm text-surface-600 truncate">法定代表人身份证复印件</span>
+</div>
+<div class="item-actions flex items-center gap-2">
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-primary text-xs hover:border-primary transition-colors"><i class="fas fa-pen text-[10px]"></i> 编辑</button>
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-green-600 text-xs hover:border-green-600 transition-colors"><i class="fas fa-plus text-[10px]"></i> 子项</button>
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-red-500 text-xs hover:bg-red-50 hover:border-red-200 transition-colors"><i class="fas fa-trash-alt text-[10px]"></i> 删除</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Sub-item: 2.2 -->
+<div class="tree-item rounded-lg ml-10 cursor-pointer hover:bg-surface-50 border border-transparent hover:border-surface-200 group/item transition-colors p-2">
+<div class="flex items-center gap-3">
+<div class="cursor-grab text-surface-300 pt-1.5"><i class="fas fa-grip-vertical text-xs"></i></div>
+<div class="flex-1 flex items-center justify-between min-w-0">
+<div class="flex items-center gap-3 min-w-0">
+<span class="text-xs text-surface-400 shrink-0 font-medium">2.2</span>
+<span class="text-sm text-surface-600 truncate">授权委托书</span>
+</div>
+<div class="item-actions flex items-center gap-2">
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-primary text-xs hover:border-primary transition-colors"><i class="fas fa-pen text-[10px]"></i> 编辑</button>
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-green-600 text-xs hover:border-green-600 transition-colors"><i class="fas fa-plus text-[10px]"></i> 子项</button>
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-red-500 text-xs hover:bg-red-50 hover:border-red-200 transition-colors"><i class="fas fa-trash-alt text-[10px]"></i> 删除</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Item: Chapter 3 -->
+<div class="tree-item rounded-lg cursor-pointer hover:bg-surface-50 border border-transparent hover:border-surface-200 group/item transition-colors p-2">
+<div class="flex items-center gap-3">
+<div class="cursor-grab text-surface-300 pt-1.5"><i class="fas fa-grip-vertical text-xs"></i></div>
+<div class="flex-1 flex items-center justify-between min-w-0">
+<div class="flex items-center gap-3 min-w-0">
+<span class="text-xs font-bold text-surface-500 bg-surface-100 px-2 py-0.5 rounded shrink-0">第3章</span>
+<span class="text-base font-medium text-surface-700 truncate">投标报价表</span>
+</div>
+<div class="item-actions flex items-center gap-2">
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-primary text-xs hover:border-primary transition-colors"><i class="fas fa-pen text-[10px]"></i> 编辑</button>
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-green-600 text-xs hover:border-green-600 transition-colors"><i class="fas fa-plus text-[10px]"></i> 子项</button>
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-red-500 text-xs hover:bg-red-50 hover:border-red-200 transition-colors"><i class="fas fa-trash-alt text-[10px]"></i> 删除</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Item: Chapter 4 -->
+<div class="tree-item rounded-lg cursor-pointer hover:bg-surface-50 border border-transparent hover:border-surface-200 group/item transition-colors p-2">
+<div class="flex items-center gap-3">
+<div class="cursor-grab text-surface-300 pt-1.5"><i class="fas fa-grip-vertical text-xs"></i></div>
+<div class="flex-1 flex items-center justify-between min-w-0">
+<div class="flex items-center gap-3 min-w-0">
+<span class="text-xs font-bold text-surface-500 bg-surface-100 px-2 py-0.5 rounded shrink-0">第4章</span>
+<span class="text-base font-medium text-surface-700 truncate">技术方案</span>
+</div>
+<div class="item-actions flex items-center gap-2">
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-primary text-xs hover:border-primary transition-colors"><i class="fas fa-pen text-[10px]"></i> 编辑</button>
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-green-600 text-xs hover:border-green-600 transition-colors"><i class="fas fa-plus text-[10px]"></i> 子项</button>
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-red-500 text-xs hover:bg-red-50 hover:border-red-200 transition-colors"><i class="fas fa-trash-alt text-[10px]"></i> 删除</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Sub-items for Chapter 4 -->
+<div class="tree-item rounded-lg ml-10 cursor-pointer hover:bg-surface-50 border border-transparent hover:border-surface-200 group/item transition-colors p-2">
+<div class="flex items-center gap-3">
+<div class="cursor-grab text-surface-300"><i class="fas fa-grip-vertical text-xs"></i></div>
+<div class="flex-1 flex items-center justify-between min-w-0">
+<div class="flex items-center gap-3">
+<span class="text-xs text-surface-400 shrink-0 font-medium">4.1</span>
+<span class="text-sm text-surface-600 truncate">项目概述</span>
+</div>
+<div class="item-actions flex items-center gap-2">
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-primary text-xs hover:border-primary transition-colors"><i class="fas fa-pen text-[10px]"></i> 编辑</button>
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-green-600 text-xs hover:border-green-600 transition-colors"><i class="fas fa-plus text-[10px]"></i> 子项</button>
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-red-500 text-xs hover:bg-red-50 hover:border-red-200 transition-colors"><i class="fas fa-trash-alt text-[10px]"></i> 删除</button>
+</div>
+</div>
+</div>
+</div>
+<div class="tree-item rounded-lg ml-10 cursor-pointer hover:bg-surface-50 border border-transparent hover:border-surface-200 group/item transition-colors p-2">
+<div class="flex items-center gap-3">
+<div class="cursor-grab text-surface-300"><i class="fas fa-grip-vertical text-xs"></i></div>
+<div class="flex-1 flex items-center justify-between min-w-0">
+<div class="flex items-center gap-3">
+<span class="text-xs text-surface-400 shrink-0 font-medium">4.2</span>
+<span class="text-sm text-surface-600 truncate">技术架构</span>
+</div>
+<div class="item-actions flex items-center gap-2">
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-primary text-xs hover:border-primary transition-colors"><i class="fas fa-pen text-[10px]"></i> 编辑</button>
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-green-600 text-xs hover:border-green-600 transition-colors"><i class="fas fa-plus text-[10px]"></i> 子项</button>
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-red-500 text-xs hover:bg-red-50 hover:border-red-200 transition-colors"><i class="fas fa-trash-alt text-[10px]"></i> 删除</button>
+</div>
+</div>
+</div>
+</div>
+<div class="tree-item rounded-lg ml-10 cursor-pointer hover:bg-surface-50 border border-transparent hover:border-surface-200 group/item transition-colors p-2">
+<div class="flex items-center gap-3">
+<div class="cursor-grab text-surface-300"><i class="fas fa-grip-vertical text-xs"></i></div>
+<div class="flex-1 flex items-center justify-between min-w-0">
+<div class="flex items-center gap-3">
+<span class="text-xs text-surface-400 shrink-0 font-medium">4.3</span>
+<span class="text-sm text-surface-600 truncate">实施方案</span>
+</div>
+<div class="item-actions flex items-center gap-2">
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-primary text-xs hover:border-primary transition-colors"><i class="fas fa-pen text-[10px]"></i> 编辑</button>
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-green-600 text-xs hover:border-green-600 transition-colors"><i class="fas fa-plus text-[10px]"></i> 子项</button>
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-red-500 text-xs hover:bg-red-50 hover:border-red-200 transition-colors"><i class="fas fa-trash-alt text-[10px]"></i> 删除</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Item: Chapter 5 -->
+<div class="tree-item rounded-lg cursor-pointer hover:bg-surface-50 border border-transparent hover:border-surface-200 group/item transition-colors p-2">
+<div class="flex items-center gap-3">
+<div class="cursor-grab text-surface-300 pt-1.5"><i class="fas fa-grip-vertical text-xs"></i></div>
+<div class="flex-1 flex items-center justify-between min-w-0">
+<div class="flex items-center gap-3 min-w-0">
+<span class="text-xs font-bold text-surface-500 bg-surface-100 px-2 py-0.5 rounded shrink-0">第5章</span>
+<span class="text-base font-medium text-surface-700 truncate">商务条款</span>
+</div>
+<div class="item-actions flex items-center gap-2">
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-primary text-xs hover:border-primary transition-colors"><i class="fas fa-pen text-[10px]"></i> 编辑</button>
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-green-600 text-xs hover:border-green-600 transition-colors"><i class="fas fa-plus text-[10px]"></i> 子项</button>
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-red-500 text-xs hover:bg-red-50 hover:border-red-200 transition-colors"><i class="fas fa-trash-alt text-[10px]"></i> 删除</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- New Right Sidebar: Steps and Project Info -->
+<aside class="w-80 bg-white border-l border-surface-200 flex flex-col shrink-0 overflow-y-auto z-20">
+<!-- Sidebar Body: Project Metadata -->
+<div class="p-6 space-y-6">
+<div>
+<h3 class="text-xs font-bold text-surface-400 uppercase tracking-widest mb-4">项目信息</h3>
+<div class="bg-surface-50 rounded-xl p-4 border border-surface-100 space-y-4">
+<div>
+<p class="text-[10px] text-surface-400 mb-1">项目名称</p>
+<p class="text-xs font-bold text-surface-800 leading-relaxed">XX市政府采购信息化建设项目</p>
+</div>
+<div class="flex justify-between">
+<div>
+<p class="text-[10px] text-surface-400 mb-1">最后保存</p>
+<p class="text-xs font-medium text-surface-600">14:20:05</p>
+</div>
+<div>
+<p class="text-[10px] text-surface-400 mb-1">文档状态</p>
+<span class="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium">编辑中</span>
+</div>
+</div>
+</div>
+</div>
+<div>
+<h3 class="text-xs font-bold text-surface-400 uppercase tracking-widest mb-4">操作提示</h3>
+<div class="bg-blue-50/50 rounded-xl p-4 border border-blue-100/50">
+<ul class="text-[11px] text-surface-600 space-y-2 list-disc list-inside">
+<li class="">拖拽左侧 <i class="fas fa-grip-vertical text-[9px]"></i> 图标调整顺序</li>
+<li class="">点击“子项”按钮增加层级</li>
+<li class="">编辑完成后点击下方“下一步”</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="mt-auto p-6 border-t border-surface-100 bg-white">
+<div class="flex flex-col gap-4">
+<button class="w-full h-11 rounded-lg text-sm font-bold bg-white border border-surface-200 text-surface-600 hover:bg-surface-50 transition-all flex items-center justify-center gap-2">
+<i class="fas fa-save"></i>
+保存修改
+</button>
+<button class="w-full h-11 rounded-xl text-sm font-bold text-white bg-primary hover:bg-primaryHover shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all flex items-center justify-center gap-2">
+生成标书
+</button>
+</div>
+</div>
+</aside>
+</main>
+<!-- END: MainWorkspace -->
+<!-- BEGIN: BottomStickyFooter -->
+
+<!-- END: BottomStickyFooter -->
+
+
+
+
+<script src="./business-logic.js"></script>
+<script src="./static-links.js"></script>
+</body></html>

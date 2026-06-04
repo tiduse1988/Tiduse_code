@@ -2,7 +2,7 @@
   if (location.protocol === "file:") {
     const pageName = location.pathname.split("/").pop() || "index.html";
     const targetPage = pageName === "login.html" ? "" : pageName === "index.html" ? "" : pageName;
-    location.replace(`http://localhost:8091/AI%E6%8A%95%E6%A0%87/${targetPage}`);
+    location.replace(`http://localhost:8091/ai-bid/${targetPage}`);
     return;
   }
 
@@ -10,7 +10,8 @@
   const page = decodedPathname.split("/").pop() || "index.html";
   const stateKey = "latoumiao-bid-state";
   const tokenKey = "latoumiao-token";
-  const projectBase = decodedPathname.startsWith("/AI投标/") || decodedPathname === "/AI投标" ? "/AI投标" : "";
+  const firstSegment = decodedPathname.split("/").filter(Boolean)[0] || "";
+  const projectBase = firstSegment && !firstSegment.includes(".") ? `/${firstSegment}` : "";
   const apiPath = (url) => `${projectBase}${url}`;
 
   const readState = () => {

@@ -7,8 +7,8 @@
 演示地址格式：
 
 ```text
-https://你的服务名.onrender.com/AI投标/
-https://你的服务名.onrender.com/AI投标/admin.html
+https://你的服务名.onrender.com/ai-bid/
+https://你的服务名.onrender.com/ai-bid/admin.html
 ```
 
 ## 免费演示版限制
@@ -45,7 +45,7 @@ Render 免费服务适合演示，不适合正式存数据：
 - Build Command: `npm ci`
 - Start Command: `npm start`
 - Environment:
-  - `PROJECT_BASE_PATH=AI投标`
+  - `PROJECT_BASE_PATH=ai-bid`
   - `DEEPSEEK_BASE_URL=https://api.deepseek.com`
   - `DEEPSEEK_MODEL=deepseek-v4-flash`
   - `DEEPSEEK_API_KEY=你的 DeepSeek Key`
@@ -66,13 +66,13 @@ npm ci && python3 -m pip install -r requirements.txt
 前台：
 
 ```text
-https://你的服务名.onrender.com/AI投标/
+https://你的服务名.onrender.com/ai-bid/
 ```
 
 后台：
 
 ```text
-https://你的服务名.onrender.com/AI投标/admin.html
+https://你的服务名.onrender.com/ai-bid/admin.html
 ```
 
 后台默认账号：

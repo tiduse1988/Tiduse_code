@@ -595,12 +595,13 @@
 
   <script>
     if (location.protocol === "file:") {
-      location.replace("http://localhost:8091/AI%E6%8A%95%E6%A0%87/admin.html");
+      location.replace("http://localhost:8091/ai-bid/admin.html");
     }
 
     const tokenKey = "latoumiao-admin-token";
     const decodedPathname = decodeURIComponent(location.pathname);
-    const projectBase = decodedPathname.startsWith("/AI投标/") || decodedPathname === "/AI投标" ? "/AI投标" : "";
+    const firstSegment = decodedPathname.split("/").filter(Boolean)[0] || "";
+    const projectBase = firstSegment && !firstSegment.includes(".") ? `/${firstSegment}` : "";
     const apiPath = (url) => `${projectBase}${url}`;
     const token = () => localStorage.getItem(tokenKey) || "";
     const setText = (id, value) => document.getElementById(id).textContent = value;

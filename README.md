@@ -17,13 +17,13 @@ npm start
 前台：
 
 ```text
-http://localhost:8091/AI投标/
+http://localhost:8091/ai-bid/
 ```
 
 后台：
 
 ```text
-http://localhost:8091/AI投标/admin.html
+http://localhost:8091/ai-bid/admin.html
 ```
 
 后台默认账号：

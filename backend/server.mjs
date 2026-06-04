@@ -32,10 +32,11 @@ const loadLocalEnv = async () => {
 await loadLocalEnv();
 
 const port = Number(process.env.PORT || 8091);
-const projectBasePath = `/${(process.env.PROJECT_BASE_PATH || "AI投标").replace(/^\/+|\/+$/g, "")}`;
+const projectBasePath = `/${(process.env.PROJECT_BASE_PATH || "ai-bid").replace(/^\/+|\/+$/g, "")}`;
 const apiBasePath = `${projectBasePath}/api`;
 const deepSeekBaseUrl = (process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com").replace(/\/+$/g, "");
 const deepSeekModel = process.env.DEEPSEEK_MODEL || "deepseek-v4-flash";
+const pythonBin = process.env.PYTHON_BIN || "python3";
 
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
@@ -353,7 +354,7 @@ const saveUploadedFile = async (projectId, body) => {
 
 const runExtractor = (filePath) =>
   new Promise((resolve, reject) => {
-    execFile("python3", [path.join(__dirname, "extract_document.py"), filePath], { maxBuffer: 80 * 1024 * 1024 }, (error, stdout, stderr) => {
+    execFile(pythonBin, [path.join(__dirname, "extract_document.py"), filePath], { maxBuffer: 80 * 1024 * 1024 }, (error, stdout, stderr) => {
       if (error && !stdout) {
         reject(new Error(stderr.trim() || error.message));
         return;
@@ -1626,7 +1627,7 @@ const handleApi = async (req, res, url) => {
   if (req.method === "GET" && url.pathname === "/api/health") {
     sendJson(res, 200, {
       status: "ok",
-      service: "AI投标",
+      service: "AI Bid",
       time: nowIso()
     });
     return;
@@ -2048,6 +2049,6 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(port, "0.0.0.0", () => {
-  console.log(`AI投标前台：http://localhost:${port}${projectBasePath}/`);
-  console.log(`AI投标后台：http://localhost:${port}${projectBasePath}/admin.html`);
+  console.log(`AI Bid front：http://localhost:${port}${projectBasePath}/`);
+  console.log(`AI Bid admin：http://localhost:${port}${projectBasePath}/admin.html`);
 });

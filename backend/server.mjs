@@ -1945,6 +1945,35 @@ const handleApi = async (req, res, url) => {
     return;
   }
 
+  const adminUserPasswordAction = url.pathname.match(/^\/api\/admin\/users\/([^/]+)\/password$/);
+  if (adminUserPasswordAction && req.method === "POST") {
+    const session = await requireAdmin(req, res, url);
+    if (!session) return;
+    const [, userId] = adminUserPasswordAction;
+    const body = await readBody(req);
+    const password = String(body.password || "").trim();
+    const confirmPassword = String(body.confirmPassword || "").trim();
+    const target = session.db.users.find((user) => user.id === userId);
+    if (!target) {
+      sendJson(res, 404, { error: "账号不存在" });
+      return;
+    }
+    if (password.length < 6) {
+      sendJson(res, 400, { error: "密码至少 6 位" });
+      return;
+    }
+    if (password !== confirmPassword) {
+      sendJson(res, 400, { error: "两次输入的密码不一致" });
+      return;
+    }
+    target.password = password;
+    session.db.sessions = session.db.sessions.filter((item) => item.userId !== target.id || item.token === session.token);
+    await writeDb(session.db);
+    const projectCount = session.db.projects.filter((project) => project.ownerId === target.id).length;
+    sendJson(res, 200, { user: { ...publicUser(target), projectCount } });
+    return;
+  }
+
   const adminUserAction = url.pathname.match(/^\/api\/admin\/users\/([^/]+)\/status$/);
   if (adminUserAction && req.method === "POST") {
     const session = await requireAdmin(req, res, url);

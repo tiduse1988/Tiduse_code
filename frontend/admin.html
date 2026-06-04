@@ -377,6 +377,44 @@
       min-height: 22px;
     }
 
+    .modal-mask {
+      position: fixed;
+      inset: 0;
+      z-index: 60;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: rgba(15, 23, 42, 0.42);
+    }
+
+    .modal-card {
+      width: 420px;
+      background: #fff;
+      border: 1px solid #e5eaf3;
+      border-radius: 14px;
+      box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18);
+      overflow: hidden;
+    }
+
+    .modal-header {
+      padding: 18px 20px;
+      border-bottom: 1px solid #edf1f7;
+    }
+
+    .modal-body {
+      padding: 18px 20px;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      padding: 14px 20px 18px;
+      background: #f8fafc;
+      border-top: 1px solid #edf1f7;
+    }
+
     .hidden {
       display: none;
     }
@@ -666,8 +704,8 @@
         esc(user.projectCount),
         esc(fmtDate(user.createdAt)),
         user.id === currentAdminId
-          ? `<span class="muted">当前账号</span>`
-          : `<button class="button ${user.enabled === false ? "success" : "danger"}" data-toggle-user="${esc(user.id)}" data-enabled="${user.enabled === false ? "true" : "false"}">${user.enabled === false ? "启用" : "停用"}</button>`
+          ? `<div class="actions"><button class="button" data-change-password="${esc(user.id)}" data-user-account="${esc(user.account)}">修改密码</button><span class="muted">当前账号</span></div>`
+          : `<div class="actions"><button class="button" data-change-password="${esc(user.id)}" data-user-account="${esc(user.account)}">修改密码</button><button class="button ${user.enabled === false ? "success" : "danger"}" data-toggle-user="${esc(user.id)}" data-enabled="${user.enabled === false ? "true" : "false"}">${user.enabled === false ? "启用" : "停用"}</button></div>`
       ])).join("");
     };
 
@@ -794,6 +832,12 @@
     });
 
     document.getElementById("usersBody").addEventListener("click", async (event) => {
+      const passwordButton = event.target.closest("[data-change-password]");
+      if (passwordButton) {
+        openPasswordModal(passwordButton.dataset.changePassword, passwordButton.dataset.userAccount || "");
+        return;
+      }
+
       const button = event.target.closest("[data-toggle-user]");
       if (!button) return;
       button.disabled = true;
@@ -811,6 +855,82 @@
         switchPage("accountsPage");
       }
     });
+
+    const openPasswordModal = (userId, account) => {
+      document.querySelector("[data-password-modal]")?.remove();
+      const modal = document.createElement("div");
+      modal.className = "modal-mask";
+      modal.dataset.passwordModal = "true";
+      modal.innerHTML = `
+        <div class="modal-card" role="dialog" aria-modal="true" aria-label="修改密码">
+          <div class="modal-header">
+            <h2>修改密码</h2>
+            <p class="muted" style="margin:6px 0 0;">账号：${esc(account)}</p>
+          </div>
+          <div class="modal-body">
+            <div class="field" style="margin-top:0;">
+              <label for="passwordModalValue">新密码</label>
+              <input id="passwordModalValue" type="password" placeholder="至少 6 位" autocomplete="new-password" />
+            </div>
+            <div class="field">
+              <label for="passwordModalConfirm">再次输入新密码</label>
+              <input id="passwordModalConfirm" type="password" placeholder="请再次输入新密码" autocomplete="new-password" />
+            </div>
+            <div class="error" id="passwordModalError"></div>
+          </div>
+          <div class="modal-actions">
+            <button class="button" data-password-cancel>取消</button>
+            <button class="button primary" data-password-save>保存密码</button>
+          </div>
+        </div>`;
+      document.body.appendChild(modal);
+      const password = modal.querySelector("#passwordModalValue");
+      const confirmPassword = modal.querySelector("#passwordModalConfirm");
+      const error = modal.querySelector("#passwordModalError");
+      const save = modal.querySelector("[data-password-save]");
+      const close = () => modal.remove();
+      const setError = (message) => {
+        error.textContent = message;
+      };
+      const submit = async () => {
+        const value = password.value.trim();
+        const confirm = confirmPassword.value.trim();
+        if (value.length < 6) {
+          setError("密码至少 6 位");
+          password.focus();
+          return;
+        }
+        if (value !== confirm) {
+          setError("两次输入的密码不一致");
+          confirmPassword.focus();
+          return;
+        }
+        save.disabled = true;
+        save.textContent = "保存中";
+        try {
+          await request(apiPath(`/api/admin/users/${userId}/password`), {
+            method: "POST",
+            body: JSON.stringify({ password: value, confirmPassword: confirm })
+          });
+          close();
+          await loadDashboard();
+          switchPage("accountsPage");
+        } catch (err) {
+          setError(err.message);
+          save.disabled = false;
+          save.textContent = "保存密码";
+        }
+      };
+      modal.addEventListener("click", (event) => {
+        if (event.target === modal || event.target.closest("[data-password-cancel]")) close();
+        if (event.target.closest("[data-password-save]")) submit();
+      });
+      modal.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") close();
+        if (event.key === "Enter") submit();
+      });
+      password.focus();
+    };
 
     document.getElementById("login").addEventListener("click", async () => {
       setText("error", "");

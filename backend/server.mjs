@@ -88,6 +88,16 @@ const seedDb = {
       title: "商务经理",
       enabled: true,
       createdAt: "2026-06-01T09:10:00.000Z"
+    },
+    {
+      id: "u_ren",
+      account: "renxiaogang",
+      password: "123456",
+      name: "任小刚",
+      role: "user",
+      title: "标书专员",
+      enabled: true,
+      createdAt: "2026-06-04T09:40:00.000Z"
     }
   ],
   sessions: [],
@@ -203,6 +213,19 @@ const ensureDb = async () => {
   await mkdir(uploadsDir, { recursive: true });
   if (!existsSync(dbPath)) {
     await writeFile(dbPath, JSON.stringify(seedDb, null, 2), "utf-8");
+    return;
+  }
+  const db = JSON.parse(await readFile(dbPath, "utf-8"));
+  db.users = Array.isArray(db.users) ? db.users : [];
+  let changed = false;
+  seedDb.users.forEach((seedUser) => {
+    if (!db.users.some((user) => String(user.account || "").toLowerCase() === seedUser.account.toLowerCase())) {
+      db.users.push({ ...seedUser });
+      changed = true;
+    }
+  });
+  if (changed) {
+    await writeFile(dbPath, JSON.stringify(db, null, 2), "utf-8");
   }
 };
 

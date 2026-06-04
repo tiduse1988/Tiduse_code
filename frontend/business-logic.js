@@ -30,6 +30,11 @@
 
   const token = () => localStorage.getItem(tokenKey) || "";
   const setToken = (value) => localStorage.setItem(tokenKey, value);
+  const logout = () => {
+    localStorage.removeItem(tokenKey);
+    localStorage.removeItem(stateKey);
+    location.href = "./index.html";
+  };
   const textOf = (node) => (node?.textContent || "").replace(/\s+/g, "");
   const displayText = (node) => (node?.textContent || "").replace(/\s+/g, " ").trim();
   const avatarText = (user) => String(user?.name || user?.account || "用").trim().slice(0, 1).toUpperCase();
@@ -167,13 +172,61 @@
     });
   };
 
+  const bindUserMenu = () => {
+    document.querySelectorAll("[data-user-menu], .user-card").forEach((target) => {
+      if (target.dataset.logoutMenuBound) return;
+      target.dataset.logoutMenuBound = "true";
+      target.style.position = target.style.position || "relative";
+
+      const menu = document.createElement("div");
+      menu.dataset.logoutMenu = "true";
+      menu.setAttribute(
+        "style",
+        "position:absolute;right:0;top:calc(100% + 8px);z-index:10000;width:132px;padding:6px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;box-shadow:0 14px 34px rgba(15,23,42,.16);opacity:0;transform:translateY(-4px);pointer-events:none;transition:opacity .16s ease,transform .16s ease;"
+      );
+      menu.innerHTML = `
+        <button type="button" data-logout-action style="width:100%;height:36px;border:0;border-radius:8px;background:#fff;color:#dc2626;font-size:13px;font-weight:700;cursor:pointer;">
+          退出登录
+        </button>
+      `;
+      target.appendChild(menu);
+
+      const show = () => {
+        menu.style.opacity = "1";
+        menu.style.transform = "translateY(0)";
+        menu.style.pointerEvents = "auto";
+      };
+      const hide = () => {
+        menu.style.opacity = "0";
+        menu.style.transform = "translateY(-4px)";
+        menu.style.pointerEvents = "none";
+      };
+      target.addEventListener("mouseenter", show);
+      target.addEventListener("mouseleave", hide);
+      target.addEventListener("focusin", show);
+      target.addEventListener("focusout", hide);
+      menu.querySelector("[data-logout-action]")?.addEventListener("mouseenter", (event) => {
+        event.currentTarget.style.background = "#fef2f2";
+      });
+      menu.querySelector("[data-logout-action]")?.addEventListener("mouseleave", (event) => {
+        event.currentTarget.style.background = "#fff";
+      });
+      menu.querySelector("[data-logout-action]")?.addEventListener("click", (event) => {
+        stop(event);
+        logout();
+      });
+    });
+  };
+
   const hydrateCurrentUser = async () => {
     const cachedUser = readState().user;
     applyCurrentUser(cachedUser);
+    bindUserMenu();
     if (!token()) return cachedUser || null;
     const data = await api(apiPath("/api/session"));
     writeState({ user: data.user });
     applyCurrentUser(data.user);
+    bindUserMenu();
     return data.user;
   };
 

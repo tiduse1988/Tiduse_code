@@ -32,6 +32,7 @@
   const setToken = (value) => localStorage.setItem(tokenKey, value);
   const textOf = (node) => (node?.textContent || "").replace(/\s+/g, "");
   const displayText = (node) => (node?.textContent || "").replace(/\s+/g, " ").trim();
+  const avatarText = (user) => String(user?.name || user?.account || "用").trim().slice(0, 1).toUpperCase();
   const fmtDate = (value) => value ? new Date(value).toLocaleString("zh-CN", { hour12: false }).slice(0, 17) : "-";
   const esc = (value) =>
     String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
@@ -85,6 +86,35 @@
       return false;
     }
     return true;
+  };
+
+  const applyCurrentUser = (user) => {
+    if (!user) return;
+    const name = user.name || user.account || "当前用户";
+    const title = user.title || (user.role === "admin" ? "后台管理员" : "标书专员");
+    document.querySelectorAll("[data-current-user-name]").forEach((node) => { node.textContent = name; });
+    document.querySelectorAll("[data-current-user-title]").forEach((node) => { node.textContent = title; });
+    document.querySelectorAll("[data-current-user-avatar]").forEach((node) => { node.textContent = avatarText(user); });
+
+    document.querySelectorAll("p.user-name, p.font-medium, p.text-xs, p.text-\\[10px\\]").forEach((node) => {
+      const text = displayText(node);
+      if (["张工", "王工", "喵小投"].includes(text)) node.textContent = name;
+      if (["高级商务经理", "高级标书专员", "商务经理", "标书专员"].includes(text)) node.textContent = title;
+    });
+    document.querySelectorAll(".user-role").forEach((node) => { node.textContent = title; });
+    document.querySelectorAll("span").forEach((node) => {
+      if (displayText(node) === "张") node.textContent = avatarText(user);
+    });
+  };
+
+  const hydrateCurrentUser = async () => {
+    const cachedUser = readState().user;
+    applyCurrentUser(cachedUser);
+    if (!token()) return cachedUser || null;
+    const data = await api(apiPath("/api/session"));
+    writeState({ user: data.user });
+    applyCurrentUser(data.user);
+    return data.user;
   };
 
   const getActiveProjectId = async () => {
@@ -1293,7 +1323,15 @@
     projectsCache = projects;
     const grid = document.querySelector(".project-card")?.parentElement || document.querySelector(".grid");
     if (!grid) return;
-    grid.innerHTML = projects.map(cardHtml).join("");
+    grid.innerHTML = projects.length
+      ? projects.map(cardHtml).join("")
+      : `<div class="col-span-3 rounded-2xl border border-dashed border-gray-200 bg-white px-8 py-16 text-center">
+          <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
+            <i class="fas fa-folder-open text-xl"></i>
+          </div>
+          <h3 class="text-base font-bold text-gray-900">暂无项目</h3>
+          <p class="mt-2 text-sm text-gray-500">当前账号还没有创建项目，上传招标文件后会显示在这里。</p>
+        </div>`;
     updateProjectCount(projects.length);
     applySearchAndSort();
   };
@@ -1402,6 +1440,10 @@
     if (page !== "home.html") return;
     if (!ensureLogin()) return;
 
+    const grid = document.querySelector(".project-card")?.parentElement || document.querySelector(".grid");
+    if (grid) grid.innerHTML = "";
+    updateProjectCount(0);
+    hydrateCurrentUser().catch((error) => toast(error.message, "error"));
     loadProjects().catch((error) => toast(error.message, "error"));
     const poll = window.setInterval(() => {
       if (document.hidden) return;
@@ -1531,6 +1573,7 @@
     if (page !== "analysis.html") return;
     if (!ensureLogin()) return;
 
+    hydrateCurrentUser().catch(() => {});
     renderAnalysisPage().catch((error) => toast(error.message, "error"));
 
     document.addEventListener(
@@ -1566,6 +1609,7 @@
     if (page !== "outline.html") return;
     if (!ensureLogin()) return;
 
+    hydrateCurrentUser().catch(() => {});
     renderOutlinePage().catch((error) => toast(error.message, "error"));
 
     document.addEventListener(
@@ -1630,6 +1674,7 @@
     if (page !== "generate.html") return;
     if (!ensureLogin()) return;
 
+    hydrateCurrentUser().catch(() => {});
     renderGeneratePage().catch((error) => toast(error.message, "error"));
 
     document.addEventListener(
@@ -1723,6 +1768,7 @@
     if (page !== "verification.html") return;
     if (!ensureLogin()) return;
 
+    hydrateCurrentUser().catch(() => {});
     renderVerificationPage().catch((error) => toast(error.message, "error"));
 
     const upload = document.querySelector("#uploadBid");

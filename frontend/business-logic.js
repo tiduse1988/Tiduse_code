@@ -1479,7 +1479,11 @@
   };
 
   const updateProjectCount = (count) => {
-    const label = Array.from(document.querySelectorAll("h2 + p")).find((node) => textOf(node).includes("个项目"));
+    const label =
+      Array.from(document.querySelectorAll("h2"))
+        .find((node) => textOf(node).includes("项目列表"))
+        ?.parentElement?.querySelector("p") ||
+      Array.from(document.querySelectorAll("h2 + p")).find((node) => textOf(node).includes("个项目"));
     if (label) label.textContent = `共 ${count} 个项目`;
   };
 

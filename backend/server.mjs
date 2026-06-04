@@ -511,7 +511,7 @@ const shouldReplaceProjectName = (project, parsedName) => {
 
 const bidPageRanges = {
   under_100: { label: "100页以内", target: 8, minChapterChars: 1800, maxTokens: 9000, instruction: "技术目录保持精简，但每章需形成可直接放入标书的完整正文。" },
-  "100_300": { label: "100-300页", target: 18, minChapterChars: 4200, maxTokens: 12000, instruction: "按中等厚标扩写技术目录，覆盖评分点、实施细节、质量保障、人员组织、交付验收和风险控制。" },
+  "100_300": { label: "100-300页", target: 18, minChapterChars: 5600, maxTokens: 12000, instruction: "按中等厚标扩写技术目录，覆盖评分点、实施细节、质量保障、人员组织、交付验收和风险控制。" },
   "300_600": { label: "300-600页", target: 30, minChapterChars: 6500, maxTokens: 15000, instruction: "深度扩写技术目录，形成专项方案、质量管理、风险控制、交付保障、运维服务和管理制度章节体系。" },
   over_600: { label: "600页以上", target: 45, minChapterChars: 9000, maxTokens: 16000, instruction: "充分扩写技术目录，面向大型厚标，形成完整专项章节体系和大量可落地正文。" }
 };
@@ -718,13 +718,6 @@ const normalizeTechnicalChapters = (chapters, technicalOutline, project, raw, ra
     }
     autoCompletedCount += 1;
     return { title, content: sanitizeTechnicalContent(buildFallbackTechnicalContent(title, project, raw, rangeMeta)) };
-  });
-
-  source.forEach((chapter, index) => {
-    if (used.has(index) || !chapter?.title || !chapter?.content) return;
-    const key = normalizeOutlineKey(chapter.title);
-    if (normalized.some((item) => normalizeOutlineKey(item.title) === key)) return;
-    normalized.push({ title: compactOutlineLabel(chapter.title), content: sanitizeTechnicalContent(chapter.content) });
   });
 
   return { technicalChapters: normalized, autoCompletedCount };
@@ -1055,7 +1048,7 @@ const generateBidWithDeepSeek = async (project, result, options = {}) => {
         ...(Array.isArray(parsed.generationNotes) ? parsed.generationNotes : []),
         `已按“${rangeMeta.label}”档位生成技术目录与正文，共 ${normalizedTechnical.technicalChapters.length} 个技术章节。`,
         ...(normalizedTechnical.autoCompletedCount
-          ? [`DeepSeek 返回章节不足，系统已按招标文件解析结果自动补齐 ${normalizedTechnical.autoCompletedCount} 个技术章节草稿。`]
+          ? [`系统已按招标文件解析结果对 ${normalizedTechnical.autoCompletedCount} 个技术章节进行补充扩写，确保章节数量和正文长度符合所选档位。`]
           : [])
       ]
     };

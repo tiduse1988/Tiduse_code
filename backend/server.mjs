@@ -324,12 +324,18 @@ const projectResult = (db, projectId) =>
     updatedAt: ""
   };
 
-const projectDto = (db, project) => ({
-  ...project,
-  owner: publicUser(db.users.find((user) => user.id === project.ownerId) || {}),
-  fileSizeText: sizeText(project.fileSize),
-  result: projectResult(db, project.id)
-});
+const projectDto = (db, project) => {
+  const normalized = { ...project };
+  if (normalized.bidStatus === "generated" && !normalized.bidDocument?.technicalChapters?.length) {
+    normalized.bidStatus = "not_started";
+  }
+  return {
+    ...normalized,
+    owner: publicUser(db.users.find((user) => user.id === project.ownerId) || {}),
+    fileSizeText: sizeText(project.fileSize),
+    result: projectResult(db, project.id)
+  };
+};
 
 const canReadProject = (user, project) => user.role === "admin" || project.ownerId === user.id;
 
@@ -1787,17 +1793,20 @@ const handleApi = async (req, res, url) => {
     }
 
     if (req.method === "POST" && action === "generate-bid") {
-      const body = await readBody(req);
-      if (body.bidPageRange && bidPageRanges[body.bidPageRange]) project.bidPageRange = body.bidPageRange;
+      await readBody(req);
       if (project.status !== "completed") {
         sendJson(res, 400, { error: "招标文件尚未解析完成，不能生成标书" });
+        return;
+      }
+      if (!project.outlineDocument?.technicalPart?.length) {
+        sendJson(res, 400, { error: "请先在生成目录页按页数档位生成并确认目录，再生成标书内容" });
         return;
       }
       const result = projectResult(session.db, project.id);
       project.bidStatus = "generating";
       await writeDb(session.db);
       try {
-        const bidDocument = await generateBidWithDeepSeek(project, result, { bidPageRange: project.bidPageRange });
+        const bidDocument = await generateBidWithDeepSeek(project, result, { bidPageRange: project.outlineDocument.bidPageRange || project.bidPageRange });
         const latest = await readDb();
         const latestProject = latest.projects.find((item) => item.id === project.id);
         if (!latestProject) {

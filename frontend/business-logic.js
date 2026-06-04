@@ -276,6 +276,9 @@
   const selectedBidPageRange = (project) =>
     project?.bidPageRange || readState().bidPageRangeByProject?.[project?.id] || "under_100";
 
+  const hasBidTechnicalChapters = (project) =>
+    Array.isArray(project?.bidDocument?.technicalChapters) && project.bidDocument.technicalChapters.length > 0;
+
   const bidGenerationRequest = (project) =>
     JSON.stringify({ bidPageRange: selectedBidPageRange(project) });
 
@@ -810,7 +813,7 @@
     const statusBox = document.querySelector("[data-purpose='generation-status']");
     if (!statusBox) return;
     const generating = options.generating || project?.bidStatus === "generating";
-    const generated = Boolean(bidDocument?.technicalChapters?.length || project?.bidDocument?.technicalChapters?.length || project?.bidStatus === "generated");
+    const generated = Boolean(bidDocument?.technicalChapters?.length || project?.bidDocument?.technicalChapters?.length);
     const failed = project?.bidStatus === "failed";
     const stats = bidStats(bidDocument || project?.bidDocument || {});
     const state = generating
@@ -904,6 +907,55 @@
     setButtonDisabled(document.querySelector("[data-purpose='regenerate-bid']"), generating);
   };
 
+  const renderGenerateNavigation = (groups) => {
+    const navContent = document.querySelector("aside nav .space-y-3");
+    if (!navContent) return;
+    navContent.innerHTML = groups?.length
+      ? groups
+          .map(
+            (group, index) => `
+            <div>
+              <div class="flex items-center gap-2 ${index === 0 ? "text-primary font-bold" : "font-medium text-surface-800"}">
+                <i class="fas fa-caret-down text-surface-400 w-3"></i>
+                <span class="truncate">${esc(group.title)}</span>
+              </div>
+              <div class="mt-3 ml-6 space-y-3 text-surface-700">
+                ${group.items
+                  .map((item) => {
+                    const model = outlineItemModel(item);
+                    return `<div>
+                      <div class="flex items-center gap-2">
+                        <i class="fas fa-caret-right text-surface-400 w-3"></i>
+                        <span class="truncate">${esc(model.label)}</span>
+                      </div>
+                      ${model.children.length ? `<div class="mt-2 ml-5 space-y-2 text-xs text-surface-500">${model.children.map((child) => `<div class="flex items-center gap-2"><span class="w-1 h-1 rounded-full bg-surface-300 shrink-0"></span><span class="truncate">${esc(child)}</span></div>`).join("")}</div>` : ""}
+                    </div>`;
+                  })
+                  .join("")}
+              </div>
+            </div>`
+          )
+          .join("")
+      : `<div class="rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-700">
+          正在读取上一步生成的目录...
+        </div>`;
+  };
+
+  const renderGenerateWaiting = (message, subMessage = "生成完成后将自动展示投标文件正文。") => {
+    const docPage = document.querySelector(".doc-page");
+    if (!docPage) return;
+    docPage.innerHTML = `
+      <div class="min-h-[720px] flex flex-col items-center justify-center text-center">
+        <div class="w-16 h-16 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-600/20 mb-5">
+          <i class="fas fa-wand-magic-sparkles text-2xl"></i>
+        </div>
+        <h1 class="text-2xl font-bold text-surface-900 mb-3">投标文件正在生成中</h1>
+        <p class="max-w-xl text-sm leading-7 text-surface-500">${esc(message)}</p>
+        <p class="mt-2 max-w-xl text-sm leading-7 text-surface-400">${esc(subMessage)}</p>
+        <div class="mt-8 w-72 h-2 rounded-full bg-surface-100 overflow-hidden generation-bar is-running"></div>
+      </div>`;
+  };
+
   const renderOutlinePage = async () => {
     let project = await getActiveProject();
     if (!project) return;
@@ -938,25 +990,44 @@
   };
 
   const renderGeneratePage = async () => {
+    renderGenerateWaiting("正在读取项目、目录和所选标书页数档位。");
+    renderBidGenerationStatus({ bidStatus: "generating" }, {}, { generating: true });
     let project = await getActiveProject();
     if (!project) return;
-    if (!project.bidDocument && project.status === "completed") {
-      const docPage = document.querySelector(".doc-page");
+
+    const selectedRange = project.outlineDocument?.bidPageRange || project.bidPageRange || selectedBidPageRange(project);
+    let meta = projectMeta(project);
+    let groups = outlineGroups(meta.raw, project);
+    renderGenerateNavigation(groups);
+    updateProjectInfoBlocks(project, meta);
+
+    const hasConfirmedOutline = Array.isArray(project.outlineDocument?.technicalPart) && project.outlineDocument.technicalPart.length > 0;
+    if (!hasConfirmedOutline) {
+      renderBidGenerationStatus(project, {}, { generating: false });
+      renderGenerateWaiting("当前项目还没有已确认的投标文件目录。请先回到生成目录页，按所选页数档位生成并确认目录后，再进入本页生成标书内容。", "生成标书页只负责按已确认目录撰写正文，不会修改目录结构。");
+      return;
+    }
+
+    const needsGeneration =
+      project.status === "completed" &&
+      (!hasBidTechnicalChapters(project) || project.bidDocument?.bidPageRange !== selectedRange);
+
+    if (project.bidStatus === "generating" && !hasBidTechnicalChapters(project)) {
       renderBidGenerationStatus(project, {}, { generating: true });
-      if (docPage) {
-        docPage.innerHTML = `
-          <h1 class="text-3xl font-bold text-center text-black mb-12 tracking-widest">AI 正在生成标书</h1>
-          <div class="space-y-6 text-sm text-surface-800 leading-relaxed">
-            <p>正在调用 DeepSeek 生成技术部分正文。商务资质、证照、业绩等材料不会编造，只保留目录等待投标人补充。</p>
-            <p>请稍候，生成完成后本页会自动更新。</p>
-          </div>`;
-      }
+      renderGenerateWaiting("DeepSeek 正在根据上一步目录撰写技术部分正文。商务资质、证照、业绩等材料不会编造，只保留目录等待投标人补充。");
+      window.setTimeout(() => renderGeneratePage().catch(() => {}), 3000);
+      return;
+    }
+
+    if (needsGeneration) {
+      renderBidGenerationStatus(project, {}, { generating: true });
+      renderGenerateWaiting("正在调用 DeepSeek 生成技术部分正文。商务资质、证照、业绩等材料不会编造，只保留目录等待投标人补充。");
       toast("正在调用 DeepSeek 生成技术部分，请稍候", "warn");
       const data = await api(apiPath(`/api/projects/${project.id}/generate-bid`), { method: "POST", body: bidGenerationRequest(project) });
       project = data.project;
+      meta = projectMeta(project);
+      groups = outlineGroups(meta.raw, project);
     }
-    const meta = projectMeta(project);
-    const groups = outlineGroups(meta.raw, project);
     const bidDocument = project.bidDocument || {};
     const bidGroups = [
       { title: "商务部分", items: bidDocument.businessDirectory || groups.find((group) => group.title === "商务部分")?.items || [] },
@@ -966,40 +1037,9 @@
     updateProjectInfoBlocks(project, meta);
     renderBidGenerationStatus(project, bidDocument);
 
-    const navContent = document.querySelector("aside nav .space-y-3");
-    if (navContent) {
-      navContent.innerHTML = bidGroups
-        .map(
-          (group, index) => `
-            <div>
-              <div class="flex items-center gap-2 ${index === 0 ? "text-primary font-bold" : "font-medium text-surface-800"}">
-                <i class="fas fa-caret-down text-surface-400 w-3"></i>
-                <span class="truncate">${esc(group.title)}</span>
-              </div>
-              <div class="mt-3 ml-6 space-y-3 text-surface-700">
-                ${group.items
-                  .map((item) => {
-                    const model = outlineItemModel(item);
-                    return `<div>
-                      <div class="flex items-center gap-2">
-                        <i class="fas fa-caret-right text-surface-400 w-3"></i>
-                        <span class="truncate">${esc(model.label)}</span>
-                      </div>
-                      ${model.children.length ? `<div class="mt-2 ml-5 space-y-2 text-xs text-surface-500">${model.children.map((child) => `<div class="flex items-center gap-2"><span class="w-1 h-1 rounded-full bg-surface-300 shrink-0"></span><span class="truncate">${esc(child)}</span></div>`).join("")}</div>` : ""}
-                    </div>`;
-                  })
-                  .join("")}
-              </div>
-            </div>`
-        )
-        .join("");
-    }
+    renderGenerateNavigation(bidGroups);
 
     const docPage = document.querySelector(".doc-page");
-    const previewTitle = document.querySelector("[data-verification-preview] .text-sm.font-bold");
-    if (previewTitle) {
-      previewTitle.innerHTML = `DeepSeek 核验报告 <span class="text-surface-300 mx-1">•</span> ${esc(verification.verifiedAt ? `核验于 ${formatDateTime(verification.verifiedAt)}` : "待核验")}`;
-    }
     if (docPage) {
       const technical = bidDocument.technicalChapters || [];
       docPage.innerHTML = `
@@ -1377,7 +1417,7 @@
     const secondButton = failed
       ? '<button class="flex-1 px-3 py-2 text-xs font-medium text-amber-600 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors"><i class="fas fa-redo mr-1"></i>重新解析</button>'
       : `<button class="flex-1 px-3 py-2 text-xs font-medium ${completed ? "text-blue-600 bg-blue-50 hover:bg-blue-100" : "text-gray-400 bg-gray-50 cursor-not-allowed"} rounded-lg transition-colors" aria-disabled="${!completed}"><i class="fas fa-eye mr-1"></i>查看解析</button>`;
-    const bidButton = project.bidStatus === "generated"
+    const bidButton = hasBidTechnicalChapters(project)
       ? '<i class="fas fa-file-alt mr-1"></i>查看标书'
       : '<i class="fas fa-magic mr-1"></i>生成标书';
     const title = project.name || "未命名项目";

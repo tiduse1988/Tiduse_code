@@ -284,25 +284,14 @@
 <!-- BEGIN: DocumentPreview -->
 <div class="flex-1 overflow-y-auto p-12 bg-surface-200/50 flex justify-center">
 <div class="doc-page w-full max-w-2xl bg-white p-16 flex flex-col">
-<h1 class="text-3xl font-bold text-center text-black mb-12 tracking-widest">投 标 函</h1>
-<div class="space-y-6 text-sm text-surface-800 leading-relaxed text-justify">
-<p class="font-bold">致：XX市政府采购中心</p>
-<p>我方已仔细研究了 <span class="border-b border-surface-800 px-1">XX市政府采购信息化建设项目</span> 招标文件的全部内容，愿意以人民币（大写） <span class="border-b border-surface-800 px-1">壹仟贰佰万元整</span> （¥12,000,000.00）的投标总报价，按招标文件规定的各项要求完成该项目。</p>
-<p>1. 我方承诺在招标文件规定的投标有效期内（90天）撤销投标文件的，投标保证金将不予退还。</p>
-<p>2. 随本投标函提交投标保证金一份，金额为人民币 <span class="border-b border-surface-800 px-1">拾万元整</span>。</p>
-<p>3. 我方在此声明，所递交的投标文件及有关资料内容完整、真实和准确。且我方在参加本次政府采购活动前三年内，在经营活动中没有重大违法记录。</p>
-<p>4. 我方承诺，如我方中标：</p>
-<ul class="list-disc pl-6 space-y-2">
-<li>将在收到中标通知书后 <span class="border-b border-surface-800 px-1">30</span> 日内与采购人签订合同。</li>
-<li>将按招标文件的规定履行合同责任和义务。</li>
-<li>将在合同约定的工期内完成全部建设任务。</li>
-</ul>
-<p>5. 技术方案概要：本方案采用微服务架构，基于Spring Cloud框架构建，确保系统具备高可用性、可扩展性。前端采用Vue 3.0技术栈，保障用户交互体验流畅。安全防护方面，我们将部署多层次防火墙及数据加密机制，确保政务数据万无一失...</p>
+<div class="min-h-[720px] flex flex-col items-center justify-center text-center">
+<div class="w-16 h-16 rounded-2xl bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/20 mb-5">
+<i class="fas fa-wand-magic-sparkles text-2xl"></i>
 </div>
-<div class="mt-20 self-end text-right space-y-4">
-<p>投标人：<span class="font-bold">XXXX科技有限公司（盖章）</span></p>
-<p>法定代表人或其委托代理人：<span class="font-bold text-surface-400">（签字）</span></p>
-<p>日期：2023年 10月 24日</p>
+<h1 class="text-2xl font-bold text-surface-900 mb-3">投标文件正在生成中</h1>
+<p class="max-w-xl text-sm leading-7 text-surface-500">系统将读取上一步已确认的目录，并调用 DeepSeek 撰写技术部分正文。</p>
+<p class="mt-2 max-w-xl text-sm leading-7 text-surface-400">商务资质、证照、业绩等材料不会编造，只保留目录等待投标人补充。</p>
+<div class="mt-8 w-72 h-2 rounded-full bg-surface-100 overflow-hidden generation-bar is-running"></div>
 </div>
 </div>
 </div>
@@ -319,7 +308,7 @@
 <div class="bg-surface-50 rounded-xl p-4 border border-surface-100 space-y-4">
 <div>
 <p class="text-[10px] text-surface-400 mb-1">项目名称</p>
-<p class="text-xs font-bold text-surface-800 leading-relaxed">XX市政府采购信息化建设项目</p>
+<p class="text-xs font-bold text-surface-800 leading-relaxed">正在读取项目信息</p>
 </div>
 <div class="flex justify-between">
 <div>

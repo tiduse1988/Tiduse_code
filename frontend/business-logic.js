@@ -66,6 +66,43 @@
     window.setTimeout(() => node.remove(), 2200);
   };
 
+  const showUploadProgress = ({ fileName, percent = 0, status = "准备上传", tone = "blue" }) => {
+    let node = document.querySelector("[data-upload-progress]");
+    if (!node) {
+      node = document.createElement("div");
+      node.dataset.uploadProgress = "true";
+      node.setAttribute(
+        "style",
+        "position:fixed;right:24px;top:84px;z-index:9998;width:360px;padding:16px;border:1px solid #dbe7ff;border-radius:16px;background:#fff;box-shadow:0 18px 50px rgba(15,23,42,.16);font-size:14px;color:#172033;"
+      );
+      document.body.appendChild(node);
+    }
+    const safePercent = Math.max(0, Math.min(100, Math.round(percent)));
+    const palette = tone === "error" ? "#dc2626" : tone === "success" ? "#059669" : "#2563eb";
+    node.innerHTML = `
+      <div style="display:flex;align-items:flex-start;gap:12px;">
+        <div style="width:38px;height:38px;border-radius:12px;background:#eff6ff;color:${palette};display:grid;place-items:center;flex:0 0 auto;">
+          <i class="fas ${tone === "success" ? "fa-check" : tone === "error" ? "fa-triangle-exclamation" : "fa-cloud-upload-alt"}"></i>
+        </div>
+        <div style="min-width:0;flex:1;">
+          <div style="display:flex;justify-content:space-between;gap:12px;margin-bottom:4px;">
+            <strong style="font-size:15px;">${tone === "success" ? "上传成功" : tone === "error" ? "上传失败" : "项目正在上传中"}</strong>
+            <span style="font-weight:800;color:${palette};">${safePercent}%</span>
+          </div>
+          <div title="${esc(fileName || "")}" style="color:#64748b;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(fileName || "招标文件")}</div>
+          <div style="height:8px;background:#eef2f7;border-radius:999px;overflow:hidden;margin:12px 0 8px;">
+            <div style="height:100%;width:${safePercent}%;background:${palette};border-radius:999px;transition:width .2s ease;"></div>
+          </div>
+          <div style="color:#64748b;font-size:12px;font-weight:700;">${esc(status)}</div>
+        </div>
+      </div>`;
+    return node;
+  };
+
+  const hideUploadProgress = (delay = 1400) => {
+    window.setTimeout(() => document.querySelector("[data-upload-progress]")?.remove(), delay);
+  };
+
   const api = async (url, options = {}) => {
     const headers = {
       "Content-Type": "application/json",
@@ -77,6 +114,29 @@
     if (!response.ok) throw new Error(data.error || "请求失败");
     return data;
   };
+
+  const apiWithUploadProgress = (url, body, onProgress) =>
+    new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", url, true);
+      xhr.setRequestHeader("Content-Type", "application/json");
+      if (token()) xhr.setRequestHeader("Authorization", `Bearer ${token()}`);
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) onProgress?.(event.loaded / event.total);
+      };
+      xhr.onload = () => {
+        let data = {};
+        try {
+          data = JSON.parse(xhr.responseText || "{}");
+        } catch {
+          data = { error: xhr.responseText || "上传失败" };
+        }
+        if (xhr.status >= 200 && xhr.status < 300) resolve(data);
+        else reject(new Error(data.error || "上传失败"));
+      };
+      xhr.onerror = () => reject(new Error("网络异常，上传失败"));
+      xhr.send(body);
+    });
 
   const downloadUrl = (projectId, kind) => `${projectBase}/api/projects/${projectId}/download/${kind}?token=${encodeURIComponent(token())}`;
 
@@ -1471,30 +1531,69 @@
       return true;
     };
 
-    const readBase64 = (file) =>
+    let uploadInProgress = false;
+
+    const readFileText = (file, onProgress) =>
       new Promise((resolve, reject) => {
         const reader = new FileReader();
+        reader.onprogress = (event) => {
+          if (event.lengthComputable) onProgress?.(event.loaded / event.total);
+        };
+        reader.onload = () => resolve(String(reader.result || ""));
+        reader.onerror = () => reject(reader.error || new Error("文件读取失败"));
+        reader.readAsText(file.slice(0, 120000));
+      });
+
+    const readBase64 = (file, onProgress) =>
+      new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onprogress = (event) => {
+          if (event.lengthComputable) onProgress?.(event.loaded / event.total);
+        };
         reader.onload = () => resolve(String(reader.result || "").split(",")[1] || "");
         reader.onerror = () => reject(reader.error || new Error("文件读取失败"));
         reader.readAsDataURL(file);
       });
 
     const createProject = async (file) => {
-      const sourceText = await file.text().catch(() => "");
-      const fileBase64 = await readBase64(file);
-      const data = await api(apiPath("/api/projects"), {
-        method: "POST",
-        body: JSON.stringify({
+      if (uploadInProgress) {
+        toast("已有文件正在上传，请稍候", "warn");
+        return;
+      }
+      uploadInProgress = true;
+      showUploadProgress({ fileName: file.name, percent: 1, status: "正在准备文件" });
+      try {
+        const sourceText = await readFileText(file, (ratio) => {
+          showUploadProgress({ fileName: file.name, percent: 5 + ratio * 15, status: "正在读取文件信息" });
+        }).catch(() => "");
+        const fileBase64 = await readBase64(file, (ratio) => {
+          showUploadProgress({ fileName: file.name, percent: 20 + ratio * 50, status: "正在读取招标文件内容" });
+        });
+        const body = JSON.stringify({
           fileName: file.name,
           fileSize: file.size,
           mimeType: file.type,
           sourceText: sourceText.slice(0, 120000),
           fileBase64
-        })
-      });
-      writeState({ activeProjectId: data.project.id });
-      toast("已上传招标文件，开始AI解析");
-      await loadProjects();
+        });
+        showUploadProgress({ fileName: file.name, percent: 72, status: "正在上传到服务器" });
+        const data = await apiWithUploadProgress(apiPath("/api/projects"), body, (ratio) => {
+          showUploadProgress({ fileName: file.name, percent: 72 + ratio * 23, status: "正在上传到服务器" });
+        });
+        writeState({ activeProjectId: data.project.id });
+        showUploadProgress({ fileName: file.name, percent: 98, status: "正在创建项目卡片" });
+        if (data.project) renderProjects([data.project, ...projectsCache.filter((item) => item.id !== data.project.id)]);
+        await loadProjects();
+        showUploadProgress({ fileName: file.name, percent: 100, status: "上传成功，AI解析已开始", tone: "success" });
+        toast("已上传招标文件，开始AI解析");
+        hideUploadProgress();
+      } catch (error) {
+        showUploadProgress({ fileName: file.name, percent: 100, status: error.message, tone: "error" });
+        hideUploadProgress(2600);
+        toast(error.message, "error");
+      } finally {
+        uploadInProgress = false;
+      }
     };
 
     uploadArea?.addEventListener("click", () => input.click());

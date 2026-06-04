@@ -1130,21 +1130,10 @@
     const guaranteeInfo = basic.guaranteeInfo || [];
     const qualification = raw.qualificationCompliance || {};
     const scoringReview = deriveExactScoringRows(project).length ? deriveExactScoringRows(project) : raw.scoringReview;
-    const scoreText = Array.isArray(scoringReview) && scoringReview.length
-      ? scoringReview.map((item) => `${item.category || "评分项"} ${scoreMax(item.score) || ""}`).slice(0, 2).join(" / ")
-      : "未明确";
-    const riskCount = countRows(raw.rejectionClauses, raw.businessReview?.filter?.((item) => item.riskLevel === "高"));
 
     document.title = `${meta.projectName} - 招标文件解析结果`;
 
-    const overview = document.querySelector(".overview");
-    if (overview) {
-      overview.innerHTML = `
-        <div class="summary-tile"><span>预算金额</span><strong>${esc(meta.budget)}</strong></div>
-        <div class="summary-tile"><span>服务 / 工期</span><strong>${esc(meta.duration)}</strong></div>
-        <div class="summary-tile"><span>评分重点</span><strong>${esc(scoreText)}</strong></div>
-        <div class="summary-tile risk"><span>重点风险</span><strong>${esc(riskCount)} 项</strong></div>`;
-    }
+    document.querySelector(".overview")?.remove();
 
     setSectionHtml(
       "section-info",

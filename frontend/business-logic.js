@@ -571,10 +571,22 @@
           ${technical.length
             ? technical
                 .map(
-                  (chapter, index) => `<section data-bid-target data-bid-section="technical" data-bid-label="${esc(chapter.title || "技术章节")}" data-bid-chapter-index="${index}" class="space-y-3 scroll-mt-24 rounded-lg px-2 py-1 transition-colors">
-                    <h3 class="text-lg font-bold text-black">${esc(chapter.title || "技术章节")}</h3>
-                    ${richTextHtml(chapter.content)}
-                  </section>`
+                  (chapter, index) => {
+                    const sections = Array.isArray(chapter.sections) ? chapter.sections.filter((section) => section?.heading || section?.content) : [];
+                    return `<section data-bid-target data-bid-section="technical" data-bid-label="${esc(chapter.title || "技术章节")}" data-bid-chapter-index="${index}" class="space-y-3 scroll-mt-24 rounded-lg px-2 py-1 transition-colors">
+                      <h3 class="text-lg font-bold text-black">2.${index + 1} ${esc(chapter.title || "技术章节")}</h3>
+                      ${sections.length
+                        ? sections
+                            .map(
+                              (section, sectionIndex) => `<section data-bid-target data-bid-section="technical" data-bid-label="${esc(section.heading || "")}" class="space-y-2 scroll-mt-24 rounded-lg py-1 transition-colors">
+                                <h4 class="text-base font-bold text-black">2.${index + 1}.${sectionIndex + 1} ${esc(section.heading || "章节内容")}</h4>
+                                ${richTextHtml(section.content)}
+                              </section>`
+                            )
+                            .join("")
+                        : richTextHtml(chapter.content)}
+                    </section>`;
+                  }
                 )
                 .join("")
             : "<p>技术正文尚未生成，请先生成投标文件。</p>"}
@@ -813,10 +825,15 @@
     const business = doc.businessDirectory || [];
     const attachments = doc.attachmentDirectory || [];
     const technical = doc.technicalChapters || [];
-    const technicalText = technical.map((chapter) => `${chapter.title || ""}\n${chapter.content || ""}`).join("\n");
+    const technicalText = technical
+      .map((chapter) => {
+        const sections = Array.isArray(chapter.sections) ? chapter.sections : [];
+        return `${chapter.title || ""}\n${chapter.content || ""}\n${sections.map((section) => `${section.heading || ""}\n${section.content || ""}`).join("\n")}`;
+      })
+      .join("\n");
     const directoryText = [...business, ...attachments].join("\n");
     const textLength = `${directoryText}\n${technicalText}`.replace(/\s+/g, "").length;
-    const chapterCount = business.length + attachments.length + technical.length;
+    const chapterCount = business.length + attachments.length + technical.length + technical.reduce((sum, chapter) => sum + (Array.isArray(chapter.sections) ? chapter.sections.length : 0), 0);
     return {
       chapterCount,
       textLength,
@@ -831,16 +848,18 @@
     const generated = Boolean(bidDocument?.technicalChapters?.length || project?.bidDocument?.technicalChapters?.length);
     const failed = project?.bidStatus === "failed";
     const stats = bidStats(bidDocument || project?.bidDocument || {});
+    const realProgress = Math.max(0, Math.min(100, Number(project?.bidProgress || 0)));
     const state = generating
       ? {
           card: "bg-blue-50/70 border-blue-100",
           iconBg: "bg-blue-500",
           icon: "fa-wand-magic-sparkles",
           label: "DeepSeek 正在生成标书内容",
-          progress: "处理中",
-          progressText: "不显示假百分比",
+          progress: realProgress ? `${realProgress}%` : "处理中",
+          progressText: project?.bidMessage || "正在按技术目录分章生成",
           barTrack: "bg-white",
-          barFill: "bg-blue-500 w-0",
+          barFill: "bg-blue-500",
+          barStyle: `width:${realProgress || 8}%`,
           running: true,
           statusText: "生成中",
           statusClass: "bg-blue-100 text-blue-700"
@@ -852,11 +871,12 @@
             icon: "fa-triangle-exclamation",
             label: "标书生成失败",
             progress: "需重试",
-            progressText: "请点击重新生成标书",
-            barTrack: "bg-white",
-            barFill: "bg-red-500 w-1/4",
-            statusText: "生成失败",
-            statusClass: "bg-red-100 text-red-700"
+          progressText: "请点击重新生成标书",
+          barTrack: "bg-white",
+          barFill: "bg-red-500 w-1/4",
+          barStyle: "",
+          statusText: "生成失败",
+          statusClass: "bg-red-100 text-red-700"
           }
         : generated
           ? {
@@ -868,6 +888,7 @@
               progressText: "可下载标书",
               barTrack: "bg-white",
               barFill: "bg-green-500 w-full",
+              barStyle: "",
               statusText: "生成完成",
               statusClass: "bg-green-100 text-green-700"
             }
@@ -880,6 +901,7 @@
               progressText: "等待生成",
               barTrack: "bg-white",
               barFill: "bg-surface-300 w-0",
+              barStyle: "",
               statusText: "未生成",
               statusClass: "bg-surface-100 text-surface-600"
             };
@@ -896,7 +918,7 @@
             <span class="text-xs font-medium ${generated ? "text-green-700" : generating ? "text-blue-700" : failed ? "text-red-700" : "text-surface-500"}">${esc(state.progress)}</span>
           </div>
           <div class="w-full ${state.barTrack} h-2 rounded-full overflow-hidden generation-bar ${state.running ? "is-running" : ""}">
-            <div class="${state.barFill} h-full"></div>
+            <div class="${state.barFill} h-full" style="${state.barStyle || ""}"></div>
           </div>
           <p class="mt-2 text-[10px] text-surface-400">${esc(state.progressText)}</p>
         </div>
@@ -1056,11 +1078,21 @@
       project = data.project;
       meta = projectMeta(project);
       groups = outlineGroups(meta.raw, project);
+      if (project.bidStatus === "generating" && !hasBidTechnicalChapters(project)) {
+        renderBidGenerationStatus(project, {}, { generating: true });
+        renderGenerateWaiting("DeepSeek 正在按目录分章撰写标书内容，生成完成后会自动展示正文。");
+        window.setTimeout(() => renderGeneratePage().catch(() => {}), 3000);
+        return;
+      }
     }
     const bidDocument = project.bidDocument || {};
+    const technicalOutlineItems = (bidDocument.technicalChapters || []).map((chapter) => {
+      const sections = Array.isArray(chapter.sections) ? chapter.sections.map((section) => section.heading).filter(Boolean) : [];
+      return sections.length ? `${chapter.title || "技术章节"}（${sections.join("、")}）` : chapter.title;
+    }).filter(Boolean);
     const bidGroups = [
       { title: "商务部分", items: bidDocument.businessDirectory || groups.find((group) => group.title === "商务部分")?.items || [] },
-      { title: "技术部分", items: (bidDocument.technicalChapters || []).map((chapter) => chapter.title).filter(Boolean).length ? bidDocument.technicalChapters.map((chapter) => chapter.title) : groups.find((group) => group.title === "技术部分")?.items || [] },
+      { title: "技术部分", items: technicalOutlineItems.length ? technicalOutlineItems : groups.find((group) => group.title === "技术部分")?.items || [] },
       { title: "附件部分", items: bidDocument.attachmentDirectory || groups.find((group) => group.title === "附件部分")?.items || [] }
     ].filter((group) => group.items?.length);
     updateProjectInfoBlocks(project, meta);
@@ -1083,10 +1115,22 @@
           ${technical.length
             ? technical
                 .map(
-                  (chapter) => `<section class="space-y-3">
-                    <h3 class="text-lg font-bold text-black">${esc(chapter.title || "技术章节")}</h3>
-                    ${richTextHtml(chapter.content)}
-                  </section>`
+                  (chapter, index) => {
+                    const sections = Array.isArray(chapter.sections) ? chapter.sections.filter((section) => section?.heading || section?.content) : [];
+                    return `<section class="space-y-3">
+                      <h3 class="text-lg font-bold text-black">2.${index + 1} ${esc(chapter.title || "技术章节")}</h3>
+                      ${sections.length
+                        ? sections
+                            .map(
+                              (section, sectionIndex) => `<section class="space-y-2">
+                                <h4 class="text-base font-bold text-black">2.${index + 1}.${sectionIndex + 1} ${esc(section.heading || "章节内容")}</h4>
+                                ${richTextHtml(section.content)}
+                              </section>`
+                            )
+                            .join("")
+                        : richTextHtml(chapter.content)}
+                    </section>`;
+                  }
                 )
                 .join("")
             : "<p>技术正文尚未生成，请点击重新生成。</p>"}
@@ -1166,7 +1210,7 @@
       bidFile.innerHTML = `
         <i class="far fa-file-word text-primary text-xl"></i>
         <div>
-          <p class="text-sm font-bold text-surface-800">投标文件.doc</p>
+          <p class="text-sm font-bold text-surface-800">投标文件.docx</p>
           <p class="text-xs text-surface-500">${project.bidDocument?.technicalChapters?.length || 0} 个技术章节，${verification.verifiedAt ? "已核验" : "待核验"}</p>
         </div>`;
     }
@@ -1953,14 +1997,19 @@
           const data = await api(apiPath(`/api/projects/${projectId}/generate-bid`), { method: "POST", body: bidGenerationRequest(current) });
           writeState({ activeProjectId: data.project.id });
           await renderGeneratePage();
-          toast("DeepSeek 已重新生成标书技术部分");
+          toast(data.project.bidStatus === "generating" ? "DeepSeek 已开始重新生成标书" : "DeepSeek 已重新生成标书技术部分");
           return;
         }
 
         if (purpose === "download-bid" || text.includes("下载标书")) {
           stop(event);
           const project = await getActiveProject();
-          if (!project?.bidDocument) await api(apiPath(`/api/projects/${projectId}/generate-bid`), { method: "POST", body: bidGenerationRequest(project) });
+          if (!project?.bidDocument) {
+            await api(apiPath(`/api/projects/${projectId}/generate-bid`), { method: "POST", body: bidGenerationRequest(project) });
+            toast("标书还在生成中，完成后再下载", "warn");
+            await renderGeneratePage();
+            return;
+          }
           location.href = downloadUrl(projectId, "bid");
           toast("投标文件 Word 已生成");
         }

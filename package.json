@@ -10,6 +10,7 @@
     "start": "node backend/server.mjs"
   },
   "dependencies": {
+    "docx": "^9.7.1",
     "jsonrepair": "^3.14.0",
     "pdfkit": "^0.18.0"
   }

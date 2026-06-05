@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { execFile } from "node:child_process";
 import PDFDocument from "pdfkit";
 import { jsonrepair } from "jsonrepair";
+import { AlignmentType, Document, HeadingLevel, Packer, Paragraph, TextRun } from "docx";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "..");
@@ -358,6 +359,8 @@ const projectListDto = (db, project) => {
     progress: project.progress,
     message: project.message,
     bidStatus: normalizedBidStatus,
+    bidMessage: project.bidMessage || "",
+    bidProgress: Number(project.bidProgress || 0),
     bidPageRange: project.bidPageRange || "",
     outlineStatus: project.outlineStatus || "not_started",
     verificationStatus: project.verificationStatus || "not_started",
@@ -773,6 +776,18 @@ const normalizeTechnicalChapters = (chapters, technicalOutline, project, raw, ra
   const source = Array.isArray(chapters) ? chapters : [];
   const used = new Set();
   let autoCompletedCount = 0;
+  const sectionsToContent = (sections = []) =>
+    sections
+      .map((section) => `${section.heading || "章节内容"}\n${section.content || ""}`.trim())
+      .filter(Boolean)
+      .join("\n\n");
+  const normalizeSections = (sections = []) =>
+    sections
+      .map((section) => ({
+        heading: compactOutlineLabel(section?.heading || ""),
+        content: sanitizeTechnicalContent(section?.content || "")
+      }))
+      .filter((section) => section.heading && section.content);
   const normalized = technicalOutline.map((outlineTitle) => {
     const title = compactOutlineLabel(outlineTitle);
     const key = normalizeOutlineKey(title);
@@ -784,12 +799,15 @@ const normalizeTechnicalChapters = (chapters, technicalOutline, project, raw, ra
     if (matchIndex >= 0) {
       used.add(matchIndex);
       const chapter = source[matchIndex] || {};
-      const content = sanitizeTechnicalContent(chapter.content);
-      if (content.length >= rangeMeta.minChapterChars) return { title: chapter.title || title, content };
+      const sections = normalizeSections(chapter.sections);
+      const sectionContent = sectionsToContent(sections);
+      const content = sanitizeTechnicalContent(chapter.content || sectionContent);
+      if (content.length >= rangeMeta.minChapterChars) return { title: chapter.title || title, content, sections };
       autoCompletedCount += 1;
       const supplement = sanitizeTechnicalContent(buildFallbackTechnicalContent(title, project, raw, rangeMeta));
       return {
         title: chapter.title || title,
+        sections,
         content: content ? `${content}\n\n补充扩写：\n${supplement}` : supplement
       };
     }
@@ -1188,6 +1206,107 @@ const buildBidGenerationContext = (project, raw = {}) => {
   };
 };
 
+const bidOutlineEntry = (item) => {
+  const model = outlineItemModel(item);
+  const fallbackChildren = technicalHintFor(item)
+    .split(/[、，,；;]/)
+    .map((value) => value.trim())
+    .filter(Boolean);
+  return {
+    title: model.label || directoryDisplayLabel(item),
+    children: model.children.length ? model.children : fallbackChildren
+  };
+};
+
+const relevantRowsForChapter = (rows, outlineEntry, limit = 10) => {
+  const keywords = [outlineEntry.title, ...(outlineEntry.children || [])]
+    .join(" ")
+    .split(/[^\u4e00-\u9fa5a-zA-Z0-9]+/)
+    .map((item) => item.trim())
+    .filter((item) => item.length >= 2);
+  const source = Array.isArray(rows) ? rows : [];
+  const scored = source
+    .map((row, index) => {
+      const text = JSON.stringify(row || {});
+      const score = keywords.reduce((sum, keyword) => sum + (text.includes(keyword) ? 1 : 0), 0);
+      return { row, index, score };
+    })
+    .filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score || a.index - b.index)
+    .slice(0, limit)
+    .map((item) => item.row);
+  return scored.length ? scored : source.slice(0, Math.min(4, limit));
+};
+
+const generatedSectionPlainText = (sections = []) =>
+  (Array.isArray(sections) ? sections : [])
+    .map((section, index) => {
+      const heading = section?.heading || `小节${index + 1}`;
+      const content = String(section?.content || "").trim();
+      return `${index + 1}.${heading}\n${content}`;
+    })
+    .join("\n\n")
+    .trim();
+
+const chunkList = (items = [], size = 3) => {
+  const chunks = [];
+  for (let index = 0; index < items.length; index += size) chunks.push(items.slice(index, index + size));
+  return chunks;
+};
+
+const generateBidChapterWithDeepSeek = async ({ apiKey, project, raw, tenderContext, outlineEntry, chapterIndex, chapterTotal, rangeMeta }) => {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 90000);
+  const chapterRows = {
+    technicalReview: relevantRowsForChapter(raw.technicalReview || [], outlineEntry, 12),
+    scoringReview: relevantRowsForChapter(raw.scoringReview || [], outlineEntry, 12),
+    businessReview: relevantRowsForChapter(raw.businessReview || [], outlineEntry, 5)
+  };
+
+  try {
+    const data = await requestDeepSeek({
+      apiKey,
+      signal: controller.signal,
+      maxTokens: Math.min(6500, rangeMeta.maxTokens),
+      temperature: 0.35,
+      messages: [
+        {
+          role: "system",
+          content:
+            "你是资深投标文件技术标撰写专家。只输出合法 JSON。必须根据招标文件和解析报告撰写投标响应正文，不能复制粘贴招标文件原文，不能把评分细则原文当正文。内容应体现投标人的实施方案、服务方法、组织保障、质量控制、交付验收和风险控制。"
+        },
+        {
+          role: "user",
+          content: `请按当前技术目录单独撰写投标文件正文。\n\n项目名称：${project.name}\n文件名：${project.fileName}\n投标文件内容量档位：${rangeMeta.label}\n当前章节：第 ${chapterIndex + 1}/${chapterTotal} 章\n二级目录：${outlineEntry.title}\n必须生成的三级目录：${JSON.stringify(outlineEntry.children || [])}\n每个三级目录正文建议不少于 500 字，不能只写口号。\n\n【解析报告结构化内容包】\n${tenderContext.structuredReportText.slice(0, 26000)}\n\n【本章节相关技术/评分/商务要求】\n${JSON.stringify(chapterRows).slice(0, 22000)}\n\n【招标文件关键表格包】\n${JSON.stringify(tenderContext.tenderTables).slice(0, 16000)}\n\n【招标文件关键章节原文包，仅作为背景和约束，不得复制成正文】\n${tenderContext.tenderText.slice(0, 38000)}\n\n输出 JSON：\n{\n  "title": "${outlineEntry.title}",\n  "sections": [\n    {"heading": "三级目录标题，不带编号", "content": "围绕该三级目录撰写的投标响应正文"}\n  ],\n  "notes": ["需要人工补充的真实材料或报价事项"]\n}\n要求：\n1. sections 必须覆盖上方“必须生成的三级目录”，顺序一致。\n2. 内容是投标响应方案，不是招标文件摘抄；严禁大段复制招标文件原文、评分细则原文或参数表原文。\n3. 可以引用招标文件要求的方向，但要转化为“我方拟采取的措施、流程、保障、交付和检查方法”。\n4. 不得编造投标人真实资质、证书、业绩、人员姓名、报价金额。涉及这些内容写“由投标人按实际情况提供”。\n5. 不要 Markdown，不要解释，只输出 JSON。`
+        }
+      ]
+    });
+    const parsed = await parseDeepSeekJson({ apiKey, content: data.choices?.[0]?.message?.content || "", signal: controller.signal });
+    const expectedChildren = outlineEntry.children || [];
+    const sourceSections = Array.isArray(parsed.sections) ? parsed.sections : [];
+    const sections = expectedChildren.map((child, index) => {
+      const childKey = normalizeOutlineKey(child);
+      const matched = sourceSections.find((section) => {
+        const headingKey = normalizeOutlineKey(section?.heading || "");
+        return headingKey && (headingKey.includes(childKey) || childKey.includes(headingKey));
+      }) || sourceSections[index] || {};
+      return {
+        heading: child,
+        content: sanitizeTechnicalContent(matched.content || buildFallbackTechnicalContent(`${outlineEntry.title}-${child}`, project, raw, rangeMeta))
+      };
+    });
+    const content = generatedSectionPlainText(sections);
+    return {
+      title: parsed.title || outlineEntry.title,
+      sections,
+      content: sanitizeTechnicalContent(content),
+      notes: Array.isArray(parsed.notes) ? parsed.notes : []
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+};
+
 const generateBidWithDeepSeek = async (project, result, options = {}) => {
   const apiKey = process.env.DEEPSEEK_API_KEY;
   if (!apiKey) throw new Error("未配置 DEEPSEEK_API_KEY，无法调用 DeepSeek 生成标书");
@@ -1205,58 +1324,121 @@ const generateBidWithDeepSeek = async (project, result, options = {}) => {
   const technicalOutline = project.outlineDocument?.technicalPart?.length
     ? outline.technicalPart
     : expandTechnicalOutline(raw, outline.technicalPart || [], bidPageRange);
-  const technicalReview = raw.technicalReview || [];
-  const scoringReview = raw.scoringReview || [];
-  const businessReview = raw.businessReview || [];
-  const materialsChecklist = raw.materialsChecklist || [];
   const tenderContext = buildBidGenerationContext(project, raw);
+  const outlineEntries = technicalOutline.map(bidOutlineEntry).filter((entry) => entry.title);
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 120000);
-  try {
-    const data = await requestDeepSeek({
-      apiKey,
-      signal: controller.signal,
-      maxTokens: rangeMeta.maxTokens,
-      temperature: 0.35,
-      messages: [
-        {
-          role: "system",
-          content:
-            "你是资深投标文件撰写专家。只输出合法 JSON。必须以用户上传的招标文件正文、表格和解析结果为依据撰写投标文件。商务资质、证书、业绩、授权、财务、纳税、社保等不能编造，只保留目录和“待投标人提供”提示。重点生成技术部分正文，内容要可直接放入投标文件，结构清晰、针对评分项。"
-        },
-        {
-          role: "user",
-          content: `请为以下项目生成投标文件内容。必须先阅读“招标文件正文”和“招标文件表格”，再结合解析结果撰写。\n\n项目名称：${project.name}\n文件名：${project.fileName}\n文件提取质量：${JSON.stringify(tenderContext.extractionQuality)}\n正文范围：${tenderContext.textMode}\n投标文件内容量档位：${rangeMeta.label}\n技术目录扩写策略：${rangeMeta.instruction}\n技术章节最低正文长度：每章不少于${rangeMeta.minChapterChars}个中文字符\n\n【招标文件解析结果】\n商务目录：${JSON.stringify(outline.businessPart || [])}\n附件目录：${JSON.stringify(outline.attachmentsPart || [])}\n技术目录（已按内容量档位扩写，评分表/技术要求原有事项必须保留）：${JSON.stringify(technicalOutline)}\n技术要求：${JSON.stringify(technicalReview)}\n评分标准：${JSON.stringify(scoringReview)}\n商务要求：${JSON.stringify(businessReview)}\n资料清单：${JSON.stringify(materialsChecklist)}\n\n【招标文件表格】\n${JSON.stringify(tenderContext.tenderTables).slice(0, 50000)}\n\n【招标文件正文】\n${tenderContext.tenderText}\n\n输出 JSON：\n{\n  "businessDirectory": ["商务/资质目录，资质类只列目录，不写虚假正文"],\n  "attachmentDirectory": ["附件目录，证照、业绩、承诺函等只列目录"],\n  "technicalChapters": [\n    {"title": "技术章节标题，必须来自技术目录，不能删除评分表要求事项", "content": "完整正文，围绕本项目招标文件原文要求和评分标准撰写"}\n  ],\n  "generationNotes": ["生成说明或需人工补充事项"]\n}\n要求：\n1. 主要生成技术部分，商务资质类不编造。\n2. 商务目录和附件目录不得因页数档位扩写，仅技术部分可扩写。\n3. 评分表、技术要求、响应文件格式中已有的技术响应事项必须全部保留，可以在其基础上细化和扩展，不能删除、替换或弱化。\n4. technicalChapters 必须覆盖“技术目录（已按内容量档位扩写）”里的每一个标题，标题顺序保持一致，不允许只生成少数章节。\n5. 每个技术章节都要贴合本项目招标文件背景，不要写与本项目无关的套话。\n6. 如输出长度受限，仍要优先保证章节数量完整，每章至少形成项目理解、实施方法、质量控制、交付验收、风险保障等正文。\n7. 不要 Markdown。`
+  const technicalChapters = [];
+  const chapterNotes = [];
+  for (let index = 0; index < outlineEntries.length; index += 1) {
+    const entry = outlineEntries[index];
+    if (typeof options.onProgress === "function") {
+      await options.onProgress({
+        done: index,
+        total: outlineEntries.length,
+        title: entry.title,
+        percent: Math.max(3, Math.round((index / Math.max(1, outlineEntries.length)) * 100))
+      });
+    }
+    try {
+      let chapter;
+      if (entry.children.length > 3) {
+        const sections = [];
+        const notes = [];
+        const childChunks = chunkList(entry.children, 3);
+        for (const childChunk of childChunks) {
+          const childChapter = await generateBidChapterWithDeepSeek({
+            apiKey,
+            project,
+            raw,
+            tenderContext,
+            outlineEntry: { title: entry.title, children: childChunk },
+            chapterIndex: index,
+            chapterTotal: outlineEntries.length,
+            rangeMeta
+          });
+          sections.push(...(childChapter.sections || []));
+          notes.push(...(childChapter.notes || []));
         }
-      ]
-    });
-    const content = data.choices?.[0]?.message?.content || "";
-    const parsed = await parseDeepSeekJson({ apiKey, content, signal: controller.signal });
-    const normalizedTechnical = normalizeTechnicalChapters(parsed.technicalChapters, technicalOutline, project, raw, rangeMeta);
-    return {
-      provider: "DeepSeek",
-      model: data.model || deepSeekModel,
-      generatedAt: nowIso(),
-      contextMode: tenderContext.textMode,
-      bidPageRange,
-      bidPageRangeLabel: rangeMeta.label,
-      contextCharCount: tenderContext.tenderText.length,
-      contextTableCount: tenderContext.tenderTables.length,
-      businessDirectory: Array.isArray(parsed.businessDirectory) ? parsed.businessDirectory : outline.businessPart || [],
-      attachmentDirectory: Array.isArray(parsed.attachmentDirectory) ? parsed.attachmentDirectory : outline.attachmentsPart || [],
-      technicalChapters: normalizedTechnical.technicalChapters,
-      generationNotes: [
-        ...(Array.isArray(parsed.generationNotes) ? parsed.generationNotes : []),
-        `已按“${rangeMeta.label}”档位生成技术目录与正文，共 ${normalizedTechnical.technicalChapters.length} 个技术章节。`,
-        ...(normalizedTechnical.autoCompletedCount
-          ? [`系统已按招标文件解析结果对 ${normalizedTechnical.autoCompletedCount} 个技术章节进行补充扩写，确保章节数量和正文长度符合所选档位。`]
-          : [])
-      ]
-    };
-  } finally {
-    clearTimeout(timeout);
+        chapter = {
+          title: entry.title,
+          sections,
+          content: generatedSectionPlainText(sections),
+          notes: [`${entry.title} 已按 ${childChunks.length} 组三级目录分批生成。`, ...notes]
+        };
+      } else {
+        chapter = await generateBidChapterWithDeepSeek({
+          apiKey,
+          project,
+          raw,
+          tenderContext,
+          outlineEntry: entry,
+          chapterIndex: index,
+          chapterTotal: outlineEntries.length,
+          rangeMeta
+        });
+      }
+      technicalChapters.push(chapter);
+      chapterNotes.push(...(chapter.notes || []));
+      if (typeof options.onProgress === "function") {
+        await options.onProgress({
+          done: index + 1,
+          total: outlineEntries.length,
+          title: entry.title,
+          percent: Math.round(((index + 1) / Math.max(1, outlineEntries.length)) * 100)
+        });
+      }
+    } catch (error) {
+      technicalChapters.push({
+        title: entry.title,
+        sections: entry.children.map((child) => ({
+          heading: child,
+          content: sanitizeTechnicalContent(buildFallbackTechnicalContent(`${entry.title}-${child}`, project, raw, rangeMeta))
+        })),
+        content: sanitizeTechnicalContent(buildFallbackTechnicalContent(entry.title, project, raw, rangeMeta)),
+        notes: [`${entry.title} 使用系统兜底扩写：${error.message || "DeepSeek 分章生成失败"}`]
+      });
+      chapterNotes.push(`${entry.title} 使用系统兜底扩写：${error.message || "DeepSeek 分章生成失败"}`);
+      if (typeof options.onProgress === "function") {
+        await options.onProgress({
+          done: index + 1,
+          total: outlineEntries.length,
+          title: entry.title,
+          percent: Math.round(((index + 1) / Math.max(1, outlineEntries.length)) * 100)
+        });
+      }
+    }
   }
+
+  const normalizedTechnical = normalizeTechnicalChapters(technicalChapters, technicalOutline, project, raw, rangeMeta);
+  const normalizedByTitle = new Map(normalizedTechnical.technicalChapters.map((chapter) => [normalizeOutlineKey(chapter.title), chapter]));
+  const finalTechnical = technicalChapters.map((chapter) => {
+    const normalized = normalizedByTitle.get(normalizeOutlineKey(chapter.title));
+    if (!normalized) return chapter;
+    return { ...chapter, content: normalized.content || chapter.content };
+  });
+
+  return {
+    provider: "DeepSeek",
+    model: deepSeekModel,
+    generatedAt: nowIso(),
+    generationMode: "按技术目录分章生成",
+    contextMode: tenderContext.textMode,
+    bidPageRange,
+    bidPageRangeLabel: rangeMeta.label,
+    contextCharCount: tenderContext.tenderText.length + tenderContext.structuredReportText.length,
+    contextTableCount: tenderContext.tenderTables.length,
+    businessDirectory: outline.businessPart || [],
+    attachmentDirectory: outline.attachmentsPart || [],
+    technicalChapters: finalTechnical,
+    generationNotes: [
+      `已按“${rangeMeta.label}”档位按二级/三级技术目录分章调用 DeepSeek 生成正文，共 ${finalTechnical.length} 个技术章节。`,
+      "商务、资质、证照、业绩、报价等真实材料仅保留目录，需投标人按实际情况补充。",
+      ...chapterNotes.slice(0, 20),
+      ...(normalizedTechnical.autoCompletedCount
+        ? [`系统已按招标文件解析结果对 ${normalizedTechnical.autoCompletedCount} 个技术章节进行补充扩写，确保章节数量和正文长度符合所选档位。`]
+        : [])
+    ]
+  };
 };
 
 const generateVerificationWithDeepSeek = async (project, result) => {
@@ -1363,6 +1545,53 @@ const startParsingJob = async (projectId) => {
       await writeDb(latest);
     }
   }, 2200);
+};
+
+const activeBidGenerationJobs = new Set();
+
+const startBidGenerationJob = (projectId) => {
+  if (activeBidGenerationJobs.has(projectId)) return;
+  activeBidGenerationJobs.add(projectId);
+  setTimeout(async () => {
+    try {
+      const db = await readDb();
+      const project = db.projects.find((item) => item.id === projectId);
+      if (!project) return;
+      const result = projectResult(db, project.id);
+      const bidDocument = await generateBidWithDeepSeek(project, result, {
+        bidPageRange: project.outlineDocument?.bidPageRange || project.bidPageRange,
+        onProgress: async ({ done, total, title, percent }) => {
+          await updateProject(projectId, {
+            bidStatus: "generating",
+            bidProgress: percent,
+            bidMessage: `正在生成技术章节 ${done}/${total}${title ? `：${title}` : ""}`
+          });
+        }
+      });
+      const latest = await readDb();
+      const latestProject = latest.projects.find((item) => item.id === project.id);
+      if (!latestProject) return;
+      latestProject.bidStatus = "generated";
+      latestProject.bidProgress = 100;
+      latestProject.bidMessage = "DeepSeek 标书生成完成";
+      latestProject.bidDocument = bidDocument;
+      latestProject.verificationStatus = "not_started";
+      latestProject.verificationDocument = null;
+      latestProject.verificationMessage = "";
+      await writeDb(latest);
+    } catch (error) {
+      const latest = await readDb();
+      const latestProject = latest.projects.find((item) => item.id === projectId);
+      if (latestProject) {
+        latestProject.bidStatus = "failed";
+        latestProject.bidProgress = 0;
+        latestProject.bidMessage = error.message || "DeepSeek 生成标书失败";
+        await writeDb(latest);
+      }
+    } finally {
+      activeBidGenerationJobs.delete(projectId);
+    }
+  }, 0);
 };
 
 const htmlDoc = (title, body) => `<!doctype html>
@@ -1521,7 +1750,15 @@ const bidDocumentHtml = (project, bidDocument) => {
     ${outlineListHtml(business, "未生成")}
     <h2>二、技术部分正文</h2>
     ${technical
-      .map((chapter) => `<h3>${escHtml(chapter.title)}</h3>${richTextHtml(chapter.content)}`)
+      .map((chapter, chapterIndex) => {
+        const sections = Array.isArray(chapter.sections) ? chapter.sections.filter((section) => section?.heading || section?.content) : [];
+        const body = sections.length
+          ? sections
+              .map((section, sectionIndex) => `<h4>2.${chapterIndex + 1}.${sectionIndex + 1} ${escHtml(section.heading || "章节内容")}</h4>${richTextHtml(section.content)}`)
+              .join("")
+          : richTextHtml(chapter.content);
+        return `<h3>2.${chapterIndex + 1} ${escHtml(chapter.title)}</h3>${body}`;
+      })
       .join("") || "<p>未生成技术正文。</p>"}
     <h2>三、附件部分目录</h2>
     ${outlineListHtml(attachments, "未生成")}
@@ -1535,12 +1772,121 @@ const bidDocumentPlainText = (bidDocument) => {
   (doc.businessDirectory || []).forEach((item, index) => lines.push(`${index + 1}. ${item}`));
   lines.push("【技术部分正文】");
   (doc.technicalChapters || []).forEach((chapter, index) => {
-    lines.push(`${index + 1}. ${chapter.title || "技术章节"}`);
-    lines.push(String(chapter.content || "").slice(0, 9000));
+    lines.push(`2.${index + 1} ${chapter.title || "技术章节"}`);
+    const sections = Array.isArray(chapter.sections) ? chapter.sections.filter((section) => section?.heading || section?.content) : [];
+    if (sections.length) {
+      sections.forEach((section, sectionIndex) => {
+        lines.push(`2.${index + 1}.${sectionIndex + 1} ${section.heading || "章节内容"}`);
+        lines.push(String(section.content || "").slice(0, 9000));
+      });
+    } else {
+      lines.push(String(chapter.content || "").slice(0, 9000));
+    }
   });
   lines.push("【附件部分目录】");
   (doc.attachmentDirectory || []).forEach((item, index) => lines.push(`${index + 1}. ${item}`));
   return lines.join("\n\n");
+};
+
+const docxText = (value) => String(value ?? "").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "").trim();
+
+const docxParagraph = (text, options = {}) => {
+  const { bold, ...paragraphOptions } = options;
+  return new Paragraph({
+    ...paragraphOptions,
+    children: [new TextRun({ text: docxText(text), bold: Boolean(bold) })]
+  });
+};
+
+const docxBodyParagraphs = (text) => {
+  const lines = docxText(text).split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  if (!lines.length) return [docxParagraph("本章节内容待补充。")];
+  return lines.map((line) => docxParagraph(line, { spacing: { after: 120 }, indent: { firstLine: 420 } }));
+};
+
+const docxProjectMeta = (project, result) => {
+  const raw = result?.raw || {};
+  const info = raw.basicReview?.projectBasicInfo || [];
+  const find = (keywords) => {
+    const row = info.find((item) => keywords.some((keyword) => String(item.item || item.name || "").includes(keyword)));
+    return row?.content || row?.info || row?.requirement || "";
+  };
+  return {
+    projectName: find(["项目名称"]) || project.name || "未命名项目",
+    projectNo: find(["项目编号", "招标编号", "采购编号"]) || ""
+  };
+};
+
+const docxOutlineParagraphs = (items, majorNo) => {
+  const list = Array.isArray(items) ? items : [];
+  if (!list.length) return [docxParagraph(`${majorNo}.1 待补充目录`)];
+  const output = [];
+  list.forEach((item, index) => {
+    const model = outlineItemModel(item);
+    output.push(docxParagraph(`${majorNo}.${index + 1} ${model.label}`, { spacing: { after: 80 } }));
+    model.children.forEach((child, childIndex) => {
+      output.push(docxParagraph(`${majorNo}.${index + 1}.${childIndex + 1} ${child}`, { spacing: { after: 80 }, indent: { left: 420 } }));
+    });
+  });
+  return output;
+};
+
+const bidDocxBuffer = async (project, result) => {
+  const bidDocument = project.bidDocument || {};
+  const meta = docxProjectMeta(project, result);
+  const business = bidDocument.businessDirectory || [];
+  const attachments = bidDocument.attachmentDirectory || [];
+  const technical = Array.isArray(bidDocument.technicalChapters) ? bidDocument.technicalChapters : [];
+  const children = [
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 520 },
+      children: [new TextRun({ text: "投 标 文 件", bold: true, size: 44 })]
+    }),
+    docxParagraph(`项目名称：${meta.projectName}`, { spacing: { after: 180 }, bold: true }),
+    docxParagraph(`项目编号：${meta.projectNo || "未明确"}`, { spacing: { after: 420 }, bold: true }),
+    docxParagraph("目 录", { heading: HeadingLevel.HEADING_1, alignment: AlignmentType.CENTER }),
+    docxParagraph("一、商务部分目录", { heading: HeadingLevel.HEADING_2 }),
+    ...docxOutlineParagraphs(business, 1),
+    docxParagraph("二、技术部分", { heading: HeadingLevel.HEADING_2 }),
+    ...technical.flatMap((chapter, chapterIndex) => {
+      const sections = Array.isArray(chapter.sections) ? chapter.sections.filter((section) => section?.heading || section?.content) : [];
+      if (!sections.length) return [docxParagraph(`2.${chapterIndex + 1} ${chapter.title || "技术章节"}`)];
+      return [
+        docxParagraph(`2.${chapterIndex + 1} ${chapter.title || "技术章节"}`),
+        ...sections.map((section, sectionIndex) => docxParagraph(`2.${chapterIndex + 1}.${sectionIndex + 1} ${section.heading || "章节内容"}`, { indent: { left: 420 } }))
+      ];
+    }),
+    docxParagraph("三、附件部分目录", { heading: HeadingLevel.HEADING_2 }),
+    ...docxOutlineParagraphs(attachments, 3),
+    docxParagraph("一、商务部分目录", { heading: HeadingLevel.HEADING_1 }),
+    docxParagraph("商务、资质、证照、业绩、报价等资料需由投标人按真实情况提供，系统仅保留目录，不编造资质内容。", { spacing: { after: 180 } }),
+    ...docxOutlineParagraphs(business, 1),
+    docxParagraph("二、技术部分", { heading: HeadingLevel.HEADING_1 }),
+    ...(technical.length
+      ? technical.flatMap((chapter, chapterIndex) => {
+          const sections = Array.isArray(chapter.sections) ? chapter.sections.filter((section) => section?.heading || section?.content) : [];
+          const paragraphs = [docxParagraph(`2.${chapterIndex + 1} ${chapter.title || "技术章节"}`, { heading: HeadingLevel.HEADING_2 })];
+          if (sections.length) {
+            sections.forEach((section, sectionIndex) => {
+              paragraphs.push(docxParagraph(`2.${chapterIndex + 1}.${sectionIndex + 1} ${section.heading || "章节内容"}`, { heading: HeadingLevel.HEADING_3 }));
+              paragraphs.push(...docxBodyParagraphs(section.content));
+            });
+          } else {
+            paragraphs.push(...docxBodyParagraphs(chapter.content));
+          }
+          return paragraphs;
+        })
+      : [docxParagraph("技术正文尚未生成。")]),
+    docxParagraph("三、附件部分目录", { heading: HeadingLevel.HEADING_1 }),
+    docxParagraph("附件材料需由投标人根据自身实际资料补充扫描件、复印件或证明文件。", { spacing: { after: 180 } }),
+    ...docxOutlineParagraphs(attachments, 3)
+  ];
+
+  const doc = new Document({
+    sections: [{ properties: {}, children }]
+  });
+  return Packer.toBuffer(doc);
 };
 
 const verificationReportHtml = (project, verification = {}) => {
@@ -1808,9 +2154,9 @@ const downloadPayload = async (kind, project, result) => {
   }
   if (kind === "bid") {
     return {
-      filename: "投标文件.doc",
-      type: "application/msword; charset=utf-8",
-      body: htmlDoc("投标文件", bidDocumentHtml(project, project.bidDocument))
+      filename: "投标文件.docx",
+      type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      body: await bidDocxBuffer(project, result)
     };
   }
   if (kind === "verification") {
@@ -1997,34 +2343,16 @@ const handleApi = async (req, res, url) => {
         sendJson(res, 400, { error: "请先在生成目录页按页数档位生成并确认目录，再生成标书内容" });
         return;
       }
-      const result = projectResult(session.db, project.id);
       project.bidStatus = "generating";
+      project.bidMessage = "DeepSeek 正在按技术目录分章生成标书";
+      project.bidProgress = 0;
+      project.bidDocument = null;
+      project.verificationStatus = "not_started";
+      project.verificationDocument = null;
+      project.verificationMessage = "";
       await writeDb(session.db);
-      try {
-        const bidDocument = await generateBidWithDeepSeek(project, result, { bidPageRange: project.outlineDocument.bidPageRange || project.bidPageRange });
-        const latest = await readDb();
-        const latestProject = latest.projects.find((item) => item.id === project.id);
-        if (!latestProject) {
-          sendJson(res, 404, { error: "项目不存在" });
-          return;
-        }
-        latestProject.bidStatus = "generated";
-        latestProject.bidDocument = bidDocument;
-        latestProject.verificationStatus = "not_started";
-        latestProject.verificationDocument = null;
-        latestProject.verificationMessage = "";
-        await writeDb(latest);
-        sendJson(res, 200, { project: projectDto(latest, latestProject) });
-      } catch (error) {
-        const latest = await readDb();
-        const latestProject = latest.projects.find((item) => item.id === project.id);
-        if (latestProject) {
-          latestProject.bidStatus = "failed";
-          latestProject.bidMessage = error.message || "DeepSeek 生成标书失败";
-          await writeDb(latest);
-        }
-        sendJson(res, 500, { error: error.message || "DeepSeek 生成标书失败" });
-      }
+      startBidGenerationJob(project.id);
+      sendJson(res, 202, { project: projectDto(session.db, project) });
       return;
     }
 

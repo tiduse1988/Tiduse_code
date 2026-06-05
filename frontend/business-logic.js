@@ -789,16 +789,54 @@
     section.innerHTML = `${sectionTitle(title)}${body}`;
   };
 
+  const renderAnalysisPending = (project) => {
+    document.title = `${project?.name || "招标文件"} - 招标文件解析中`;
+    const message = project?.message || "AI正在解析招标文件，请稍候。";
+    const progress = Math.max(0, Math.min(100, Number(project?.progress || 0)));
+    setSectionHtml(
+      "section-info",
+      "项目基本信息",
+      `<div class="card" style="grid-column:1/-1">
+        <h3>${esc(project?.name || "招标文件")}</h3>
+        <p style="margin-top:10px;color:#64748b">${esc(message)}</p>
+        <div style="height:10px;background:#eef2f7;border-radius:999px;overflow:hidden;margin-top:18px;">
+          <div style="height:100%;width:${progress}%;background:#2563eb;border-radius:999px;transition:width .25s ease;"></div>
+        </div>
+      </div>`
+    );
+    [
+      ["section-timeline", "重要时间节点"],
+      ["section-eligibility", "资格条件"],
+      ["section-business", "商务要求"],
+      ["section-technical", "技术要求"],
+      ["section-scoring", "评分标准"],
+      ["section-termination", "废标条款"],
+      ["section-requirements", "采购需求"],
+      ["section-submission", "投标文件要求"]
+    ].forEach(([id, title]) => {
+      setSectionHtml(id, title, `<div class="notice"><span class="icon-box"><svg class="icon" viewBox="0 0 24 24"><path d="M12 2v4"></path><path d="M12 18v4"></path><path d="m4.93 4.93 2.83 2.83"></path><path d="m16.24 16.24 2.83 2.83"></path><path d="M2 12h4"></path><path d="M18 12h4"></path></svg></span><div><strong>正在生成该标段解析结果</strong><span>${esc(message)}</span></div></div>`);
+    });
+    const bottomStatus = document.querySelector(".bottom-bar .status");
+    if (bottomStatus) {
+      bottomStatus.innerHTML = `<span>${esc(message)}</span><span class="divider" aria-hidden="true"></span><span><strong>${progress}%</strong></span>`;
+    }
+    window.clearTimeout(window.__analysisPollTimer);
+    if (project?.status !== "completed" && project?.status !== "failed") {
+      window.__analysisPollTimer = window.setTimeout(() => renderAnalysisPage().catch((error) => toast(error.message, "error")), 3000);
+    }
+  };
+
   const projectMeta = (project) => {
     const raw = project?.result?.raw || {};
     const basic = raw.basicReview || {};
     const projectBasicInfo = basic.projectBasicInfo || [];
     const budgetPricing = basic.budgetPricing || [];
     const keyDates = basic.keyDates || [];
+    const rawProjectName = firstContent(projectBasicInfo, ["项目名称"]);
     return {
       raw,
       basic,
-      projectName: firstContent(projectBasicInfo, ["项目名称"]) || project?.name || "未命名项目",
+      projectName: project?.selectedLot ? project?.name || rawProjectName || "未命名项目" : rawProjectName || project?.name || "未命名项目",
       projectNo: firstContent(projectBasicInfo, ["项目编号", "招标编号", "采购编号"]) || "",
       tenderee: firstContent(projectBasicInfo, ["采购人", "招标人"]) || "",
       agency: firstContent(projectBasicInfo, ["代理机构"]) || "",
@@ -1424,6 +1462,11 @@
   const renderAnalysisPage = async () => {
     const project = await getActiveProject();
     if (!project) return;
+    if (project.status !== "completed") {
+      renderAnalysisPending(project);
+      return;
+    }
+    openLotSelectionModal(project);
     const meta = projectMeta(project);
     const raw = meta.raw;
     const basic = meta.basic;
@@ -1776,6 +1819,74 @@
         toast(`已选择${bidPageRangeMeta(value).label}，正在进入生成目录`);
         window.location.href = "./outline.html";
       } catch (error) {
+        toast(error.message, "error");
+      }
+    });
+  };
+
+  const openLotSelectionModal = (project) => {
+    if (!project?.lotSelectionRequired || !Array.isArray(project.lotOptions) || project.lotOptions.length <= 1) return;
+    if (document.querySelector("[data-lot-selection-modal]")) return;
+    const modal = document.createElement("div");
+    modal.dataset.lotSelectionModal = "true";
+    modal.className = "fixed inset-0 z-[9998] flex items-center justify-center bg-slate-900/45 px-6";
+    modal.innerHTML = `
+      <div class="w-full max-w-2xl rounded-2xl bg-white shadow-2xl border border-gray-100 overflow-hidden">
+        <div class="p-6 border-b border-gray-100">
+          <h3 class="text-xl font-bold text-gray-900">确认解析标段</h3>
+          <p class="mt-2 text-sm text-gray-500 leading-relaxed">当前招标文件包含多个标段，请选择本次要解析的标段。确认后系统会按所选标段重新解析，项目名称会自动追加标段号。</p>
+        </div>
+        <div class="p-5 space-y-3">
+          ${project.lotOptions
+            .map(
+              (lot, index) => `
+              <label class="lot-selection-option flex gap-4 rounded-xl border ${index === 0 ? "border-blue-500 bg-blue-50" : "border-gray-200 bg-white"} p-4 cursor-pointer hover:border-blue-400 hover:bg-blue-50/60 transition-colors">
+                <input class="mt-1 text-blue-600" type="radio" name="lotId" value="${esc(lot.id)}" ${index === 0 ? "checked" : ""}>
+                <span class="flex-1 min-w-0">
+                  <span class="flex items-center gap-2">
+                    <span class="text-base font-bold text-gray-900">${esc(lot.label)}</span>
+                    <span class="text-xs font-bold text-gray-500 rounded-full bg-gray-100 px-2 py-1">${esc(lot.sourceLabel || "标包")}</span>
+                  </span>
+                  <span class="mt-2 block text-sm text-gray-600 leading-relaxed">${esc(lot.name || "未识别到单独标段名称")}</span>
+                </span>
+                <span class="text-right shrink-0">
+                  <span class="block text-xs text-gray-400 mb-1">对应金额</span>
+                  <span class="block text-base font-extrabold text-red-600">${esc(lot.amount || "未明确")}</span>
+                </span>
+              </label>`
+            )
+            .join("")}
+        </div>
+        <div class="flex justify-end gap-3 p-5 border-t border-gray-100 bg-gray-50">
+          <button class="h-10 px-5 rounded-lg text-sm font-bold text-white bg-blue-600 hover:bg-blue-700" data-action="confirm-lot">确认标段并重新解析</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener("click", async (event) => {
+      const option = event.target.closest(".lot-selection-option");
+      if (option) {
+        modal.querySelectorAll(".lot-selection-option").forEach((node) => {
+          node.classList.remove("border-blue-500", "bg-blue-50");
+          node.classList.add("border-gray-200", "bg-white");
+        });
+        option.classList.add("border-blue-500", "bg-blue-50");
+        option.classList.remove("border-gray-200", "bg-white");
+      }
+      const action = event.target.closest("[data-action]")?.dataset.action;
+      if (action !== "confirm-lot") return;
+      const lotId = modal.querySelector("input[name='lotId']:checked")?.value || project.lotOptions[0]?.id;
+      const button = event.target.closest("button");
+      setButtonDisabled(button, true);
+      button.textContent = "正在重新解析...";
+      try {
+        const data = await api(apiPath(`/api/projects/${project.id}/select-lot`), { method: "POST", body: JSON.stringify({ lotId }) });
+        writeState({ activeProjectId: data.project.id });
+        modal.remove();
+        toast(`已选择${data.selectedLot?.label || "标段"}，正在重新解析`);
+        renderAnalysisPending(data.project);
+      } catch (error) {
+        setButtonDisabled(button, false);
+        button.textContent = "确认标段并重新解析";
         toast(error.message, "error");
       }
     });

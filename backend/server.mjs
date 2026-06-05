@@ -337,6 +337,39 @@ const projectDto = (db, project) => {
   };
 };
 
+const projectListDto = (db, project) => {
+  const result = projectResult(db, project.id);
+  const resultSummary = {
+    extractedItems: result.extractedItems || 0,
+    riskCount: result.riskCount || 0,
+    updatedAt: result.updatedAt || ""
+  };
+  const bidGenerated = Array.isArray(project.bidDocument?.technicalChapters) && project.bidDocument.technicalChapters.length > 0;
+  const normalizedBidStatus = project.bidStatus === "generated" && !bidGenerated ? "not_started" : project.bidStatus;
+  return {
+    id: project.id,
+    ownerId: project.ownerId,
+    name: project.name,
+    fileName: project.fileName,
+    fileSize: project.fileSize,
+    fileSizeText: sizeText(project.fileSize),
+    uploadTime: project.uploadTime,
+    status: project.status,
+    progress: project.progress,
+    message: project.message,
+    bidStatus: normalizedBidStatus,
+    bidPageRange: project.bidPageRange || "",
+    outlineStatus: project.outlineStatus || "not_started",
+    verificationStatus: project.verificationStatus || "not_started",
+    owner: publicUser(db.users.find((user) => user.id === project.ownerId) || {}),
+    result: resultSummary,
+    resultSummary,
+    bidGenerated,
+    outlineGenerated: Boolean(project.outlineDocument?.technicalPart?.length),
+    verificationGenerated: Boolean(project.verificationDocument?.issues || project.verificationDocument?.summary)
+  };
+};
+
 const canReadProject = (user, project) => user.role === "admin" || project.ownerId === user.id;
 
 const updateProject = async (projectId, patch) => {
@@ -1664,7 +1697,7 @@ const handleApi = async (req, res, url) => {
     const session = await requireSession(req, res, url);
     if (!session) return;
     const projects = session.db.projects.filter((project) => canReadProject(session.user, project));
-    sendJson(res, 200, { projects: projects.map((project) => projectDto(session.db, project)) });
+    sendJson(res, 200, { projects: projects.map((project) => projectListDto(session.db, project)) });
     return;
   }
 
@@ -2004,7 +2037,7 @@ const handleApi = async (req, res, url) => {
   if (req.method === "GET" && url.pathname === "/api/admin/projects") {
     const session = await requireAdmin(req, res, url);
     if (!session) return;
-    sendJson(res, 200, { projects: session.db.projects.map((project) => projectDto(session.db, project)) });
+    sendJson(res, 200, { projects: session.db.projects.map((project) => projectListDto(session.db, project)) });
     return;
   }
 

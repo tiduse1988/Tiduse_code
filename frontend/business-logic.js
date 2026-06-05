@@ -277,7 +277,8 @@
     project?.bidPageRange || readState().bidPageRangeByProject?.[project?.id] || "under_100";
 
   const hasBidTechnicalChapters = (project) =>
-    Array.isArray(project?.bidDocument?.technicalChapters) && project.bidDocument.technicalChapters.length > 0;
+    Boolean(project?.bidGenerated) ||
+    (Array.isArray(project?.bidDocument?.technicalChapters) && project.bidDocument.technicalChapters.length > 0);
 
   const bidGenerationRequest = (project) =>
     JSON.stringify({ bidPageRange: selectedBidPageRange(project) });
@@ -1461,6 +1462,22 @@
 
   let projectsCache = [];
 
+  const renderProjectsLoading = () => {
+    const grid = document.querySelector(".project-card")?.parentElement || document.querySelector(".grid");
+    if (grid) {
+      grid.innerHTML = `
+        <div class="col-span-3 rounded-xl border border-gray-100 bg-white p-8 text-center text-sm text-gray-500" data-project-loading>
+          正在读取当前账号的项目列表...
+        </div>`;
+    }
+    const label =
+      Array.from(document.querySelectorAll("h2"))
+        .find((node) => textOf(node).includes("项目列表"))
+        ?.parentElement?.querySelector("p") ||
+      Array.from(document.querySelectorAll("h2 + p")).find((node) => textOf(node).includes("项目"));
+    if (label) label.textContent = "正在读取项目";
+  };
+
   const renderProjects = (projects) => {
     projectsCache = projects;
     const grid = document.querySelector(".project-card")?.parentElement || document.querySelector(".grid");
@@ -1577,24 +1594,36 @@
       .forEach((card) => grid.appendChild(card));
   };
 
-  const loadProjects = async () => {
-    const data = await api(apiPath("/api/projects"));
-    renderProjects(data.projects || []);
+  let projectsRequestInFlight = false;
+
+  const loadProjects = async (options = {}) => {
+    if (projectsRequestInFlight) return;
+    projectsRequestInFlight = true;
+    if (options.showLoading) renderProjectsLoading();
+    try {
+      const startedAt = performance.now();
+      const data = await api(apiPath("/api/projects"));
+      console.debug("[AI投标] 项目列表拉取完成", {
+        count: data.projects?.length || 0,
+        ms: Math.round(performance.now() - startedAt),
+        fields: Object.keys(data.projects?.[0] || {})
+      });
+      renderProjects(data.projects || []);
+    } finally {
+      projectsRequestInFlight = false;
+    }
   };
 
   const bindHome = () => {
     if (page !== "home.html") return;
     if (!ensureLogin()) return;
 
-    const grid = document.querySelector(".project-card")?.parentElement || document.querySelector(".grid");
-    if (grid) grid.innerHTML = "";
-    updateProjectCount(0);
     hydrateCurrentUser().catch((error) => toast(error.message, "error"));
-    loadProjects().catch((error) => toast(error.message, "error"));
+    loadProjects({ showLoading: true }).catch((error) => toast(error.message, "error"));
     const poll = window.setInterval(() => {
       if (document.hidden) return;
       loadProjects().catch(() => {});
-    }, 1500);
+    }, 5000);
     window.addEventListener("beforeunload", () => window.clearInterval(poll));
 
     const uploadArea = document.querySelector(".upload-area");

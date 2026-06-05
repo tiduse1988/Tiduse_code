@@ -620,6 +620,142 @@
       </div>`;
   };
 
+  const BID_PREVIEW_PAGE_CHAR_LIMIT = 1350;
+
+  const stripHtmlForCount = (value = "") =>
+    String(value || "")
+      .replace(/<[^>]*>/g, "")
+      .replace(/&nbsp;/g, "")
+      .replace(/\s+/g, "");
+
+  const previewCanvas = () => document.querySelector("[data-document-preview]") || document.querySelector(".doc-page")?.parentElement;
+
+  const bidPreviewBlock = (html, options = {}) => ({
+    html,
+    size: Math.max(80, stripHtmlForCount(html).length + Number(options.extraSize || 0)),
+    forceBreakBefore: Boolean(options.forceBreakBefore)
+  });
+
+  const bidDocumentPreviewBlocks = (project, meta, bidDocument) => {
+    const doc = bidDocument || {};
+    const technical = Array.isArray(doc.technicalChapters) ? doc.technicalChapters : [];
+    const blocks = [
+      bidPreviewBlock(`
+        <h1 class="text-3xl font-bold text-center text-black mb-10 tracking-widest">投 标 文 件</h1>
+        <div class="space-y-5 text-sm text-surface-800 leading-relaxed">
+          <p><strong>项目名称：</strong>${esc(meta.projectName)}</p>
+          <p><strong>项目编号：</strong>${esc(meta.projectNo || "未明确")}</p>
+        </div>
+      `, { extraSize: 260 }),
+      bidPreviewBlock(`
+        <section id="${esc(bidAnchorId("business"))}" data-bid-target data-bid-section="business" class="space-y-3 scroll-mt-24 rounded-lg transition-colors">
+          <h2 class="text-xl font-bold text-black pt-4">一、商务部分目录</h2>
+          <p class="text-surface-500">商务、资质、证照、业绩等资料需由投标人按实际情况提供，系统仅保留目录，不编造内容。</p>
+          ${bidDirectoryHtml(doc.businessDirectory || [], "待补充商务目录", "business")}
+        </section>
+      `, { extraSize: 320 }),
+      bidPreviewBlock(`
+        <section id="${esc(bidAnchorId("technical"))}" data-bid-target data-bid-section="technical" class="space-y-4 scroll-mt-24 rounded-lg transition-colors">
+          <h2 class="text-xl font-bold text-black pt-4">二、技术部分</h2>
+        </section>
+      `, { forceBreakBefore: true })
+    ];
+
+    if (technical.length) {
+      technical.forEach((chapter, chapterIndex) => {
+        const sections = Array.isArray(chapter.sections) ? chapter.sections.filter((section) => section?.heading || section?.content) : [];
+        if (!sections.length) {
+          blocks.push(
+            bidPreviewBlock(
+              `<section id="${esc(bidAnchorId("technical", chapterIndex + 1))}" data-bid-target data-bid-section="technical" data-bid-label="${esc(chapter.title || "技术章节")}" class="space-y-3 scroll-mt-24 rounded-lg px-2 py-1 transition-colors">
+                <h3 class="text-lg font-bold text-black">2.${chapterIndex + 1} ${esc(chapter.title || "技术章节")}</h3>
+                ${richTextHtml(chapter.content)}
+              </section>`,
+              { extraSize: 160 }
+            )
+          );
+          return;
+        }
+
+        blocks.push(
+          bidPreviewBlock(
+            `<section id="${esc(bidAnchorId("technical", chapterIndex + 1))}" data-bid-target data-bid-section="technical" data-bid-label="${esc(chapter.title || "技术章节")}" class="space-y-3 scroll-mt-24 rounded-lg px-2 py-1 transition-colors">
+              <h3 class="text-lg font-bold text-black">2.${chapterIndex + 1} ${esc(chapter.title || "技术章节")}</h3>
+            </section>`,
+            { extraSize: 120 }
+          )
+        );
+
+        sections.forEach((section, sectionIndex) => {
+          blocks.push(
+            bidPreviewBlock(
+              `<section id="${esc(bidAnchorId("technical", chapterIndex + 1, sectionIndex + 1))}" data-bid-target data-bid-section="technical" data-bid-label="${esc(section.heading || "")}" class="space-y-2 scroll-mt-24 rounded-lg py-1 transition-colors">
+                <h4 class="text-base font-bold text-black">2.${chapterIndex + 1}.${sectionIndex + 1} ${esc(section.heading || "章节内容")}</h4>
+                ${richTextHtml(section.content)}
+              </section>`,
+              { extraSize: 140 }
+            )
+          );
+        });
+      });
+    } else {
+      blocks.push(bidPreviewBlock("<p>技术正文尚未生成，请先生成投标文件。</p>"));
+    }
+
+    blocks.push(
+      bidPreviewBlock(
+        `<section id="${esc(bidAnchorId("attachment"))}" data-bid-target data-bid-section="attachment" class="space-y-3 scroll-mt-24 rounded-lg transition-colors">
+          <h2 class="text-xl font-bold text-black pt-4">三、附件部分目录</h2>
+          <p class="text-surface-500">证照、审计报告、纳税社保、承诺函、业绩、人员证书等附件需由投标人提供真实材料。</p>
+          ${bidDirectoryHtml(doc.attachmentDirectory || [], "待补充附件目录", "attachment")}
+        </section>`,
+        { forceBreakBefore: true, extraSize: 260 }
+      )
+    );
+
+    return blocks;
+  };
+
+  const paginateBidBlocks = (blocks) => {
+    const pages = [];
+    let current = [];
+    let currentSize = 0;
+    blocks.forEach((block) => {
+      const shouldBreak = current.length && (block.forceBreakBefore || currentSize + block.size > BID_PREVIEW_PAGE_CHAR_LIMIT);
+      if (shouldBreak) {
+        pages.push(current);
+        current = [];
+        currentSize = 0;
+      }
+      current.push(block.html);
+      currentSize += block.size;
+    });
+    if (current.length) pages.push(current);
+    return pages.length ? pages : [["<p>暂无投标文件内容。</p>"]];
+  };
+
+  const bidDocumentPreviewPages = (project, meta, bidDocument) => paginateBidBlocks(bidDocumentPreviewBlocks(project, meta, bidDocument));
+
+  const bidPreviewPagesHtml = (pages) => {
+    const list = Array.isArray(pages) && pages.length ? pages : [["<p>暂无投标文件内容。</p>"]];
+    return `<div class="doc-pages flex flex-col items-center gap-8">${list
+      .map(
+        (page, index) => `
+          <article class="doc-page bg-white text-sm text-surface-800 leading-relaxed text-justify">
+            <div class="space-y-5">${page.join("")}</div>
+            <div class="doc-page-footer">第 ${index + 1} / ${list.length} 页</div>
+          </article>`
+      )
+      .join("")}</div>`;
+  };
+
+  const bidDocumentPagedPreviewHtml = (project, meta, bidDocument) => bidPreviewPagesHtml(bidDocumentPreviewPages(project, meta, bidDocument));
+
+  const estimateBidPageCount = (bidDocument) => {
+    const stats = bidStatsRaw(bidDocument);
+    return stats.textLength ? Math.max(1, Math.ceil((stats.textLength + 900) / BID_PREVIEW_PAGE_CHAR_LIMIT)) : 0;
+  };
+
   const preferredIssueSection = (issue = {}) => {
     const text = `${issue.location || ""}${issue.category || ""}${issue.item || ""}${issue.problem || ""}`;
     if (/技术|方案|实施|响应内容|正文|参数/.test(text)) return "technical";
@@ -841,7 +977,7 @@
       })
       .join("");
 
-  const bidStats = (bidDocument) => {
+  const bidStatsRaw = (bidDocument) => {
     const doc = bidDocument || {};
     const business = doc.businessDirectory || [];
     const attachments = doc.attachmentDirectory || [];
@@ -855,10 +991,14 @@
     const directoryText = [...business, ...attachments].join("\n");
     const textLength = `${directoryText}\n${technicalText}`.replace(/\s+/g, "").length;
     const chapterCount = business.length + attachments.length + technical.length + technical.reduce((sum, chapter) => sum + (Array.isArray(chapter.sections) ? chapter.sections.length : 0), 0);
+    return { chapterCount, textLength };
+  };
+
+  const bidStats = (bidDocument) => {
+    const raw = bidStatsRaw(bidDocument);
     return {
-      chapterCount,
-      textLength,
-      readMinutes: textLength ? Math.max(1, Math.ceil(textLength / 550)) : 0
+      ...raw,
+      pageCount: raw.textLength ? Math.max(1, Math.ceil((raw.textLength + 900) / BID_PREVIEW_PAGE_CHAR_LIMIT)) : 0
     };
   };
 
@@ -869,6 +1009,7 @@
     const generated = Boolean(bidDocument?.technicalChapters?.length || project?.bidDocument?.technicalChapters?.length);
     const failed = project?.bidStatus === "failed";
     const stats = bidStats(bidDocument || project?.bidDocument || {});
+    const displayPageCount = options.pageCount || stats.pageCount;
     const realProgress = Math.max(0, Math.min(100, Number(project?.bidProgress || 0)));
     const state = generating
       ? {
@@ -950,8 +1091,8 @@
           <p class="text-sm font-bold text-surface-800">${generated ? esc(stats.chapterCount || "-") : "-"}</p>
         </div>
         <div>
-          <p class="text-[10px] text-surface-400 mb-1">预计阅读</p>
-          <p class="text-sm font-bold text-surface-800">${generated ? `${esc(stats.readMinutes)} min` : "-"}</p>
+          <p class="text-[10px] text-surface-400 mb-1">文件页数</p>
+          <p class="text-sm font-bold text-surface-800">${generated ? `${esc(displayPageCount || "-")} 页` : "-"}</p>
         </div>
       </div>`;
 
@@ -1008,17 +1149,20 @@
   };
 
   const renderGenerateWaiting = (message, subMessage = "生成完成后将自动展示投标文件正文。") => {
-    const docPage = document.querySelector(".doc-page");
-    if (!docPage) return;
-    docPage.innerHTML = `
-      <div class="min-h-[720px] flex flex-col items-center justify-center text-center">
-        <div class="w-16 h-16 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-600/20 mb-5">
-          <i class="fas fa-wand-magic-sparkles text-2xl"></i>
+    const canvas = previewCanvas();
+    if (!canvas) return;
+    canvas.innerHTML = `
+      <div class="doc-page bg-white">
+        <div class="min-h-[940px] flex flex-col items-center justify-center text-center">
+          <div class="w-16 h-16 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-600/20 mb-5">
+            <i class="fas fa-wand-magic-sparkles text-2xl"></i>
+          </div>
+          <h1 class="text-2xl font-bold text-surface-900 mb-3">投标文件正在生成中</h1>
+          <p class="max-w-xl text-sm leading-7 text-surface-500">${esc(message)}</p>
+          <p class="mt-2 max-w-xl text-sm leading-7 text-surface-400">${esc(subMessage)}</p>
+          <div class="mt-8 w-72 h-2 rounded-full bg-surface-100 overflow-hidden generation-bar is-running"></div>
         </div>
-        <h1 class="text-2xl font-bold text-surface-900 mb-3">投标文件正在生成中</h1>
-        <p class="max-w-xl text-sm leading-7 text-surface-500">${esc(message)}</p>
-        <p class="mt-2 max-w-xl text-sm leading-7 text-surface-400">${esc(subMessage)}</p>
-        <div class="mt-8 w-72 h-2 rounded-full bg-surface-100 overflow-hidden generation-bar is-running"></div>
+        <div class="doc-page-footer">第 1 / 1 页</div>
       </div>`;
   };
 
@@ -1124,54 +1268,13 @@
       { title: "附件部分", items: bidDocument.attachmentDirectory || groups.find((group) => group.title === "附件部分")?.items || [] }
     ].filter((group) => group.items?.length);
     updateProjectInfoBlocks(project, meta);
-    renderBidGenerationStatus(project, bidDocument);
+    const previewPages = bidDocumentPreviewPages(project, meta, bidDocument);
+    renderBidGenerationStatus(project, bidDocument, { pageCount: previewPages.length });
 
     renderGenerateNavigation(bidGroups);
 
-    const docPage = document.querySelector(".doc-page");
-    if (docPage) {
-      const technical = bidDocument.technicalChapters || [];
-      docPage.innerHTML = `
-        <h1 class="text-3xl font-bold text-center text-black mb-10 tracking-widest">投 标 文 件</h1>
-        <div class="space-y-5 text-sm text-surface-800 leading-relaxed text-justify">
-          <p><strong>项目名称：</strong>${esc(meta.projectName)}</p>
-          <p><strong>项目编号：</strong>${esc(meta.projectNo || "未明确")}</p>
-          <section id="${esc(bidAnchorId("business"))}" data-bid-target data-bid-section="business" class="space-y-3 scroll-mt-24 rounded-lg transition-colors">
-            <h2 class="text-xl font-bold text-black pt-4">一、商务部分目录</h2>
-            <p class="text-surface-500">商务、资质、证照、业绩等资料需由投标人按实际情况提供，系统仅保留目录，不编造内容。</p>
-            ${bidDirectoryHtml(bidDocument.businessDirectory || [], "待补充商务目录", "business")}
-          </section>
-          <section id="${esc(bidAnchorId("technical"))}" data-bid-target data-bid-section="technical" class="space-y-4 scroll-mt-24 rounded-lg transition-colors">
-          <h2 class="text-xl font-bold text-black pt-4">二、技术部分</h2>
-          ${technical.length
-            ? technical
-                .map(
-                  (chapter, index) => {
-                    const sections = Array.isArray(chapter.sections) ? chapter.sections.filter((section) => section?.heading || section?.content) : [];
-                    return `<section id="${esc(bidAnchorId("technical", index + 1))}" data-bid-target data-bid-section="technical" data-bid-label="${esc(chapter.title || "技术章节")}" class="space-y-3 scroll-mt-24 rounded-lg px-2 py-1 transition-colors">
-                      <h3 class="text-lg font-bold text-black">2.${index + 1} ${esc(chapter.title || "技术章节")}</h3>
-                      ${sections.length
-                        ? sections
-                            .map(
-                              (section, sectionIndex) => `<section id="${esc(bidAnchorId("technical", index + 1, sectionIndex + 1))}" data-bid-target data-bid-section="technical" data-bid-label="${esc(section.heading || "")}" class="space-y-2 scroll-mt-24 rounded-lg py-1 transition-colors">
-                                <h4 class="text-base font-bold text-black">2.${index + 1}.${sectionIndex + 1} ${esc(section.heading || "章节内容")}</h4>
-                                ${richTextHtml(section.content)}
-                              </section>`
-                            )
-                            .join("")
-                        : richTextHtml(chapter.content)}
-                    </section>`;
-                  }
-                )
-                .join("")
-            : "<p>技术正文尚未生成，请点击重新生成。</p>"}
-          </section>
-          <section id="${esc(bidAnchorId("attachment"))}" data-bid-target data-bid-section="attachment" class="space-y-3 scroll-mt-24 rounded-lg transition-colors">
-            <h2 class="text-xl font-bold text-black pt-4">三、附件部分目录</h2>
-            ${bidDirectoryHtml(bidDocument.attachmentDirectory || [], "待补充附件目录", "attachment")}
-          </section>
-        </div>`;
-    }
+    const canvas = previewCanvas();
+    if (canvas) canvas.innerHTML = bidPreviewPagesHtml(previewPages);
   };
 
   const verificationSeverityView = (severity = "") => {

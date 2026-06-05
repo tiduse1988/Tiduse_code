@@ -191,7 +191,13 @@
       `;
       target.appendChild(menu);
 
+      let hideTimer = null;
+      const clearHideTimer = () => {
+        if (hideTimer) window.clearTimeout(hideTimer);
+        hideTimer = null;
+      };
       const show = () => {
+        clearHideTimer();
         menu.style.opacity = "1";
         menu.style.transform = "translateY(0)";
         menu.style.pointerEvents = "auto";
@@ -201,10 +207,18 @@
         menu.style.transform = "translateY(-4px)";
         menu.style.pointerEvents = "none";
       };
+      const scheduleHide = () => {
+        clearHideTimer();
+        hideTimer = window.setTimeout(hide, 2000);
+      };
       target.addEventListener("mouseenter", show);
-      target.addEventListener("mouseleave", hide);
+      target.addEventListener("mouseleave", scheduleHide);
       target.addEventListener("focusin", show);
-      target.addEventListener("focusout", hide);
+      target.addEventListener("focusout", scheduleHide);
+      menu.addEventListener("mouseenter", show);
+      menu.addEventListener("mouseleave", scheduleHide);
+      menu.addEventListener("focusin", show);
+      menu.addEventListener("focusout", scheduleHide);
       menu.querySelector("[data-logout-action]")?.addEventListener("mouseenter", (event) => {
         event.currentTarget.style.background = "#fef2f2";
       });

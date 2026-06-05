@@ -838,7 +838,7 @@
             icon: "fa-triangle-exclamation",
             label: "标书生成失败",
             progress: "需重试",
-            progressText: "请点击重新生成",
+            progressText: "请点击重新生成标书",
             barTrack: "bg-white",
             barFill: "bg-red-500 w-1/4",
             statusText: "生成失败",
@@ -905,6 +905,7 @@
     }
 
     setButtonDisabled(document.querySelector("[data-purpose='download-bid']"), !generated || generating);
+    setButtonDisabled(document.querySelector("[data-purpose='regenerate-outline']"), generating);
     setButtonDisabled(document.querySelector("[data-purpose='regenerate-bid']"), generating);
   };
 
@@ -961,9 +962,12 @@
     let project = await getActiveProject();
     if (!project) return;
     const selectedRange = selectedBidPageRange(project);
+    const state = readState();
+    const forceDeepSeekOutline = state.forceRegenerateOutlineProjectId === project.id;
+    if (forceDeepSeekOutline) writeState({ forceRegenerateOutlineProjectId: "" });
     const needsDeepSeekOutline =
       project.status === "completed" &&
-      (!project.outlineDocument || project.outlineDocument.bidPageRange !== selectedRange);
+      (forceDeepSeekOutline || !project.outlineDocument || project.outlineDocument.bidPageRange !== selectedRange);
     const tree = document.querySelector("[data-purpose='directory-tree-list']");
     const chapterBadge = Array.from(document.querySelectorAll("span")).find((node) => textOf(node).includes("Chapters") || textOf(node).includes("Items"));
     if (needsDeepSeekOutline) {
@@ -1900,13 +1904,23 @@
         const projectId = await getActiveProjectId();
         if (!projectId) return;
 
+        const purpose = button.dataset.purpose || "";
+
         if (disabledLike(button)) {
           stop(event);
-          toast("标书尚未生成完成，暂不能下载", "warn");
+          toast(purpose === "download-bid" ? "标书尚未生成完成，暂不能下载" : "当前正在生成，请稍候", "warn");
           return;
         }
 
-        if (text.includes("重新生成")) {
+        if (purpose === "regenerate-outline") {
+          stop(event);
+          writeState({ forceRegenerateOutlineProjectId: projectId });
+          toast("正在返回生成目录页，重新调用 DeepSeek 生成目录", "warn");
+          window.location.href = "./outline.html";
+          return;
+        }
+
+        if (purpose === "regenerate-bid" || text.includes("重新生成标书")) {
           stop(event);
           toast("正在调用 DeepSeek 重新生成技术部分，请稍候", "warn");
           const current = await getActiveProject();
@@ -1915,9 +1929,10 @@
           writeState({ activeProjectId: data.project.id });
           await renderGeneratePage();
           toast("DeepSeek 已重新生成标书技术部分");
+          return;
         }
 
-        if (text.includes("下载标书")) {
+        if (purpose === "download-bid" || text.includes("下载标书")) {
           stop(event);
           const project = await getActiveProject();
           if (!project?.bidDocument) await api(apiPath(`/api/projects/${projectId}/generate-bid`), { method: "POST", body: bidGenerationRequest(project) });

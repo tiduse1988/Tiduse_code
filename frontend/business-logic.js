@@ -790,6 +790,7 @@
   };
 
   const renderAnalysisPending = (project) => {
+    document.body.classList.remove("analysis-booting");
     document.title = `${project?.name || "招标文件"} - 招标文件解析中`;
     const message = project?.message || "AI正在解析招标文件，请稍候。";
     const progress = Math.max(0, Math.min(100, Number(project?.progress || 0)));
@@ -1462,11 +1463,18 @@
   const renderAnalysisPage = async () => {
     const project = await getActiveProject();
     if (!project) return;
+    document.body.classList.remove("analysis-booting");
+    if (project.lotSelectionRequired) {
+      writeState({ activeProjectId: project.id, pendingLotProjectId: project.id });
+      toast("该项目包含多个标段，请先选择本次解析标段", "warn");
+      window.location.href = "./home.html";
+      return;
+    }
     if (project.status !== "completed") {
       renderAnalysisPending(project);
       return;
     }
-    openLotSelectionModal(project);
+    window.clearTimeout(window.__analysisPollTimer);
     const meta = projectMeta(project);
     const raw = meta.raw;
     const basic = meta.basic;
@@ -1658,6 +1666,7 @@
 
   const statusMeta = (project) => {
     if (project.status === "failed") return { text: project.message, percent: "--", tone: "red", bar: "bg-red-500", width: 15 };
+    if (project.status === "awaiting_lot_selection") return { text: "请选择解析标段", percent: "待选择", tone: "blue", bar: "bg-blue-500", width: 55 };
     if (project.status === "queued") return { text: project.message, percent: "--", tone: "gray", bar: "bg-gray-300", width: 0 };
     if (project.status === "completed") return { text: "解析完成", percent: "100%", tone: "emerald", bar: "bg-emerald-500", width: 100 };
     return { text: project.message || "AI正在解析招标文件", percent: `${project.progress}%`, tone: "amber", bar: "bg-amber-500", width: project.progress };
@@ -1667,8 +1676,11 @@
     const meta = statusMeta(project);
     const completed = project.status === "completed";
     const failed = project.status === "failed";
+    const awaitingLot = project.status === "awaiting_lot_selection" || project.lotSelectionRequired;
     const secondButton = failed
       ? '<button class="flex-1 px-3 py-2 text-xs font-medium text-amber-600 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors"><i class="fas fa-redo mr-1"></i>重新解析</button>'
+      : awaitingLot
+        ? '<button class="flex-1 px-3 py-2 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"><i class="fas fa-layer-group mr-1"></i>选择标段</button>'
       : `<button class="flex-1 px-3 py-2 text-xs font-medium ${completed ? "text-blue-600 bg-blue-50 hover:bg-blue-100" : "text-gray-400 bg-gray-50 cursor-not-allowed"} rounded-lg transition-colors" aria-disabled="${!completed}"><i class="fas fa-eye mr-1"></i>查看解析</button>`;
     const bidButton = hasBidTechnicalChapters(project)
       ? '<i class="fas fa-file-alt mr-1"></i>查看标书'
@@ -1745,6 +1757,15 @@
         </div>`;
     updateProjectCount(projects.length);
     applySearchAndSort();
+    const state = readState();
+    const preferredId = state.pendingLotProjectId || state.activeProjectId;
+    const pendingLotProject =
+      projects.find((project) => project.id === preferredId && project.lotSelectionRequired) ||
+      projects.find((project) => project.status === "awaiting_lot_selection" || project.lotSelectionRequired);
+    if (pendingLotProject && page === "home.html") {
+      writeState({ activeProjectId: pendingLotProject.id, pendingLotProjectId: pendingLotProject.id });
+      openLotSelectionModal(pendingLotProject);
+    }
   };
 
   const updateProjectCount = (count) => {
@@ -1829,36 +1850,39 @@
     if (document.querySelector("[data-lot-selection-modal]")) return;
     const modal = document.createElement("div");
     modal.dataset.lotSelectionModal = "true";
-    modal.className = "fixed inset-0 z-[9998] flex items-center justify-center bg-slate-900/45 px-6";
+    modal.setAttribute(
+      "style",
+      "position:fixed;inset:0;z-index:9998;display:flex;align-items:center;justify-content:center;background:rgba(15,23,42,.45);padding:24px;"
+    );
     modal.innerHTML = `
-      <div class="w-full max-w-2xl rounded-2xl bg-white shadow-2xl border border-gray-100 overflow-hidden">
-        <div class="p-6 border-b border-gray-100">
-          <h3 class="text-xl font-bold text-gray-900">确认解析标段</h3>
-          <p class="mt-2 text-sm text-gray-500 leading-relaxed">当前招标文件包含多个标段，请选择本次要解析的标段。确认后系统会按所选标段重新解析，项目名称会自动追加标段号。</p>
+      <div style="width:min(720px,100%);max-height:86vh;overflow:hidden;border-radius:18px;background:#fff;border:1px solid #e5e7eb;box-shadow:0 24px 80px rgba(15,23,42,.28);">
+        <div style="padding:24px;border-bottom:1px solid #eef2f7;">
+          <h3 style="margin:0;font-size:22px;line-height:1.3;font-weight:800;color:#111827;">确认解析标段</h3>
+          <p style="margin:10px 0 0;font-size:14px;line-height:1.8;color:#64748b;">当前招标文件包含多个标段，请选择本次要解析的标段。确认后系统会按所选标段重新解析，项目名称会自动追加标段号。</p>
         </div>
-        <div class="p-5 space-y-3">
+        <div style="padding:20px;display:grid;gap:12px;max-height:52vh;overflow:auto;">
           ${project.lotOptions
             .map(
               (lot, index) => `
-              <label class="lot-selection-option flex gap-4 rounded-xl border ${index === 0 ? "border-blue-500 bg-blue-50" : "border-gray-200 bg-white"} p-4 cursor-pointer hover:border-blue-400 hover:bg-blue-50/60 transition-colors">
-                <input class="mt-1 text-blue-600" type="radio" name="lotId" value="${esc(lot.id)}" ${index === 0 ? "checked" : ""}>
-                <span class="flex-1 min-w-0">
-                  <span class="flex items-center gap-2">
-                    <span class="text-base font-bold text-gray-900">${esc(lot.label)}</span>
-                    <span class="text-xs font-bold text-gray-500 rounded-full bg-gray-100 px-2 py-1">${esc(lot.sourceLabel || "标包")}</span>
+              <label class="lot-selection-option" style="display:flex;gap:16px;align-items:flex-start;border:1px solid ${index === 0 ? "#3b82f6" : "#e5e7eb"};background:${index === 0 ? "#eff6ff" : "#fff"};border-radius:14px;padding:16px;cursor:pointer;transition:all .16s ease;">
+                <input style="margin-top:5px;accent-color:#2563eb;" type="radio" name="lotId" value="${esc(lot.id)}" ${index === 0 ? "checked" : ""}>
+                <span style="flex:1;min-width:0;">
+                  <span style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                    <span style="font-size:16px;font-weight:800;color:#111827;">${esc(lot.label)}</span>
+                    <span style="font-size:12px;font-weight:700;color:#64748b;border-radius:999px;background:#f1f5f9;padding:4px 8px;">${esc(lot.sourceLabel || "标包")}</span>
                   </span>
-                  <span class="mt-2 block text-sm text-gray-600 leading-relaxed">${esc(lot.name || "未识别到单独标段名称")}</span>
+                  <span style="display:block;margin-top:8px;font-size:14px;line-height:1.7;color:#475569;">${esc(lot.name || "未识别到单独标段名称")}</span>
                 </span>
-                <span class="text-right shrink-0">
-                  <span class="block text-xs text-gray-400 mb-1">对应金额</span>
-                  <span class="block text-base font-extrabold text-red-600">${esc(lot.amount || "未明确")}</span>
+                <span style="text-align:right;flex:0 0 auto;">
+                  <span style="display:block;margin-bottom:4px;font-size:12px;color:#94a3b8;">对应金额</span>
+                  <span style="display:block;font-size:17px;font-weight:900;color:#dc2626;">${esc(lot.amount || "未明确")}</span>
                 </span>
               </label>`
             )
             .join("")}
         </div>
-        <div class="flex justify-end gap-3 p-5 border-t border-gray-100 bg-gray-50">
-          <button class="h-10 px-5 rounded-lg text-sm font-bold text-white bg-blue-600 hover:bg-blue-700" data-action="confirm-lot">确认标段并重新解析</button>
+        <div style="display:flex;justify-content:flex-end;gap:12px;padding:18px 20px;border-top:1px solid #eef2f7;background:#f8fafc;">
+          <button style="height:42px;padding:0 20px;border:0;border-radius:10px;background:#2563eb;color:#fff;font-size:14px;font-weight:800;cursor:pointer;" data-action="confirm-lot">确认标段并开始解析</button>
         </div>
       </div>`;
     document.body.appendChild(modal);
@@ -1866,11 +1890,11 @@
       const option = event.target.closest(".lot-selection-option");
       if (option) {
         modal.querySelectorAll(".lot-selection-option").forEach((node) => {
-          node.classList.remove("border-blue-500", "bg-blue-50");
-          node.classList.add("border-gray-200", "bg-white");
+          node.style.borderColor = "#e5e7eb";
+          node.style.background = "#fff";
         });
-        option.classList.add("border-blue-500", "bg-blue-50");
-        option.classList.remove("border-gray-200", "bg-white");
+        option.style.borderColor = "#3b82f6";
+        option.style.background = "#eff6ff";
       }
       const action = event.target.closest("[data-action]")?.dataset.action;
       if (action !== "confirm-lot") return;
@@ -1880,10 +1904,11 @@
       button.textContent = "正在重新解析...";
       try {
         const data = await api(apiPath(`/api/projects/${project.id}/select-lot`), { method: "POST", body: JSON.stringify({ lotId }) });
-        writeState({ activeProjectId: data.project.id });
+        writeState({ activeProjectId: data.project.id, pendingLotProjectId: "" });
         modal.remove();
         toast(`已选择${data.selectedLot?.label || "标段"}，正在重新解析`);
-        renderAnalysisPending(data.project);
+        if (page === "analysis.html") renderAnalysisPending(data.project);
+        if (page === "home.html") loadProjects().catch(() => {});
       } catch (error) {
         setButtonDisabled(button, false);
         button.textContent = "确认标段并重新解析";
@@ -2068,6 +2093,18 @@
           return;
         }
 
+        if (text.includes("选择标段") && projectId) {
+          stop(event);
+          const project = projectsCache.find((item) => item.id === projectId);
+          if (!project) {
+            toast("正在读取项目，请稍候", "warn");
+            return;
+          }
+          writeState({ activeProjectId: projectId, pendingLotProjectId: projectId });
+          openLotSelectionModal(project);
+          return;
+        }
+
         if (projectId && (text.includes("查看解析") || text.includes("生成标书") || text.includes("查看标书") || text.includes("标书核验"))) {
           writeState({ activeProjectId: projectId });
         }
@@ -2109,6 +2146,7 @@
     if (!ensureLogin()) return;
 
     hydrateCurrentUser().catch(() => {});
+    renderAnalysisPending({ name: "正在读取项目", status: "parsing", progress: 8, message: "正在读取项目解析状态" });
     renderAnalysisPage().catch((error) => toast(error.message, "error"));
 
     document.addEventListener(

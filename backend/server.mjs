@@ -346,7 +346,24 @@ const lotNumberText = (value = "") => {
   return map[cn] || "";
 };
 
-const normalizeLotAmount = (value = "") => String(value || "").replace(/\s+/g, "").replace(/[,，]/g, "");
+const normalizeLotAmount = (value = "") => {
+  const text = String(value || "").replace(/\s+/g, "").replace(/[,，]/g, "");
+  if (!text) return "";
+  return /元|万/.test(text) ? text : `${text}元`;
+};
+
+const amountNumber = (value = "") => {
+  const text = String(value || "").replace(/[,，]/g, "");
+  const num = Number(text.match(/\d+(?:\.\d+)?/)?.[0] || 0);
+  return /万/.test(text) ? num * 10000 : num;
+};
+
+const cleanLotName = (value = "") => String(value || "")
+  .replace(/\s+/g, "")
+  .replace(/^包\s*[一二三四五六七八九十\d]+\s*[：:]/, "")
+  .replace(/^第?\s*[一二三四五六七八九十\d]+\s*(标包|标段|包)\s*[：:]/, "")
+  .replace(/信息系统州(?=运维)/g, "信息系统")
+  .trim();
 
 const extractLotOptions = (resultOrRaw = {}, project = {}) => {
   const raw = resultOrRaw.raw || resultOrRaw || {};
@@ -358,22 +375,35 @@ const extractLotOptions = (resultOrRaw = {}, project = {}) => {
     ...(raw.businessReview || []),
     ...(raw.technicalReview || [])
   ];
-  const sourceParts = rows.flatMap((row) => [row.item, row.content, row.info, row.requirement, row.note, row.remark, row.responsePoint]).filter(Boolean);
+  const sourceParts = [
+    resultOrRaw.fullText,
+    resultOrRaw.sourceText,
+    raw.fullText,
+    raw.sourceText,
+    ...(rows.flatMap((row) => [row.item, row.content, row.info, row.requirement, row.note, row.remark, row.responsePoint]).filter(Boolean))
+  ].filter(Boolean);
   const found = new Map();
 
   const addLot = ({ sourceLabel, amount, name = "" }) => {
     const index = lotNumberText(sourceLabel);
     if (!index || !amount) return;
+    const nextAmountNo = amountNumber(amount);
+    if (nextAmountNo > 0 && nextAmountNo < 1000) return;
     const key = `lot_${index}`;
     const old = found.get(key) || {};
-    const cleanName = String(old.name || name || "").trim();
+    const oldAmountNo = amountNumber(old.amount);
+    const finalAmount = oldAmountNo > nextAmountNo ? old.amount : normalizeLotAmount(amount);
+    const finalSourceLabel = /标包|标段/.test(old.sourceLabel || "") && /标项/.test(sourceLabel || "") ? old.sourceLabel : String(sourceLabel || old.sourceLabel || `标包${index}`).replace(/\s+/g, "");
+    const oldName = cleanLotName(old.name);
+    const nextName = cleanLotName(name);
+    const finalName = oldName.length >= nextName.length ? oldName : nextName;
     found.set(key, {
       id: key,
       index: Number(index),
       label: `标段${index}`,
-      sourceLabel: String(sourceLabel || `标包${index}`).replace(/\s+/g, ""),
-      name: cleanName,
-      amount: normalizeLotAmount(amount)
+      sourceLabel: finalSourceLabel,
+      name: finalName,
+      amount: finalAmount
     });
   };
 
@@ -387,6 +417,11 @@ const extractLotOptions = (resultOrRaw = {}, project = {}) => {
 
   for (const text of sourceParts) {
     const normalized = String(text || "");
+    const itemPattern = /标项\s*([一二三四五六七八九十\d]+)[\s\S]{0,360}?标项名称\s*[：:]\s*(?:包\s*[一二三四五六七八九十\d]+\s*[：:])?\s*([^\n\r]{2,90})[\s\S]{0,260}?预算金[^\n\r：:]{0,10}额(?:（元）)?\s*[：:]\s*([0-9][0-9,，]*(?:\.\d+)?)/g;
+    let itemMatch;
+    while ((itemMatch = itemPattern.exec(normalized))) {
+      addLot({ sourceLabel: `标包${lotNumberText(itemMatch[1])}`, name: itemMatch[2], amount: itemMatch[3] });
+    }
     const pattern = /(标(?:包|段|项)\s*[一二三四五六七八九十\d]+)\s*[：:]\s*([0-9][0-9,，]*(?:\.\d+)?\s*(?:万元|元)?)/g;
     let match;
     while ((match = pattern.exec(normalized))) {
@@ -1693,6 +1728,15 @@ const startParsingJob = async (projectId) => {
       if (!extractedProject) return;
       extractedProject.extraction = extraction;
       extractedProject.sourceText = extraction.fullText || extractedProject.sourceText || "";
+      const lotOptions = extractLotOptions({ fullText: extraction.fullText, sourceText: extraction.fullText, tables: extraction.tables }, extractedProject);
+      if (lotOptions.length > 1 && !extractedProject.selectedLot) {
+        extractedProject.lotOptions = lotOptions;
+        extractedProject.status = "awaiting_lot_selection";
+        extractedProject.progress = 55;
+        extractedProject.message = "已识别到多个标段，请先选择本次解析标段";
+        await writeDb(afterExtract);
+        return;
+      }
       extractedProject.progress = 68;
       extractedProject.message = "正在调用 DeepSeek 生成表格化解析报告";
       await writeDb(afterExtract);

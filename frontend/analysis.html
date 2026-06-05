@@ -210,6 +210,25 @@
       font-weight: 700;
     }
 
+    body.analysis-booting main.shell > section,
+    body.analysis-booting footer.bottom-bar {
+      display: none;
+    }
+
+    body.analysis-booting main.shell::before {
+      content: "正在读取项目解析状态...";
+      min-height: 260px;
+      display: grid;
+      place-items: center;
+      margin-top: 28px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      color: var(--muted);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      font-weight: 700;
+    }
+
     .hero {
       min-height: calc(var(--header-h) + var(--nav-h));
       background: var(--bg);
@@ -869,7 +888,7 @@
     }
   </style>
 </head>
-<body>
+<body class="analysis-booting">
   <header class="topbar">
     <div class="shell topbar-inner">
       <a class="brand" href="#top" aria-label="返回顶部">

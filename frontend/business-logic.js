@@ -280,7 +280,7 @@
 
   const bidPageRanges = [
     { value: "under_100", label: "100页以内", target: 8, description: "技术目录保持精简，但正文完整可用。" },
-    { value: "100_300", label: "100-300页", target: 18, description: "按中等厚标扩写技术目录和正文内容。" },
+    { value: "100_300", label: "100-300页", target: 26, description: "按中等厚标扩写技术目录和正文内容。" },
     { value: "300_600", label: "300-600页", target: 30, description: "深度扩写技术目录，增加专项方案和保障措施。" },
     { value: "over_600", label: "600页以上", target: 45, description: "充分扩写技术目录，面向大型、厚标响应文件。" }
   ];

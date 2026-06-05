@@ -544,7 +544,7 @@ const shouldReplaceProjectName = (project, parsedName) => {
 
 const bidPageRanges = {
   under_100: { label: "100页以内", target: 8, minChapterChars: 1800, maxTokens: 9000, instruction: "技术目录保持精简，但每章需形成可直接放入标书的完整正文。" },
-  "100_300": { label: "100-300页", target: 18, minChapterChars: 5600, maxTokens: 12000, instruction: "按中等厚标扩写技术目录，覆盖评分点、实施细节、质量保障、人员组织、交付验收和风险控制。" },
+  "100_300": { label: "100-300页", target: 26, minChapterChars: 5600, maxTokens: 12000, instruction: "按中等厚标扩写技术目录，覆盖评分点、实施细节、质量保障、人员组织、交付验收、设备参数响应和风险控制。" },
   "300_600": { label: "300-600页", target: 30, minChapterChars: 6500, maxTokens: 15000, instruction: "深度扩写技术目录，形成专项方案、质量管理、风险控制、交付保障、运维服务和管理制度章节体系。" },
   over_600: { label: "600页以上", target: 45, minChapterChars: 9000, maxTokens: 16000, instruction: "充分扩写技术目录，面向大型厚标，形成完整专项章节体系和大量可落地正文。" }
 };
@@ -557,12 +557,57 @@ const compactOutlineLabel = (value) =>
     .replace(/^(?:技术部分|技术响应|技术方案)[：:、，,；;]?\s*/, "")
     .trim();
 
+const directoryDisplayLabel = (value) =>
+  stripLeadingNumber(value)
+    .replace(/^(?:技术部分|技术响应|技术方案)[：:、，,；;]?\s*/, "")
+    .trim();
+
 const pushUniqueOutline = (items, value) => {
-  const label = compactOutlineLabel(value);
+  const label = directoryDisplayLabel(value);
   if (!label) return;
-  const normalized = label.replace(/\s+/g, "");
+  const normalized = compactOutlineLabel(label).replace(/\s+/g, "");
   if (items.some((item) => compactOutlineLabel(item).replace(/\s+/g, "") === normalized)) return;
   items.push(label);
+};
+
+const hasThirdLevelHint = (value) => /[（(][^（）()]*[、，,；;][^（）()]*[）)]\s*$/.test(String(value || ""));
+
+const technicalHintFor = (value) => {
+  const title = compactOutlineLabel(value);
+  if (/设备|仪器|参数|性能指标|雨量计|水位计|ADCP|RTU|终端|电话|全站仪|水准仪|RTK|球机|探照灯|雷达|船/.test(title)) {
+    return "参数逐项响应、证明材料、偏离说明、安装调试、验收保障";
+  }
+  if (/评分|得分|评审/.test(title)) {
+    return "评分点拆解、响应章节索引、证明材料、得分保障";
+  }
+  if (/实施|进度|计划|措施/.test(title)) {
+    return "实施步骤、进度安排、责任分工、过程控制、成果提交";
+  }
+  if (/质量|保证|控制|校核/.test(title)) {
+    return "质量目标、检查机制、复核流程、问题整改、记录归档";
+  }
+  if (/售后|服务|保障|运维|维护/.test(title)) {
+    return "响应时限、服务流程、资源保障、问题闭环、持续支持";
+  }
+  if (/人员|团队|组织|职责/.test(title)) {
+    return "组织架构、岗位职责、人员资质、协作机制、替补安排";
+  }
+  if (/风险|应急|安全|保密/.test(title)) {
+    return "风险识别、预防措施、应急流程、责任岗位、恢复目标";
+  }
+  if (/验收|交付|成果/.test(title)) {
+    return "交付清单、验收依据、资料移交、整改闭环、归档要求";
+  }
+  return "响应目标、实施方法、质量控制、交付成果、风险保障";
+};
+
+const ensureTechnicalOutlineDepth = (items, bidPageRange) => {
+  if (bidPageRange === "under_100") return items;
+  return (Array.isArray(items) ? items : []).map((item) => {
+    const label = directoryDisplayLabel(item);
+    if (!label || hasThirdLevelHint(label)) return label;
+    return `${label}（${technicalHintFor(label)}）`;
+  });
 };
 
 const expandTechnicalOutline = (raw, technicalItems, rangeValue) => {
@@ -778,9 +823,11 @@ const normalizeGeneratedOutline = (parsed, raw, bidPageRange) => {
   const fallbackTechnical = expandTechnicalOutline(raw, requiredTechnical, bidPageRange);
   const technicalPart = normalizeDirectoryList([...requiredTechnical, ...deepSeekTechnical], fallbackTechnical);
 
+  const technicalDepth = ensureTechnicalOutlineDepth(technicalPart, bidPageRange);
+
   return {
     businessPart,
-    technicalPart: bidPageRange === "under_100" ? technicalPart.slice(0, Math.max(technicalPart.length, requiredTechnical.length)) : technicalPart.slice(0, Math.max(rangeMeta.target, requiredTechnical.length)),
+    technicalPart: bidPageRange === "under_100" ? technicalDepth.slice(0, Math.max(technicalDepth.length, requiredTechnical.length)) : technicalDepth.slice(0, Math.max(rangeMeta.target, requiredTechnical.length)),
     attachmentsPart
   };
 };

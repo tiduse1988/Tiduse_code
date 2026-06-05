@@ -799,7 +799,7 @@ const generateOutlineWithDeepSeek = async (project, result, options = {}) => {
     : raw.bidOutline || {};
   const bidPageRange = options.bidPageRange || project.bidPageRange || "under_100";
   const rangeMeta = bidPageRangeMeta(bidPageRange);
-  const tenderContext = buildBidGenerationContext(project);
+  const tenderContext = buildBidGenerationContext(project, raw);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 120000);
 
@@ -817,7 +817,7 @@ const generateOutlineWithDeepSeek = async (project, result, options = {}) => {
         },
         {
           role: "user",
-          content: `请生成投标文件目录。\n\n项目名称：${project.name}\n文件名：${project.fileName}\n投标文件内容量档位：${rangeMeta.label}\n目录策略：${rangeMeta.instruction}\n技术目录建议数量：${bidPageRange === "under_100" ? "保持精简，优先保留招标文件明确技术/评分事项" : `不少于${rangeMeta.target}项技术二级目录或三级目录承载点`}\n\n【解析出的响应文件格式目录】\n商务部分：${JSON.stringify(outline.businessPart || [])}\n附件部分：${JSON.stringify(outline.attachmentsPart || [])}\n原始技术部分：${JSON.stringify(outline.technicalPart || [])}\n\n【评分标准，必须保留对应响应目录】\n${JSON.stringify(raw.scoringReview || [])}\n\n【技术/服务要求，必须保留对应响应目录】\n${JSON.stringify(raw.technicalReview || [])}\n\n【商务要求，仅用于商务目录，不要扩写为技术内容】\n${JSON.stringify(raw.businessReview || [])}\n\n【资料清单】\n${JSON.stringify(raw.materialsChecklist || [])}\n\n【招标文件表格】\n${JSON.stringify(tenderContext.tenderTables).slice(0, 50000)}\n\n【招标文件正文】\n${tenderContext.tenderText.slice(0, 90000)}\n\n输出 JSON：\n{\n  "businessPart": ["商务部分目录，按响应文件格式/资格要求，不因页数档位扩写"],\n  "technicalPart": ["技术部分目录，必须覆盖评分表技术要求，可按档位扩写"],\n  "attachmentsPart": ["附件部分目录，按资料清单和资格证明，不因页数档位扩写"],\n  "notes": ["目录生成说明"]\n}\n要求：\n1. 必须针对本招标文件，不要套用固定通用目录。\n2. 商务、资质、证书、业绩、财务、纳税、社保、授权等只保留目录，不编造成正文方向，也不要因页数档位扩写。\n3. 技术部分要依据评分表和技术/服务要求生成；评分表已有事项必须保留，只能扩写不能删除。\n4. 如目录项括号内是多个具体材料或具体技术维度，可保留括号提示，前端会拆成三级目录；如只是“如适用/服务类/逐条响应采购需求”等提示，不要强行拆。\n5. 不要 Markdown，不要解释，只输出 JSON。`
+          content: `请生成投标文件目录。\n\n项目名称：${project.name}\n文件名：${project.fileName}\n投标文件内容量档位：${rangeMeta.label}\n目录策略：${rangeMeta.instruction}\n技术目录建议数量：${bidPageRange === "under_100" ? "保持精简，优先保留招标文件明确技术/评分事项" : `不少于${rangeMeta.target}项技术二级目录或三级目录承载点`}\n\n上下文说明：以下内容来自服务端对原始招标文件的完整提取和解析报告结构化结果。原文过长时，系统会优先保留评分办法、响应文件格式、采购需求、技术参数、资格资料、废标条款及相邻页，不能把未展示的非关键页理解为不存在。\n正文范围：${tenderContext.textMode}\n关键页：${(tenderContext.selectedPages || []).join("、") || "全文"}\n文件提取质量：${JSON.stringify(tenderContext.extractionQuality)}\n\n【解析报告结构化内容包】\n${tenderContext.structuredReportText}\n\n【解析出的响应文件格式目录】\n商务部分：${JSON.stringify(outline.businessPart || [])}\n附件部分：${JSON.stringify(outline.attachmentsPart || [])}\n原始技术部分：${JSON.stringify(outline.technicalPart || [])}\n\n【评分标准，必须保留对应响应目录】\n${JSON.stringify(raw.scoringReview || [])}\n\n【技术/服务要求，必须保留对应响应目录】\n${JSON.stringify(raw.technicalReview || [])}\n\n【商务要求，仅用于商务目录，不要扩写为技术内容】\n${JSON.stringify(raw.businessReview || [])}\n\n【资料清单】\n${JSON.stringify(raw.materialsChecklist || [])}\n\n【招标文件关键表格包】\n${JSON.stringify(tenderContext.tenderTables)}\n\n【招标文件关键章节原文包】\n${tenderContext.tenderText}\n\n输出 JSON：\n{\n  "businessPart": ["商务部分目录，按响应文件格式/资格要求，不因页数档位扩写"],\n  "technicalPart": ["技术部分目录，必须覆盖评分表技术要求，可按档位扩写"],\n  "attachmentsPart": ["附件部分目录，按资料清单和资格证明，不因页数档位扩写"],\n  "notes": ["目录生成说明"]\n}\n要求：\n1. 必须针对本招标文件，不要套用固定通用目录。\n2. 商务、资质、证书、业绩、财务、纳税、社保、授权等只保留目录，不编造成正文方向，也不要因页数档位扩写。\n3. 技术部分要依据评分表和技术/服务要求生成；评分表已有事项必须保留，只能扩写不能删除。\n4. 如果用户选择 100-300页、300-600页或600页以上，必须在技术部分按采购需求、评分维度、服务流程、质量控制、风险保障、项目管理、交付验收等维度扩写目录；商务部分不得扩写。\n5. 如目录项括号内是多个具体材料或具体技术维度，可保留括号提示，前端会拆成三级目录；如只是“如适用/服务类/逐条响应采购需求”等提示，不要强行拆。\n6. 不要 Markdown，不要解释，只输出 JSON。`
         }
       ]
     });
@@ -831,8 +831,10 @@ const generateOutlineWithDeepSeek = async (project, result, options = {}) => {
       bidPageRange,
       bidPageRangeLabel: rangeMeta.label,
       contextMode: tenderContext.textMode,
-      contextCharCount: tenderContext.tenderText.length,
+      contextCharCount: tenderContext.tenderText.length + tenderContext.structuredReportText.length,
+      contextReportCharCount: tenderContext.structuredReportText.length,
       contextTableCount: tenderContext.tenderTables.length,
+      contextSelectedPages: tenderContext.selectedPages || [],
       ...normalized,
       notes: [
         ...(Array.isArray(parsed.notes) ? parsed.notes : []),
@@ -973,43 +975,164 @@ const analyzeWithDeepSeek = async (project) => {
   }
 };
 
-const buildBidGenerationContext = (project) => {
-  const extraction = project.extraction || {};
-  const fullText = String(extraction.fullText || project.sourceText || "");
-  const keywords = ["评分", "评审", "采购需求", "服务要求", "技术", "商务需求", "保密", "人员", "培训", "服务质量", "整体实施方案", "响应文件格式", "附件"];
-  let tenderText = fullText;
-  let textMode = "完整招标文件正文";
+const CONTEXT_TEXT_BUDGET = 105000;
+const REPORT_CONTEXT_BUDGET = 36000;
+const TABLE_CONTEXT_BUDGET = 32000;
 
-  if (fullText.length > 120000) {
-    const chunks = [];
-    const seen = new Set();
-    for (const keyword of keywords) {
-      let index = fullText.indexOf(keyword);
-      while (index >= 0 && chunks.length < 28) {
-        const start = Math.max(0, index - 2500);
-        const end = Math.min(fullText.length, index + 4500);
-        const key = `${start}-${end}`;
-        if (!seen.has(key)) {
-          seen.add(key);
-          chunks.push(`【${keyword}附近原文】\n${fullText.slice(start, end)}`);
-        }
-        index = fullText.indexOf(keyword, index + keyword.length);
-      }
+const compactStringify = (value, maxChars = REPORT_CONTEXT_BUDGET) => {
+  const text = JSON.stringify(value ?? "", null, 2);
+  return text.length > maxChars ? `${text.slice(0, maxChars)}\n【内容过长，已截断】` : text;
+};
+
+const buildStructuredReportText = (raw = {}) => {
+  const sections = [
+    ["项目头信息", raw.projectHeader],
+    ["项目基本信息", raw.basicReview?.projectBasicInfo],
+    ["重要时间节点", raw.basicReview?.keyDates],
+    ["预算与报价", raw.basicReview?.budgetPricing],
+    ["保证金信息", raw.basicReview?.guaranteeInfo],
+    ["资格审查", raw.qualificationCompliance],
+    ["商务要求", raw.businessReview],
+    ["技术/服务要求", raw.technicalReview],
+    ["评分标准", raw.scoringReview],
+    ["废标/无效条款", raw.rejectionClauses],
+    ["响应文件格式", raw.submissionFormat],
+    ["资料清单", raw.materialsChecklist],
+    ["解析阶段大纲", raw.bidOutline],
+    ["提取质量", raw.extractionQuality]
+  ];
+  const chunks = [];
+  let total = 0;
+  for (const [title, value] of sections) {
+    if (value === undefined || value === null) continue;
+    const chunk = `【${title}】\n${compactStringify(value, Math.min(12000, REPORT_CONTEXT_BUDGET))}`;
+    if (total + chunk.length > REPORT_CONTEXT_BUDGET) break;
+    chunks.push(chunk);
+    total += chunk.length;
+  }
+  return chunks.join("\n\n---\n\n") || "解析报告结构化内容为空，请以招标文件原文为准。";
+};
+
+const keySectionPatterns = [
+  { label: "评分标准", score: 120, pattern: /评标办法|评分标准|评审标准|评审因素|评分因素|分值|技术评分|商务评分|综合评分/ },
+  { label: "响应文件格式", score: 115, pattern: /投标文件格式|响应文件格式|响应文件组成|资格审查资料|商务和技术偏差|投标函|授权委托|开标一览表|报价明细/ },
+  { label: "采购需求", score: 105, pattern: /采购需求|项目需求|服务内容|服务范围|建设内容|供货要求|设备清单|清单及参数/ },
+  { label: "技术要求", score: 105, pattern: /技术要求|技术参数|服务要求|实施方案|运维服务|质量要求|验收要求|交付要求/ },
+  { label: "资格条件", score: 95, pattern: /资格条件|资格要求|资格审查|投标人资格|供应商资格|营业执照|财务|纳税|社保|业绩|信誉|认证证书/ },
+  { label: "商务要求", score: 85, pattern: /商务要求|商务条款|合同条款|服务期|工期|付款方式|报价要求|投标保证金|履约保证金/ },
+  { label: "废标条款", score: 82, pattern: /废标|无效投标|否决投标|实质性要求|不允许偏差|重大偏差|投标无效/ },
+  { label: "附件资料", score: 70, pattern: /附件|资料清单|证明材料|承诺函|声明函|中小企业|残疾人福利|监狱企业/ }
+];
+
+const pageText = (page) => String(page?.text || "");
+
+const selectedKeyPages = (extraction = {}, maxPages = 36) => {
+  const pages = Array.isArray(extraction.pages) ? extraction.pages : [];
+  const selected = new Map();
+  const addPage = (pageIndex, score, labels) => {
+    if (pageIndex < 0 || pageIndex >= pages.length) return;
+    const page = pages[pageIndex];
+    const pageNo = Number(page.page || pageIndex + 1);
+    const existing = selected.get(pageNo) || { page, score: 0, labels: new Set() };
+    existing.score += score;
+    labels.forEach((label) => existing.labels.add(label));
+    selected.set(pageNo, existing);
+  };
+
+  pages.forEach((page, index) => {
+    const text = pageText(page);
+    if (!text.trim()) return;
+    const hits = keySectionPatterns.filter((item) => item.pattern.test(text));
+    if (!hits.length) return;
+    const score = hits.reduce((sum, item) => sum + item.score, 0);
+    const labels = hits.map((item) => item.label);
+    addPage(index, score, labels);
+    if (hits.some((item) => item.score >= 100)) {
+      addPage(index - 1, 20, labels.map((label) => `${label}相邻页`));
+      addPage(index + 1, 20, labels.map((label) => `${label}相邻页`));
     }
-    tenderText = chunks.join("\n\n---\n\n") || fullText.slice(0, 120000);
-    textMode = "招标文件关键章节原文（原文过长，按评分/采购需求/技术/商务/格式等关键词截取）";
+  });
+
+  return [...selected.values()]
+    .sort((a, b) => b.score - a.score || Number(a.page.page || 0) - Number(b.page.page || 0))
+    .slice(0, maxPages)
+    .sort((a, b) => Number(a.page.page || 0) - Number(b.page.page || 0));
+};
+
+const buildKeySectionText = (extraction = {}, fullText = "", maxChars = CONTEXT_TEXT_BUDGET) => {
+  if (fullText && fullText.length <= maxChars) {
+    return {
+      text: `【招标文件全文】\n${fullText}`,
+      mode: "完整招标文件正文",
+      selectedPages: []
+    };
   }
 
-  const tableKeyword = /评分|评审|分值|采购需求|服务要求|技术|商务|保密|人员|培训|响应文件|附件|资料|格式/;
-  const tenderTables = (extraction.tables || [])
-    .filter((table) => tableKeyword.test(JSON.stringify(table)))
-    .slice(0, 45)
-    .map((table) => ({ page: table.page, rows: table.rows }));
+  const selected = selectedKeyPages(extraction);
+  const chunks = [];
+  let total = 0;
+  for (const item of selected) {
+    const rawText = pageText(item.page).trim();
+    if (!rawText) continue;
+    const pageNo = item.page.page || "";
+    const labels = [...item.labels].join("、");
+    const chunk = `【关键原文：第${pageNo}页｜命中：${labels}】\n${rawText.slice(0, 7000)}`;
+    if (total + chunk.length > maxChars) break;
+    chunks.push(chunk);
+    total += chunk.length;
+  }
+
+  if (!chunks.length) {
+    return {
+      text: `【招标文件正文前段】\n${fullText.slice(0, maxChars)}`,
+      mode: "招标文件正文前段（未识别到关键页）",
+      selectedPages: []
+    };
+  }
 
   return {
-    textMode,
-    tenderText,
+    text: chunks.join("\n\n---\n\n"),
+    mode: "招标文件关键章节原文包（优先评分/格式/采购需求/技术/资格/废标及相邻页）",
+    selectedPages: selected.map((item) => `第${item.page.page || ""}页`).filter(Boolean)
+  };
+};
+
+const selectTenderTables = (tables = [], maxChars = TABLE_CONTEXT_BUDGET) => {
+  const scored = (Array.isArray(tables) ? tables : [])
+    .map((table, index) => {
+      const text = JSON.stringify(table);
+      const score = keySectionPatterns.reduce((sum, item) => sum + (item.pattern.test(text) ? item.score : 0), 0);
+      return { table, index, text, score };
+    })
+    .filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score || a.index - b.index);
+
+  const source = scored.length ? scored : (Array.isArray(tables) ? tables : []).slice(0, 25).map((table, index) => ({ table, index, text: JSON.stringify(table), score: 0 }));
+  const output = [];
+  let total = 0;
+  for (const item of source) {
+    const payload = { page: item.table.page, rows: item.table.rows };
+    const text = JSON.stringify(payload);
+    if (total + text.length > maxChars) break;
+    output.push(payload);
+    total += text.length;
+  }
+  return output;
+};
+
+const buildBidGenerationContext = (project, raw = {}) => {
+  const extraction = project.extraction || {};
+  const fullText = String(extraction.fullText || project.sourceText || "");
+  const keyText = buildKeySectionText(extraction, fullText);
+  const tenderTables = selectTenderTables(extraction.tables || []);
+  const structuredReportText = buildStructuredReportText(raw);
+
+  return {
+    textMode: keyText.mode,
+    tenderText: keyText.text,
     tenderTables,
+    structuredReportText,
+    selectedPages: keyText.selectedPages,
     extractionQuality: {
       pageCount: extraction.pageCount || 0,
       charCount: extraction.charCount || fullText.length,
@@ -1040,7 +1163,7 @@ const generateBidWithDeepSeek = async (project, result, options = {}) => {
   const scoringReview = raw.scoringReview || [];
   const businessReview = raw.businessReview || [];
   const materialsChecklist = raw.materialsChecklist || [];
-  const tenderContext = buildBidGenerationContext(project);
+  const tenderContext = buildBidGenerationContext(project, raw);
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 120000);
@@ -1096,7 +1219,7 @@ const generateVerificationWithDeepSeek = async (project, result) => {
   if (!project.bidDocument?.technicalChapters?.length) throw new Error("投标文件尚未生成，不能进行 DeepSeek 核验");
 
   const raw = result.raw || {};
-  const tenderContext = buildBidGenerationContext(project);
+  const tenderContext = buildBidGenerationContext(project, raw);
   const bidText = bidDocumentPlainText(project.bidDocument);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 120000);

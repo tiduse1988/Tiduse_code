@@ -279,16 +279,25 @@
   };
 
   const bidPageRanges = [
-    { value: "under_100", label: "100页以内", target: 8, description: "技术目录保持精简，但正文完整可用。" },
-    { value: "100_300", label: "100-300页", target: 26, description: "按中等厚标扩写技术目录和正文内容。" },
-    { value: "300_600", label: "300-600页", target: 30, description: "深度扩写技术目录，增加专项方案和保障措施。" },
-    { value: "over_600", label: "600页以上", target: 45, description: "充分扩写技术目录，面向大型、厚标响应文件。" }
+    { value: "under_100", label: "100页以内", target: 12, description: "技术目录保持精简，但正文完整可用。" },
+    { value: "100_300", label: "100-300页", target: 38, description: "按中等厚标扩写技术目录和正文内容。" },
+    { value: "300_600", label: "400-600页", target: 72, description: "深度扩写技术目录和正文，目标生成400页以上。" },
+    { value: "over_600", label: "600页以上", target: 96, description: "充分扩写技术目录，面向大型、厚标响应文件。" }
   ];
 
-  const bidPageRangeMeta = (value) => bidPageRanges.find((item) => item.value === value) || bidPageRanges[0];
+  const normalizeBidPageRange = (value = "") => {
+    const text = String(value || "").trim();
+    if (["400_600", "400-600", "300-600", "300_600"].includes(text)) return "300_600";
+    if (text === "100-300") return "100_300";
+    if (text === "600+" || text === "over600") return "over_600";
+    if (text === "100以内" || text === "under100") return "under_100";
+    return bidPageRanges.some((item) => item.value === text) ? text : "under_100";
+  };
+
+  const bidPageRangeMeta = (value) => bidPageRanges.find((item) => item.value === normalizeBidPageRange(value)) || bidPageRanges[0];
 
   const selectedBidPageRange = (project) =>
-    readState().bidPageRangeByProject?.[project?.id] || project?.bidPageRange || "under_100";
+    normalizeBidPageRange(readState().bidPageRangeByProject?.[project?.id] || project?.bidPageRange || "under_100");
 
   const hasBidTechnicalChapters = (project) =>
     Boolean(project?.bidGenerated) ||

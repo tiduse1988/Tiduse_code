@@ -686,13 +686,22 @@ const shouldReplaceProjectName = (project, parsedName) => {
 };
 
 const bidPageRanges = {
-  under_100: { label: "100页以内", target: 8, minChapterChars: 1800, maxTokens: 9000, instruction: "技术目录保持精简，但每章需形成可直接放入标书的完整正文。" },
-  "100_300": { label: "100-300页", target: 26, minChapterChars: 5600, maxTokens: 12000, instruction: "按中等厚标扩写技术目录，覆盖评分点、实施细节、质量保障、人员组织、交付验收、设备参数响应和风险控制。" },
-  "300_600": { label: "300-600页", target: 30, minChapterChars: 6500, maxTokens: 15000, instruction: "深度扩写技术目录，形成专项方案、质量管理、风险控制、交付保障、运维服务和管理制度章节体系。" },
-  over_600: { label: "600页以上", target: 45, minChapterChars: 9000, maxTokens: 16000, instruction: "充分扩写技术目录，面向大型厚标，形成完整专项章节体系和大量可落地正文。" }
+  under_100: { label: "100页以内", target: 12, targetPages: 80, minChapterChars: 3200, maxTokens: 9000, instruction: "技术目录保持精简，但每章需形成可直接放入标书的完整正文。" },
+  "100_300": { label: "100-300页", target: 38, targetPages: 180, minChapterChars: 7200, maxTokens: 12000, instruction: "按中等厚标扩写技术目录，覆盖评分点、实施细节、质量保障、人员组织、交付验收、设备参数响应和风险控制。" },
+  "300_600": { label: "400-600页", target: 72, targetPages: 430, minChapterChars: 8600, maxTokens: 15000, instruction: "深度扩写技术目录，形成专项方案、质量管理、风险控制、交付保障、运维服务和管理制度章节体系，目标正文规模需达到400页以上。" },
+  over_600: { label: "600页以上", target: 96, targetPages: 650, minChapterChars: 9600, maxTokens: 16000, instruction: "充分扩写技术目录，面向大型厚标，形成完整专项章节体系和大量可落地正文，目标正文规模需达到600页以上。" }
 };
 
-const bidPageRangeMeta = (value) => bidPageRanges[value] || bidPageRanges.under_100;
+const normalizeBidPageRange = (value = "") => {
+  const text = String(value || "").trim();
+  if (text === "400_600" || text === "400-600" || text === "300-600" || text === "300_600") return "300_600";
+  if (text === "100-300") return "100_300";
+  if (text === "600+" || text === "over600") return "over_600";
+  if (text === "100以内" || text === "under100") return "under_100";
+  return bidPageRanges[text] ? text : "under_100";
+};
+
+const bidPageRangeMeta = (value) => bidPageRanges[normalizeBidPageRange(value)] || bidPageRanges.under_100;
 
 const compactOutlineLabel = (value) =>
   stripLeadingNumber(value)
@@ -1001,7 +1010,7 @@ const generateOutlineWithDeepSeek = async (project, result, options = {}) => {
         attachmentsPart: project.outlineDocument.attachmentsPart || []
       }
     : raw.bidOutline || {};
-  const bidPageRange = options.bidPageRange || project.bidPageRange || "under_100";
+  const bidPageRange = normalizeBidPageRange(options.bidPageRange || project.bidPageRange || "under_100");
   const rangeMeta = bidPageRangeMeta(bidPageRange);
   const tenderContext = buildBidGenerationContext(project, raw);
   const controller = new AbortController();
@@ -1513,7 +1522,7 @@ const generateBidWithDeepSeek = async (project, result, options = {}) => {
         attachmentsPart: project.outlineDocument.attachmentsPart || []
       }
     : raw.bidOutline || {};
-  const bidPageRange = options.bidPageRange || project.bidPageRange || "under_100";
+  const bidPageRange = normalizeBidPageRange(options.bidPageRange || project.bidPageRange || "under_100");
   const rangeMeta = bidPageRangeMeta(bidPageRange);
   const technicalOutline = project.outlineDocument?.technicalPart?.length
     ? outline.technicalPart
@@ -2548,7 +2557,7 @@ const handleApi = async (req, res, url) => {
 
     if (req.method === "POST" && action === "bid-options") {
       const body = await readBody(req);
-      const bidPageRange = bidPageRanges[body.bidPageRange] ? body.bidPageRange : "under_100";
+      const bidPageRange = normalizeBidPageRange(body.bidPageRange);
       project.bidPageRange = bidPageRange;
       project.bidStatus = "not_started";
       project.bidDocument = null;
@@ -2566,7 +2575,7 @@ const handleApi = async (req, res, url) => {
 
     if (req.method === "POST" && action === "generate-outline") {
       const body = await readBody(req);
-      if (body.bidPageRange && bidPageRanges[body.bidPageRange]) project.bidPageRange = body.bidPageRange;
+      if (body.bidPageRange) project.bidPageRange = normalizeBidPageRange(body.bidPageRange);
       if (project.status !== "completed") {
         sendJson(res, 400, { error: "招标文件尚未解析完成，不能生成目录" });
         return;

@@ -288,7 +288,7 @@
   const bidPageRangeMeta = (value) => bidPageRanges.find((item) => item.value === value) || bidPageRanges[0];
 
   const selectedBidPageRange = (project) =>
-    project?.bidPageRange || readState().bidPageRangeByProject?.[project?.id] || "under_100";
+    readState().bidPageRangeByProject?.[project?.id] || project?.bidPageRange || "under_100";
 
   const hasBidTechnicalChapters = (project) =>
     Boolean(project?.bidGenerated) ||
@@ -975,7 +975,17 @@
   const renderOutlinePage = async () => {
     let project = await getActiveProject();
     if (!project) return;
-    const selectedRange = selectedBidPageRange(project);
+    let selectedRange = selectedBidPageRange(project);
+    if (project.status === "completed" && selectedRange && project.bidPageRange !== selectedRange) {
+      const synced = await api(apiPath(`/api/projects/${project.id}/bid-options`), { method: "POST", body: JSON.stringify({ bidPageRange: selectedRange }) });
+      project = synced.project;
+      selectedRange = project.bidPageRange || selectedRange;
+      const syncState = readState();
+      writeState({
+        activeProjectId: project.id,
+        bidPageRangeByProject: { ...(syncState.bidPageRangeByProject || {}), [project.id]: selectedRange }
+      });
+    }
     const state = readState();
     const forceDeepSeekOutline = state.forceRegenerateOutlineProjectId === project.id;
     if (forceDeepSeekOutline) writeState({ forceRegenerateOutlineProjectId: "" });
@@ -1524,7 +1534,8 @@
 
   const openBidPageRangeModal = (projectId) => {
     document.querySelector("[data-bid-range-modal]")?.remove();
-    const saved = readState().bidPageRangeByProject?.[projectId] || "100_300";
+    const currentProject = projectsCache.find((project) => project.id === projectId);
+    const saved = readState().bidPageRangeByProject?.[projectId] || currentProject?.bidPageRange || "100_300";
     const modal = document.createElement("div");
     modal.dataset.bidRangeModal = "true";
     modal.className = "fixed inset-0 z-[9998] flex items-center justify-center bg-slate-900/40 px-6";

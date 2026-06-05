@@ -1,5 +1,5 @@
 import http from "node:http";
-import { readFile, writeFile, mkdir, stat } from "node:fs/promises";
+import { readFile, writeFile, mkdir, stat, rename } from "node:fs/promises";
 import { createReadStream, existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -38,6 +38,7 @@ const apiBasePath = `${projectBasePath}/api`;
 const deepSeekBaseUrl = (process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com").replace(/\/+$/g, "");
 const deepSeekModel = process.env.DEEPSEEK_MODEL || "deepseek-v4-flash";
 const pythonBin = process.env.PYTHON_BIN || "python3";
+const deepSeekBidConcurrency = Math.max(1, Math.min(10, Number(process.env.DEEPSEEK_BID_CONCURRENCY || 6)));
 
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
@@ -232,7 +233,18 @@ const ensureDb = async () => {
 };
 
 const readDb = async () => JSON.parse(await readFile(dbPath, "utf-8"));
-const writeDb = async (db) => writeFile(dbPath, JSON.stringify(db, null, 2), "utf-8");
+let dbWriteQueue = Promise.resolve();
+const writeDb = async (db) => {
+  const payload = JSON.stringify(db, null, 2);
+  dbWriteQueue = dbWriteQueue
+    .catch(() => {})
+    .then(async () => {
+      const tmpPath = `${dbPath}.${Date.now()}.${Math.random().toString(16).slice(2)}.tmp`;
+      await writeFile(tmpPath, payload, "utf-8");
+      await rename(tmpPath, dbPath);
+    });
+  return dbWriteQueue;
+};
 
 const send = (res, status, body, headers = {}) => {
   const payload = typeof body === "string" || Buffer.isBuffer(body) ? body : JSON.stringify(body);
@@ -1254,6 +1266,43 @@ const chunkList = (items = [], size = 3) => {
   return chunks;
 };
 
+const createAsyncLimiter = (limit) => {
+  const max = Math.max(1, Number(limit || 1));
+  let active = 0;
+  const queue = [];
+  const runNext = () => {
+    if (active >= max || !queue.length) return;
+    const { task, resolve, reject } = queue.shift();
+    active += 1;
+    Promise.resolve()
+      .then(task)
+      .then(resolve, reject)
+      .finally(() => {
+        active -= 1;
+        runNext();
+      });
+  };
+  return (task) =>
+    new Promise((resolve, reject) => {
+      queue.push({ task, resolve, reject });
+      runNext();
+    });
+};
+
+const mapWithConcurrency = async (items, limit, worker) => {
+  const output = new Array(items.length);
+  let nextIndex = 0;
+  const runners = Array.from({ length: Math.min(Math.max(1, limit), items.length) }, async () => {
+    while (nextIndex < items.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      output[index] = await worker(items[index], index);
+    }
+  });
+  await Promise.all(runners);
+  return output;
+};
+
 const generateBidChapterWithDeepSeek = async ({ apiKey, project, raw, tenderContext, outlineEntry, chapterIndex, chapterTotal, rangeMeta }) => {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 90000);
@@ -1327,16 +1376,24 @@ const generateBidWithDeepSeek = async (project, result, options = {}) => {
   const tenderContext = buildBidGenerationContext(project, raw);
   const outlineEntries = technicalOutline.map(bidOutlineEntry).filter((entry) => entry.title);
 
-  const technicalChapters = [];
-  const chapterNotes = [];
-  for (let index = 0; index < outlineEntries.length; index += 1) {
-    const entry = outlineEntries[index];
+  const runDeepSeekTask = createAsyncLimiter(deepSeekBidConcurrency);
+  let completedChapters = 0;
+  if (typeof options.onProgress === "function") {
+    await options.onProgress({
+      done: 0,
+      total: outlineEntries.length,
+      title: `并发启动 ${Math.min(deepSeekBidConcurrency, outlineEntries.length)} 路 DeepSeek 生成任务`,
+      percent: 3
+    });
+  }
+
+  const generatedResults = await Promise.all(outlineEntries.map(async (entry, index) => {
     if (typeof options.onProgress === "function") {
       await options.onProgress({
-        done: index,
+        done: completedChapters,
         total: outlineEntries.length,
         title: entry.title,
-        percent: Math.max(3, Math.round((index / Math.max(1, outlineEntries.length)) * 100))
+        percent: Math.max(3, Math.round((completedChapters / Math.max(1, outlineEntries.length)) * 100))
       });
     }
     try {
@@ -1345,20 +1402,24 @@ const generateBidWithDeepSeek = async (project, result, options = {}) => {
         const sections = [];
         const notes = [];
         const childChunks = chunkList(entry.children, 3);
-        for (const childChunk of childChunks) {
-          const childChapter = await generateBidChapterWithDeepSeek({
-            apiKey,
-            project,
-            raw,
-            tenderContext,
-            outlineEntry: { title: entry.title, children: childChunk },
-            chapterIndex: index,
-            chapterTotal: outlineEntries.length,
-            rangeMeta
-          });
+        const childChapters = await Promise.all(childChunks.map((childChunk) =>
+          runDeepSeekTask(() =>
+            generateBidChapterWithDeepSeek({
+              apiKey,
+              project,
+              raw,
+              tenderContext,
+              outlineEntry: { title: entry.title, children: childChunk },
+              chapterIndex: index,
+              chapterTotal: outlineEntries.length,
+              rangeMeta
+            })
+          )
+        ));
+        childChapters.forEach((childChapter) => {
           sections.push(...(childChapter.sections || []));
           notes.push(...(childChapter.notes || []));
-        }
+        });
         chapter = {
           title: entry.title,
           sections,
@@ -1366,29 +1427,31 @@ const generateBidWithDeepSeek = async (project, result, options = {}) => {
           notes: [`${entry.title} 已按 ${childChunks.length} 组三级目录分批生成。`, ...notes]
         };
       } else {
-        chapter = await generateBidChapterWithDeepSeek({
-          apiKey,
-          project,
-          raw,
-          tenderContext,
-          outlineEntry: entry,
-          chapterIndex: index,
-          chapterTotal: outlineEntries.length,
-          rangeMeta
-        });
+        chapter = await runDeepSeekTask(() =>
+          generateBidChapterWithDeepSeek({
+            apiKey,
+            project,
+            raw,
+            tenderContext,
+            outlineEntry: entry,
+            chapterIndex: index,
+            chapterTotal: outlineEntries.length,
+            rangeMeta
+          })
+        );
       }
-      technicalChapters.push(chapter);
-      chapterNotes.push(...(chapter.notes || []));
+      completedChapters += 1;
       if (typeof options.onProgress === "function") {
         await options.onProgress({
-          done: index + 1,
+          done: completedChapters,
           total: outlineEntries.length,
           title: entry.title,
-          percent: Math.round(((index + 1) / Math.max(1, outlineEntries.length)) * 100)
+          percent: Math.round((completedChapters / Math.max(1, outlineEntries.length)) * 100)
         });
       }
+      return { chapter, notes: chapter.notes || [] };
     } catch (error) {
-      technicalChapters.push({
+      const fallbackChapter = {
         title: entry.title,
         sections: entry.children.map((child) => ({
           heading: child,
@@ -1396,18 +1459,25 @@ const generateBidWithDeepSeek = async (project, result, options = {}) => {
         })),
         content: sanitizeTechnicalContent(buildFallbackTechnicalContent(entry.title, project, raw, rangeMeta)),
         notes: [`${entry.title} 使用系统兜底扩写：${error.message || "DeepSeek 分章生成失败"}`]
-      });
-      chapterNotes.push(`${entry.title} 使用系统兜底扩写：${error.message || "DeepSeek 分章生成失败"}`);
+      };
+      completedChapters += 1;
       if (typeof options.onProgress === "function") {
         await options.onProgress({
-          done: index + 1,
+          done: completedChapters,
           total: outlineEntries.length,
           title: entry.title,
-          percent: Math.round(((index + 1) / Math.max(1, outlineEntries.length)) * 100)
+          percent: Math.round((completedChapters / Math.max(1, outlineEntries.length)) * 100)
         });
       }
+      return {
+        chapter: fallbackChapter,
+        notes: [`${entry.title} 使用系统兜底扩写：${error.message || "DeepSeek 分章生成失败"}`]
+      };
     }
-  }
+  }));
+
+  const technicalChapters = generatedResults.map((item) => item.chapter);
+  const chapterNotes = generatedResults.flatMap((item) => item.notes || []);
 
   const normalizedTechnical = normalizeTechnicalChapters(technicalChapters, technicalOutline, project, raw, rangeMeta);
   const normalizedByTitle = new Map(normalizedTechnical.technicalChapters.map((chapter) => [normalizeOutlineKey(chapter.title), chapter]));
@@ -1431,7 +1501,7 @@ const generateBidWithDeepSeek = async (project, result, options = {}) => {
     attachmentDirectory: outline.attachmentsPart || [],
     technicalChapters: finalTechnical,
     generationNotes: [
-      `已按“${rangeMeta.label}”档位按二级/三级技术目录分章调用 DeepSeek 生成正文，共 ${finalTechnical.length} 个技术章节。`,
+      `已按“${rangeMeta.label}”档位并发调用 DeepSeek 生成正文，并发上限 ${deepSeekBidConcurrency} 路，共 ${finalTechnical.length} 个技术章节。`,
       "商务、资质、证照、业绩、报价等真实材料仅保留目录，需投标人按实际情况补充。",
       ...chapterNotes.slice(0, 20),
       ...(normalizedTechnical.autoCompletedCount

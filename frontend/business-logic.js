@@ -558,16 +558,20 @@
 
   const bidDirectoryHtml = (items, emptyText, section) => {
     const list = Array.isArray(items) ? items : [];
-    if (!list.length) return `<ol class="list-decimal pl-6 space-y-1"><li id="${esc(bidAnchorId(section, 1))}" data-bid-target data-bid-section="${esc(section)}">${esc(emptyText)}</li></ol>`;
-    return `<ol class="list-decimal pl-6 space-y-1">${list
+    const majorNo = bidSectionMajorNo(section);
+    if (!list.length) {
+      return `<div class="space-y-1 pl-3"><p id="${esc(bidAnchorId(section, 1))}" data-bid-target data-bid-section="${esc(section)}" class="scroll-mt-24 rounded transition-colors">${esc(`${majorNo}.1`)} ${esc(emptyText)}</p></div>`;
+    }
+    return `<div class="space-y-1 pl-3">${list
       .map((item, index) => {
         const model = outlineItemModel(item);
-        return `<li id="${esc(bidAnchorId(section, index + 1))}" data-bid-target data-bid-section="${esc(section)}" data-bid-label="${esc(model.label)}" class="scroll-mt-24 rounded transition-colors">
-          ${esc(model.label)}
-          ${model.children.length ? `<ol class="list-[lower-alpha] pl-5 mt-1 space-y-1">${model.children.map((child, childIndex) => `<li id="${esc(bidAnchorId(section, index + 1, childIndex + 1))}" data-bid-target data-bid-section="${esc(section)}" data-bid-label="${esc(child)}" class="scroll-mt-24 rounded transition-colors">${esc(child)}</li>`).join("")}</ol>` : ""}
-        </li>`;
+        const itemNo = `${majorNo}.${index + 1}`;
+        return `<div>
+          <p id="${esc(bidAnchorId(section, index + 1))}" data-bid-target data-bid-section="${esc(section)}" data-bid-label="${esc(model.label)}" class="scroll-mt-24 rounded transition-colors">${esc(itemNo)} ${esc(model.label)}</p>
+          ${model.children.length ? `<div class="pl-5 mt-1 space-y-1">${model.children.map((child, childIndex) => `<p id="${esc(bidAnchorId(section, index + 1, childIndex + 1))}" data-bid-target data-bid-section="${esc(section)}" data-bid-label="${esc(child)}" class="scroll-mt-24 rounded transition-colors">${esc(`${itemNo}.${childIndex + 1}`)} ${esc(child)}</p>`).join("")}</div>` : ""}
+        </div>`;
       })
-      .join("")}</ol>`;
+      .join("")}</div>`;
   };
 
   const bidDocumentPreviewHtml = (project, meta, bidDocument) => {
@@ -985,7 +989,7 @@
                     const itemNo = `${majorNo}.${itemIndex + 1}`;
                     return `<div>
                       <button type="button" data-scroll-target="${esc(bidAnchorId(section, itemIndex + 1))}" class="w-full flex items-center gap-2 text-left hover:text-primary">
-                        <i class="fas fa-caret-right text-surface-400 w-3"></i>
+                        ${model.children.length ? `<i class="fas fa-caret-right text-surface-400 w-3"></i>` : `<span class="w-3 shrink-0"></span>`}
                         <span class="w-10 shrink-0 text-surface-400">${esc(itemNo)}</span>
                         <span class="truncate">${esc(model.label)}</span>
                       </button>
@@ -1946,6 +1950,20 @@
     document.addEventListener(
       "click",
       async (event) => {
+        const scrollTrigger = event.target.closest("[data-scroll-target]");
+        if (scrollTrigger) {
+          stop(event);
+          const target = document.getElementById(scrollTrigger.dataset.scrollTarget || "");
+          if (!target) {
+            toast("当前目录对应的正文位置还在生成中", "warn");
+            return;
+          }
+          target.scrollIntoView({ behavior: "smooth", block: "start" });
+          target.classList.add("bg-blue-50");
+          window.setTimeout(() => target.classList.remove("bg-blue-50"), 1600);
+          return;
+        }
+
         const button = event.target.closest("button");
         if (!button) return;
         const text = textOf(button);
@@ -2011,6 +2029,20 @@
     document.addEventListener(
       "click",
       async (event) => {
+        const scrollTrigger = event.target.closest("[data-scroll-target]");
+        if (scrollTrigger) {
+          stop(event);
+          const target = document.getElementById(scrollTrigger.dataset.scrollTarget || "");
+          if (!target) {
+            toast("当前目录对应的正文位置还在生成中", "warn");
+            return;
+          }
+          target.scrollIntoView({ behavior: "smooth", block: "start" });
+          target.classList.add("bg-blue-50");
+          window.setTimeout(() => target.classList.remove("bg-blue-50"), 1600);
+          return;
+        }
+
         const button = event.target.closest("button");
         if (!button) return;
         const text = textOf(button);

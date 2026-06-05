@@ -539,15 +539,32 @@
       .map((value) => normalizedSearchText(value))
       .filter((value) => value.length >= 3 && !["必须修复", "建议确认", "附件部分目录", "商务部分目录", "技术部分正文"].includes(value));
 
+  const bidSectionKey = (title = "", index = 0) => {
+    const value = String(title || "");
+    if (value.includes("商务")) return "business";
+    if (value.includes("技术")) return "technical";
+    if (value.includes("附件")) return "attachment";
+    return `part-${index + 1}`;
+  };
+
+  const bidSectionMajorNo = (section, index = 0) => {
+    if (section === "business") return 1;
+    if (section === "technical") return 2;
+    if (section === "attachment") return 3;
+    return index + 1;
+  };
+
+  const bidAnchorId = (section, ...numbers) => `bid-${section}${numbers.length ? `-${numbers.join("-")}` : ""}`;
+
   const bidDirectoryHtml = (items, emptyText, section) => {
     const list = Array.isArray(items) ? items : [];
-    if (!list.length) return `<ol class="list-decimal pl-6 space-y-1"><li data-bid-target data-bid-section="${esc(section)}">${esc(emptyText)}</li></ol>`;
+    if (!list.length) return `<ol class="list-decimal pl-6 space-y-1"><li id="${esc(bidAnchorId(section, 1))}" data-bid-target data-bid-section="${esc(section)}">${esc(emptyText)}</li></ol>`;
     return `<ol class="list-decimal pl-6 space-y-1">${list
       .map((item, index) => {
         const model = outlineItemModel(item);
-        return `<li data-bid-target data-bid-section="${esc(section)}" data-bid-label="${esc(model.label)}">
+        return `<li id="${esc(bidAnchorId(section, index + 1))}" data-bid-target data-bid-section="${esc(section)}" data-bid-label="${esc(model.label)}" class="scroll-mt-24 rounded transition-colors">
           ${esc(model.label)}
-          ${model.children.length ? `<ol class="list-[lower-alpha] pl-5 mt-1 space-y-1">${model.children.map((child) => `<li data-bid-target data-bid-section="${esc(section)}" data-bid-label="${esc(child)}">${esc(child)}</li>`).join("")}</ol>` : ""}
+          ${model.children.length ? `<ol class="list-[lower-alpha] pl-5 mt-1 space-y-1">${model.children.map((child, childIndex) => `<li id="${esc(bidAnchorId(section, index + 1, childIndex + 1))}" data-bid-target data-bid-section="${esc(section)}" data-bid-label="${esc(child)}" class="scroll-mt-24 rounded transition-colors">${esc(child)}</li>`).join("")}</ol>` : ""}
         </li>`;
       })
       .join("")}</ol>`;
@@ -561,24 +578,24 @@
       <div class="space-y-5 text-sm text-surface-800 leading-relaxed text-justify">
         <p><strong>项目名称：</strong>${esc(meta.projectName)}</p>
         <p><strong>项目编号：</strong>${esc(meta.projectNo || "未明确")}</p>
-        <section data-bid-target data-bid-section="business" class="space-y-3 scroll-mt-24 rounded-lg transition-colors">
+        <section id="${esc(bidAnchorId("business"))}" data-bid-target data-bid-section="business" class="space-y-3 scroll-mt-24 rounded-lg transition-colors">
           <h2 class="text-xl font-bold text-black pt-4">一、商务部分目录</h2>
           <p class="text-surface-500">商务、资质、证照、业绩等资料需由投标人按实际情况提供，系统仅保留目录，不编造内容。</p>
           ${bidDirectoryHtml(doc.businessDirectory || [], "待补充商务目录", "business")}
         </section>
-        <section data-bid-target data-bid-section="technical" class="space-y-4 scroll-mt-24 rounded-lg transition-colors">
+        <section id="${esc(bidAnchorId("technical"))}" data-bid-target data-bid-section="technical" class="space-y-4 scroll-mt-24 rounded-lg transition-colors">
           <h2 class="text-xl font-bold text-black pt-4">二、技术部分</h2>
           ${technical.length
             ? technical
                 .map(
                   (chapter, index) => {
                     const sections = Array.isArray(chapter.sections) ? chapter.sections.filter((section) => section?.heading || section?.content) : [];
-                    return `<section data-bid-target data-bid-section="technical" data-bid-label="${esc(chapter.title || "技术章节")}" data-bid-chapter-index="${index}" class="space-y-3 scroll-mt-24 rounded-lg px-2 py-1 transition-colors">
+                    return `<section id="${esc(bidAnchorId("technical", index + 1))}" data-bid-target data-bid-section="technical" data-bid-label="${esc(chapter.title || "技术章节")}" data-bid-chapter-index="${index}" class="space-y-3 scroll-mt-24 rounded-lg px-2 py-1 transition-colors">
                       <h3 class="text-lg font-bold text-black">2.${index + 1} ${esc(chapter.title || "技术章节")}</h3>
                       ${sections.length
                         ? sections
                             .map(
-                              (section, sectionIndex) => `<section data-bid-target data-bid-section="technical" data-bid-label="${esc(section.heading || "")}" class="space-y-2 scroll-mt-24 rounded-lg py-1 transition-colors">
+                              (section, sectionIndex) => `<section id="${esc(bidAnchorId("technical", index + 1, sectionIndex + 1))}" data-bid-target data-bid-section="technical" data-bid-label="${esc(section.heading || "")}" class="space-y-2 scroll-mt-24 rounded-lg py-1 transition-colors">
                                 <h4 class="text-base font-bold text-black">2.${index + 1}.${sectionIndex + 1} ${esc(section.heading || "章节内容")}</h4>
                                 ${richTextHtml(section.content)}
                               </section>`
@@ -591,7 +608,7 @@
                 .join("")
             : "<p>技术正文尚未生成，请先生成投标文件。</p>"}
         </section>
-        <section data-bid-target data-bid-section="attachment" class="space-y-3 scroll-mt-24 rounded-lg transition-colors">
+        <section id="${esc(bidAnchorId("attachment"))}" data-bid-target data-bid-section="attachment" class="space-y-3 scroll-mt-24 rounded-lg transition-colors">
           <h2 class="text-xl font-bold text-black pt-4">三、附件部分目录</h2>
           <p class="text-surface-500">证照、审计报告、纳税社保、承诺函、业绩、人员证书等附件需由投标人提供真实材料。</p>
           ${bidDirectoryHtml(doc.attachmentDirectory || [], "待补充附件目录", "attachment")}
@@ -951,27 +968,34 @@
     navContent.innerHTML = groups?.length
       ? groups
           .map(
-            (group, index) => `
+            (group, index) => {
+              const section = bidSectionKey(group.title, index);
+              const majorNo = bidSectionMajorNo(section, index);
+              return `
             <div>
-              <div class="flex items-center gap-2 ${index === 0 ? "text-primary font-bold" : "font-medium text-surface-800"}">
+              <button type="button" data-scroll-target="${esc(bidAnchorId(section))}" class="w-full flex items-center gap-2 text-left ${index === 0 ? "text-primary font-bold" : "font-medium text-surface-800"} hover:text-primary">
                 <i class="fas fa-caret-down text-surface-400 w-3"></i>
+                <span class="text-xs rounded bg-surface-100 px-1.5 py-0.5 text-surface-500">${esc(majorNo)}</span>
                 <span class="truncate">${esc(group.title)}</span>
-              </div>
+              </button>
               <div class="mt-3 ml-6 space-y-3 text-surface-700">
                 ${group.items
-                  .map((item) => {
+                  .map((item, itemIndex) => {
                     const model = outlineItemModel(item);
+                    const itemNo = `${majorNo}.${itemIndex + 1}`;
                     return `<div>
-                      <div class="flex items-center gap-2">
+                      <button type="button" data-scroll-target="${esc(bidAnchorId(section, itemIndex + 1))}" class="w-full flex items-center gap-2 text-left hover:text-primary">
                         <i class="fas fa-caret-right text-surface-400 w-3"></i>
+                        <span class="w-10 shrink-0 text-surface-400">${esc(itemNo)}</span>
                         <span class="truncate">${esc(model.label)}</span>
-                      </div>
-                      ${model.children.length ? `<div class="mt-2 ml-5 space-y-2 text-xs text-surface-500">${model.children.map((child) => `<div class="flex items-center gap-2"><span class="w-1 h-1 rounded-full bg-surface-300 shrink-0"></span><span class="truncate">${esc(child)}</span></div>`).join("")}</div>` : ""}
+                      </button>
+                      ${model.children.length ? `<div class="mt-2 ml-8 space-y-2 text-xs text-surface-500">${model.children.map((child, childIndex) => `<button type="button" data-scroll-target="${esc(bidAnchorId(section, itemIndex + 1, childIndex + 1))}" class="w-full flex items-center gap-2 text-left hover:text-primary"><span class="w-12 shrink-0 text-surface-400">${esc(`${itemNo}.${childIndex + 1}`)}</span><span class="truncate">${esc(child)}</span></button>`).join("")}</div>` : ""}
                     </div>`;
                   })
                   .join("")}
               </div>
-            </div>`
+            </div>`;
+            }
           )
           .join("")
       : `<div class="rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-700">
@@ -1108,21 +1132,24 @@
         <div class="space-y-5 text-sm text-surface-800 leading-relaxed text-justify">
           <p><strong>项目名称：</strong>${esc(meta.projectName)}</p>
           <p><strong>项目编号：</strong>${esc(meta.projectNo || "未明确")}</p>
-          <h2 class="text-xl font-bold text-black pt-4">一、商务部分目录</h2>
-          <p class="text-surface-500">商务、资质、证照、业绩等资料需由投标人按实际情况提供，系统仅保留目录，不编造内容。</p>
-          ${nestedDirectoryHtml(bidDocument.businessDirectory || [], "待补充商务目录")}
+          <section id="${esc(bidAnchorId("business"))}" data-bid-target data-bid-section="business" class="space-y-3 scroll-mt-24 rounded-lg transition-colors">
+            <h2 class="text-xl font-bold text-black pt-4">一、商务部分目录</h2>
+            <p class="text-surface-500">商务、资质、证照、业绩等资料需由投标人按实际情况提供，系统仅保留目录，不编造内容。</p>
+            ${bidDirectoryHtml(bidDocument.businessDirectory || [], "待补充商务目录", "business")}
+          </section>
+          <section id="${esc(bidAnchorId("technical"))}" data-bid-target data-bid-section="technical" class="space-y-4 scroll-mt-24 rounded-lg transition-colors">
           <h2 class="text-xl font-bold text-black pt-4">二、技术部分</h2>
           ${technical.length
             ? technical
                 .map(
                   (chapter, index) => {
                     const sections = Array.isArray(chapter.sections) ? chapter.sections.filter((section) => section?.heading || section?.content) : [];
-                    return `<section class="space-y-3">
+                    return `<section id="${esc(bidAnchorId("technical", index + 1))}" data-bid-target data-bid-section="technical" data-bid-label="${esc(chapter.title || "技术章节")}" class="space-y-3 scroll-mt-24 rounded-lg px-2 py-1 transition-colors">
                       <h3 class="text-lg font-bold text-black">2.${index + 1} ${esc(chapter.title || "技术章节")}</h3>
                       ${sections.length
                         ? sections
                             .map(
-                              (section, sectionIndex) => `<section class="space-y-2">
+                              (section, sectionIndex) => `<section id="${esc(bidAnchorId("technical", index + 1, sectionIndex + 1))}" data-bid-target data-bid-section="technical" data-bid-label="${esc(section.heading || "")}" class="space-y-2 scroll-mt-24 rounded-lg py-1 transition-colors">
                                 <h4 class="text-base font-bold text-black">2.${index + 1}.${sectionIndex + 1} ${esc(section.heading || "章节内容")}</h4>
                                 ${richTextHtml(section.content)}
                               </section>`
@@ -1134,8 +1161,11 @@
                 )
                 .join("")
             : "<p>技术正文尚未生成，请点击重新生成。</p>"}
-          <h2 class="text-xl font-bold text-black pt-4">三、附件部分目录</h2>
-          ${nestedDirectoryHtml(bidDocument.attachmentDirectory || [], "待补充附件目录")}
+          </section>
+          <section id="${esc(bidAnchorId("attachment"))}" data-bid-target data-bid-section="attachment" class="space-y-3 scroll-mt-24 rounded-lg transition-colors">
+            <h2 class="text-xl font-bold text-black pt-4">三、附件部分目录</h2>
+            ${bidDirectoryHtml(bidDocument.attachmentDirectory || [], "待补充附件目录", "attachment")}
+          </section>
         </div>`;
     }
   };
@@ -1866,6 +1896,20 @@
     document.addEventListener(
       "click",
       async (event) => {
+        const scrollTrigger = event.target.closest("[data-scroll-target]");
+        if (scrollTrigger) {
+          stop(event);
+          const target = document.getElementById(scrollTrigger.dataset.scrollTarget || "");
+          if (!target) {
+            toast("当前目录对应的正文位置还在生成中", "warn");
+            return;
+          }
+          target.scrollIntoView({ behavior: "smooth", block: "start" });
+          target.classList.add("bg-blue-50");
+          window.setTimeout(() => target.classList.remove("bg-blue-50"), 1600);
+          return;
+        }
+
         const button = event.target.closest("button");
         if (!button) return;
         const text = textOf(button);

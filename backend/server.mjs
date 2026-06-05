@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { execFile } from "node:child_process";
 import PDFDocument from "pdfkit";
 import { jsonrepair } from "jsonrepair";
-import { AlignmentType, Document, HeadingLevel, Packer, Paragraph, TextRun } from "docx";
+import { AlignmentType, Document, Footer, HeadingLevel, Packer, PageNumber, Paragraph, TextRun } from "docx";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "..");
@@ -1953,8 +1953,17 @@ const bidDocxBuffer = async (project, result) => {
     ...docxOutlineParagraphs(attachments, 3)
   ];
 
+  const footer = new Footer({
+    children: [
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [new TextRun("第 "), new TextRun({ children: [PageNumber.CURRENT] }), new TextRun(" 页")]
+      })
+    ]
+  });
+
   const doc = new Document({
-    sections: [{ properties: {}, children }]
+    sections: [{ properties: {}, footers: { default: footer }, children }]
   });
   return Packer.toBuffer(doc);
 };

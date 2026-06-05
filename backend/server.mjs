@@ -601,8 +601,7 @@ const technicalHintFor = (value) => {
   return "响应目标、实施方法、质量控制、交付成果、风险保障";
 };
 
-const ensureTechnicalOutlineDepth = (items, bidPageRange) => {
-  if (bidPageRange === "under_100") return items;
+const ensureTechnicalOutlineDepth = (items) => {
   return (Array.isArray(items) ? items : []).map((item) => {
     const label = directoryDisplayLabel(item);
     if (!label || hasThirdLevelHint(label)) return label;
@@ -823,7 +822,7 @@ const normalizeGeneratedOutline = (parsed, raw, bidPageRange) => {
   const fallbackTechnical = expandTechnicalOutline(raw, requiredTechnical, bidPageRange);
   const technicalPart = normalizeDirectoryList([...requiredTechnical, ...deepSeekTechnical], fallbackTechnical);
 
-  const technicalDepth = ensureTechnicalOutlineDepth(technicalPart, bidPageRange);
+  const technicalDepth = ensureTechnicalOutlineDepth(technicalPart);
 
   return {
     businessPart,

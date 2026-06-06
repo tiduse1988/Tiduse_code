@@ -442,6 +442,21 @@ const lotProjectName = (project, selectedLot = project.selectedLot) => {
   return selectedLot?.label ? `${baseName} ${selectedLot.label}` : baseName;
 };
 
+const stripLotSuffix = (value = "") => String(value || "").replace(/\s*标段\s*\d+\s*$/g, "").trim();
+
+const isGenericProjectName = (project, value = "") => {
+  const name = stripLotSuffix(value);
+  if (!name) return true;
+  const fileStem = String(project?.fileName || "").replace(/\.(pdf|docx?|png|jpe?g)$/i, "").trim();
+  return name === "招标文件" || name === "采购文件" || name === fileStem || /^测试BUG\d*-/.test(name);
+};
+
+const lotProjectNameFromParsed = (project, selectedLot, parsedName = "") => {
+  const candidates = [parsedName, project.originalName, project.name].map(stripLotSuffix);
+  const baseName = candidates.find((name) => !isGenericProjectName(project, name)) || stripLotSuffix(project.name) || "未命名项目";
+  return selectedLot?.label ? `${baseName} ${selectedLot.label}` : baseName;
+};
+
 const textMentionsOtherLot = (text = "", selectedLot = {}) => {
   const selected = String(selectedLot.index || lotNumberText(selectedLot.label || selectedLot.sourceLabel || ""));
   if (!selected) return false;
@@ -1147,8 +1162,11 @@ const analyzeWithDeepSeek = async (project) => {
   const tableSamples = (extraction.tables || []).slice(0, 40);
   const sourceSample = sourceText.slice(0, 90000);
   const selectedLot = project.selectedLot || null;
+  const promptProjectName = selectedLot && isGenericProjectName(project, project.originalName || project.name)
+    ? `请从正文识别真实项目名称并追加${selectedLot.label}`
+    : lotProjectName(project, selectedLot);
   const selectedLotInstruction = selectedLot
-    ? `\n\n【本次标段选择】\n用户已确认只解析：${selectedLot.label}${selectedLot.sourceLabel ? `（招标文件原称：${selectedLot.sourceLabel}）` : ""}${selectedLot.name ? `，名称/范围：${selectedLot.name}` : ""}${selectedLot.amount ? `，金额：${selectedLot.amount}` : ""}。\n本次所有解析结果必须只围绕该标段/标包：项目名称输出为“${lotProjectName(project, selectedLot)}”；预算、最高限价、保证金、采购需求、技术要求、评分标准、资料清单、投标文件大纲都只提取该标段对应内容；跨标段通用条款可以保留，但不得混入其他标段的金额、范围和专属要求。`
+    ? `\n\n【本次标段选择】\n用户已确认只解析：${selectedLot.label}${selectedLot.sourceLabel ? `（招标文件原称：${selectedLot.sourceLabel}）` : ""}${selectedLot.name ? `，名称/范围：${selectedLot.name}` : ""}${selectedLot.amount ? `，金额：${selectedLot.amount}` : ""}。\n本次所有解析结果必须只围绕该标段/标包：项目名称必须从招标文件正文中识别真实项目名称并追加“${selectedLot.label}”，不得把“招标文件”“采购文件”或上传文件名当成项目名称；预算、最高限价、保证金、采购需求、技术要求、评分标准、资料清单、投标文件大纲都只提取该标段对应内容；跨标段通用条款可以保留，但不得混入其他标段的金额、范围和专属要求。`
     : "";
 
   try {
@@ -1164,7 +1182,7 @@ const analyzeWithDeepSeek = async (project) => {
         },
         {
           role: "user",
-          content: `请按“深度解析报告”结构解析以下招标文件，并返回 JSON。${selectedLotInstruction}\n\n项目名称：${lotProjectName(project, selectedLot)}\n文件名：${project.fileName}\n文件大小：${sizeText(project.fileSize)}\n服务端提取质量：${JSON.stringify(extractionBrief)}\n表格样本：${JSON.stringify(tableSamples).slice(0, 30000)}\n正文：${sourceSample}\n\nJSON 字段必须包含：\n{\n  "summary": "报告摘要，概括项目、范围、关键风险，100-180字",\n  "extractedItems": 数字,\n  "riskCount": 数字,\n  "manualReviewRequired": true或false,\n  "projectHeader": {"projectName":"","bidNo":"","tenderee":"","agency":"","analysisDate":"","version":"V1.0"},\n  "basicReview": {\n    "projectBasicInfo": [{"item":"项目名称","content":"","remark":""}],\n    "keyDates": [{"node":"时间节点","time":"","reminder":""}],\n    "budgetPricing": [{"item":"价格要素","info":"","note":""}],\n    "guaranteeInfo": [{"item":"保证金要素","requirement":"","note":""}]\n  },\n  "qualificationCompliance": {\n    "qualificationReview": [{"item":"审查项目","requirement":"","evidence":"证明材料","judgement":"可通过/建议核实/高风险/未明确"}],\n    "certificateChecklist": [{"name":"证照名称","required":"必须/可选/未明确","issuer":"","validity":"","sealed":"是/否/未明确","source":"获取方式或来源"}]\n  },\n  "businessReview": [{"item":"商务要求","requirement":"","responsePoint":"","riskLevel":"低/中/高"}],\n  "technicalReview": [{"item":"技术或服务要求","requirement":"","responsePoint":"","scoreRelated":"是/否/未明确"}],\n  "scoringReview": [{"category":"评分项","score":"只填最高分，如10/15/30","criteria":"从招标文件评分细则逐字粘贴完整原文，不得删减改写","responseStrategy":"","sourcePage":"页码或未明确"}],\n  "rejectionClauses": [{"clause":"废标/无效条款","risk":"","action":""}],\n  "submissionFormat": [{"item":"文件格式要求","requirement":"","note":""}],\n  "materialsChecklist": [{"material":"资料名称","required":"必须/可选/未明确","source":"来源","note":""}],\n  "bidOutline": {\n    "businessPart": ["必须依据响应文件格式要求生成商务目录"],\n    "technicalPart": ["必须依据评分表技术要求生成技术目录"],\n    "attachmentsPart": ["依据资格/资料清单生成附件目录"]\n  },\n  "extractionQuality": {"pageCount":数字,"charCount":数字,"tableCount":数字,"textCoverage":数字,"warnings":["完整性或OCR提示"]}\n}`
+          content: `请按“深度解析报告”结构解析以下招标文件，并返回 JSON。${selectedLotInstruction}\n\n项目名称：${promptProjectName}\n文件名：${project.fileName}\n文件大小：${sizeText(project.fileSize)}\n服务端提取质量：${JSON.stringify(extractionBrief)}\n表格样本：${JSON.stringify(tableSamples).slice(0, 30000)}\n正文：${sourceSample}\n\nJSON 字段必须包含：\n{\n  "summary": "报告摘要，概括项目、范围、关键风险，100-180字",\n  "extractedItems": 数字,\n  "riskCount": 数字,\n  "manualReviewRequired": true或false,\n  "projectHeader": {"projectName":"","bidNo":"","tenderee":"","agency":"","analysisDate":"","version":"V1.0"},\n  "basicReview": {\n    "projectBasicInfo": [{"item":"项目名称","content":"","remark":""}],\n    "keyDates": [{"node":"时间节点","time":"","reminder":""}],\n    "budgetPricing": [{"item":"价格要素","info":"","note":""}],\n    "guaranteeInfo": [{"item":"保证金要素","requirement":"","note":""}]\n  },\n  "qualificationCompliance": {\n    "qualificationReview": [{"item":"审查项目","requirement":"","evidence":"证明材料","judgement":"可通过/建议核实/高风险/未明确"}],\n    "certificateChecklist": [{"name":"证照名称","required":"必须/可选/未明确","issuer":"","validity":"","sealed":"是/否/未明确","source":"获取方式或来源"}]\n  },\n  "businessReview": [{"item":"商务要求","requirement":"","responsePoint":"","riskLevel":"低/中/高"}],\n  "technicalReview": [{"item":"技术或服务要求","requirement":"","responsePoint":"","scoreRelated":"是/否/未明确"}],\n  "scoringReview": [{"category":"评分项","score":"只填最高分，如10/15/30","criteria":"从招标文件评分细则逐字粘贴完整原文，不得删减改写","responseStrategy":"","sourcePage":"页码或未明确"}],\n  "rejectionClauses": [{"clause":"废标/无效条款","risk":"","action":""}],\n  "submissionFormat": [{"item":"文件格式要求","requirement":"","note":""}],\n  "materialsChecklist": [{"material":"资料名称","required":"必须/可选/未明确","source":"来源","note":""}],\n  "bidOutline": {\n    "businessPart": ["必须依据响应文件格式要求生成商务目录"],\n    "technicalPart": ["必须依据评分表技术要求生成技术目录"],\n    "attachmentsPart": ["依据资格/资料清单生成附件目录"]\n  },\n  "extractionQuality": {"pageCount":数字,"charCount":数字,"tableCount":数字,"textCoverage":数字,"warnings":["完整性或OCR提示"]}\n}`
         }
       ]
     });
@@ -1174,10 +1192,11 @@ const analyzeWithDeepSeek = async (project) => {
     const exactScoringReview = deriveScoringReviewFromExtraction(extraction);
     if (exactScoringReview.length) parsed.scoringReview = filterRowsBySelectedLot(exactScoringReview, selectedLot);
     if (selectedLot) {
-      parsed.projectHeader = { ...(parsed.projectHeader || {}), projectName: lotProjectName(project, selectedLot) };
+      const parsedLotProjectName = lotProjectNameFromParsed(project, selectedLot, findParsedProjectName(parsed));
+      parsed.projectHeader = { ...(parsed.projectHeader || {}), projectName: parsedLotProjectName };
       if (parsed.basicReview?.projectBasicInfo) {
         const nameRow = parsed.basicReview.projectBasicInfo.find((row) => /项目名称/.test(row.item || ""));
-        if (nameRow) nameRow.content = lotProjectName(project, selectedLot);
+        if (nameRow) nameRow.content = parsedLotProjectName;
       }
       if (parsed.basicReview?.budgetPricing) parsed.basicReview.budgetPricing = filterRowsBySelectedLot(parsed.basicReview.budgetPricing, selectedLot);
       if (parsed.basicReview?.guaranteeInfo) parsed.basicReview.guaranteeInfo = filterRowsBySelectedLot(parsed.basicReview.guaranteeInfo, selectedLot);
@@ -1757,10 +1776,12 @@ const startParsingJob = async (projectId) => {
       latestProject.status = "completed";
       latestProject.progress = 100;
       latestProject.message = result.raw?.manualReviewRequired ? "解析完成，建议人工复核" : "解析完成";
-      if (shouldReplaceProjectName(latestProject, result.parsedProjectName)) {
+      if (latestProject.selectedLot && result.parsedProjectName) {
+        latestProject.originalName = stripLotSuffix(result.parsedProjectName);
         latestProject.name = result.parsedProjectName;
-      }
-      if (latestProject.selectedLot) {
+      } else if (shouldReplaceProjectName(latestProject, result.parsedProjectName)) {
+        latestProject.name = result.parsedProjectName;
+      } else if (latestProject.selectedLot) {
         latestProject.name = lotProjectName(latestProject, latestProject.selectedLot);
       }
 
@@ -2574,12 +2595,16 @@ const handleApi = async (req, res, url) => {
     }
 
     if (req.method === "POST" && action === "generate-outline") {
-      const body = await readBody(req);
-      if (body.bidPageRange) project.bidPageRange = normalizeBidPageRange(body.bidPageRange);
+      await readBody(req);
       if (project.status !== "completed") {
         sendJson(res, 400, { error: "招标文件尚未解析完成，不能生成目录" });
         return;
       }
+      if (!project.bidPageRange) {
+        sendJson(res, 400, { error: "请先选择投标文件内容量，再生成目录" });
+        return;
+      }
+      project.bidPageRange = normalizeBidPageRange(project.bidPageRange);
       const result = projectResult(session.db, project.id);
       project.outlineStatus = "generating";
       project.outlineMessage = "正在调用 DeepSeek 生成投标文件目录";

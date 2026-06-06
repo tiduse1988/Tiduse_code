@@ -296,8 +296,11 @@
 
   const bidPageRangeMeta = (value) => bidPageRanges.find((item) => item.value === normalizeBidPageRange(value)) || bidPageRanges[0];
 
-  const selectedBidPageRange = (project) =>
-    normalizeBidPageRange(readState().bidPageRangeByProject?.[project?.id] || project?.bidPageRange || "under_100");
+  const selectedBidPageRange = (project) => {
+    if (project?.bidPageRange) return normalizeBidPageRange(project.bidPageRange);
+    const cachedRange = readState().bidPageRangeByProject?.[project?.id];
+    return normalizeBidPageRange(cachedRange || "100_300");
+  };
 
   const hasBidTechnicalChapters = (project) =>
     Boolean(project?.bidGenerated) ||
@@ -1217,25 +1220,30 @@
   const renderOutlinePage = async () => {
     let project = await getActiveProject();
     if (!project) return;
-    let selectedRange = selectedBidPageRange(project);
-    if (project.status === "completed" && selectedRange && project.bidPageRange !== selectedRange) {
-      const synced = await api(apiPath(`/api/projects/${project.id}/bid-options`), { method: "POST", body: JSON.stringify({ bidPageRange: selectedRange }) });
-      project = synced.project;
-      selectedRange = project.bidPageRange || selectedRange;
-      const syncState = readState();
-      writeState({
-        activeProjectId: project.id,
-        bidPageRangeByProject: { ...(syncState.bidPageRangeByProject || {}), [project.id]: selectedRange }
-      });
-    }
+    const selectedRange = project.bidPageRange ? normalizeBidPageRange(project.bidPageRange) : "";
     const state = readState();
     const forceDeepSeekOutline = state.forceRegenerateOutlineProjectId === project.id;
     if (forceDeepSeekOutline) writeState({ forceRegenerateOutlineProjectId: "" });
+    const tree = document.querySelector("[data-purpose='directory-tree-list']");
+    const chapterBadge = Array.from(document.querySelectorAll("span")).find((node) => textOf(node).includes("Chapters") || textOf(node).includes("Items"));
+    if (project.status === "completed" && !selectedRange) {
+      if (tree) {
+        tree.innerHTML = `
+          <div class="rounded-2xl border border-amber-100 bg-amber-50 p-6 text-center">
+            <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-amber-500 text-white">
+              <i class="fas fa-circle-exclamation"></i>
+            </div>
+            <p class="text-base font-bold text-surface-900">请先选择投标文件内容量</p>
+            <p class="mt-2 text-sm text-surface-500">请返回项目列表，点击“生成标书”，在弹框中选择页数档位后再生成目录。</p>
+          </div>`;
+      }
+      if (chapterBadge) chapterBadge.textContent = "未选择";
+      toast("请先在首页选择投标文件内容量", "warn");
+      return;
+    }
     const needsDeepSeekOutline =
       project.status === "completed" &&
       (forceDeepSeekOutline || !project.outlineDocument || project.outlineDocument.bidPageRange !== selectedRange);
-    const tree = document.querySelector("[data-purpose='directory-tree-list']");
-    const chapterBadge = Array.from(document.querySelectorAll("span")).find((node) => textOf(node).includes("Chapters") || textOf(node).includes("Items"));
     if (needsDeepSeekOutline) {
       if (tree) {
         tree.innerHTML = `
@@ -1249,7 +1257,7 @@
       }
       if (chapterBadge) chapterBadge.textContent = "AI 生成中";
       toast("正在调用 DeepSeek 生成目录，请稍候", "warn");
-      const data = await api(apiPath(`/api/projects/${project.id}/generate-outline`), { method: "POST", body: bidGenerationRequest(project) });
+      const data = await api(apiPath(`/api/projects/${project.id}/generate-outline`), { method: "POST", body: "{}" });
       project = data.project;
     }
     const meta = projectMeta(project);
@@ -1789,7 +1797,7 @@
   const openBidPageRangeModal = (projectId) => {
     document.querySelector("[data-bid-range-modal]")?.remove();
     const currentProject = projectsCache.find((project) => project.id === projectId);
-    const saved = readState().bidPageRangeByProject?.[projectId] || currentProject?.bidPageRange || "100_300";
+    const saved = currentProject?.bidPageRange || readState().bidPageRangeByProject?.[projectId] || "100_300";
     const modal = document.createElement("div");
     modal.dataset.bidRangeModal = "true";
     modal.className = "fixed inset-0 z-[9998] flex items-center justify-center bg-slate-900/40 px-6";

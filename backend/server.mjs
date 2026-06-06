@@ -824,11 +824,79 @@ const technicalHintFor = (value) => {
   return matched?.hint || "响应目标、实施方法、质量控制、交付成果、风险保障";
 };
 
+const normalizeHintKey = (value) =>
+  String(value || "")
+    .split(/[、，,；;]/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .join("|");
+
+const shouldDiversifyDuplicateHint = (value) => {
+  const title = compactOutlineLabel(value);
+  if (/证书|证明|学历|毕业|学位|资质|资格|材料|承诺函|授权|报表|合同/.test(title)) return false;
+  return /方案|服务|保障|管理|流程|控制|实施|计划|措施|体系|机制|应急|风险|质量|安全|运维|售后|支撑/.test(title);
+};
+
+const subjectFromTechnicalTitle = (value) =>
+  compactOutlineLabel(value)
+    .replace(/(?:总体|整体|专项|详细|深化|综合)/g, "")
+    .replace(/(?:方案|服务|保障|管理|流程|控制|实施|计划|措施|体系|机制|响应|说明)$/g, "")
+    .trim()
+    .slice(0, 12);
+
+const distinctHintForTitle = (value) => {
+  const title = compactOutlineLabel(value);
+  const subject = subjectFromTechnicalTitle(title);
+  if (subject && /流程|闭环/.test(title)) return `${subject}触发、${subject}处理、${subject}升级、${subject}闭环、${subject}记录`;
+  if (subject && /演练|培训/.test(title)) return `${subject}计划、${subject}场景、${subject}组织、${subject}评估、${subject}改进`;
+  if (subject && /资源|人员|工具|物资/.test(title)) return `${subject}清单、${subject}调配、${subject}准备、${subject}联络、${subject}检查`;
+  if (subject && /恢复|总结|复盘/.test(title)) return `${subject}目标、${subject}步骤、${subject}核查、${subject}报告、${subject}改进`;
+  if (subject && /制度|规范|标准/.test(title)) return `${subject}范围、${subject}岗位、${subject}标准、${subject}监督、${subject}优化`;
+  if (subject && /交付|验收|成果/.test(title)) return `${subject}范围、${subject}标准、${subject}验收、${subject}归档、${subject}跟踪`;
+  if (subject && /响应|支持|服务|范围|目标|原则|组织|台账|报告|知识库/.test(title)) {
+    return `${subject}目标、${subject}范围、${subject}方式、${subject}质量、${subject}成果`;
+  }
+  if (/应急|预案|突发|灾备|恢复/.test(title)) return "应急组织、分级响应、处置步骤、恢复验证、演练复盘";
+  if (/风险|隐患|问题|缺陷/.test(title)) return "风险清单、影响分析、预防控制、责任分派、复盘改进";
+  if (/质量|校核|检查|验收/.test(title)) return "质量标准、检查频次、复核方法、整改要求、验收记录";
+  if (/安全|保密|等保|数据保护|权限|漏洞|审计/.test(title)) return "安全边界、权限策略、加固措施、审计记录、保密管理";
+  if (/运维|维护|巡检|运行|值守|监测/.test(title)) return "巡检范围、响应流程、工单处理、运维记录、服务报告";
+  if (/售后|质保|支持/.test(title)) return "支持渠道、响应等级、处理流程、回访评价、持续改进";
+  if (/进度|计划|里程碑/.test(title)) return "阶段划分、进度节点、资源安排、偏差纠正、成果确认";
+  if (subject) return `${subject}范围、${subject}标准、${subject}流程、${subject}检查、${subject}成果`;
+  return "章节范围、执行标准、工作流程、质量检查、成果确认";
+};
+
+const uniqueTechnicalHintForTitle = (value, usedHints, originalHint) => {
+  const title = compactOutlineLabel(value);
+  const subject = subjectFromTechnicalTitle(title) || "本章节";
+  const candidates = [
+    originalHint,
+    distinctHintForTitle(title),
+    `${subject}目标、${subject}范围、${subject}方式、${subject}质量、${subject}成果`,
+    `${subject}现状、${subject}流程、${subject}资源、${subject}记录、${subject}改进`,
+    `${subject}标准、${subject}责任、${subject}检查、${subject}风险、${subject}交付`,
+    `${subject}要求、${subject}措施、${subject}验证、${subject}反馈、${subject}归档`
+  ];
+  return candidates.find((candidate) => !usedHints.has(normalizeHintKey(candidate))) || candidates[candidates.length - 1];
+};
+
 const ensureTechnicalOutlineDepth = (items) => {
+  const usedHints = new Set();
   return (Array.isArray(items) ? items : []).map((item) => {
     const label = directoryDisplayLabel(item);
-    if (!label || hasThirdLevelHint(label)) return label;
-    return `${label}（${technicalHintFor(label)}）`;
+    if (!label) return label;
+    const model = outlineItemModel(label);
+    const hint = model.children.length ? model.children.join("、") : technicalHintFor(label);
+    const hintKey = normalizeHintKey(hint);
+    const nextHint =
+      hintKey && usedHints.has(hintKey) && shouldDiversifyDuplicateHint(model.label || label)
+        ? uniqueTechnicalHintForTitle(model.label || label, usedHints, hint)
+        : hint;
+    const nextKey = normalizeHintKey(nextHint);
+    if (nextKey) usedHints.add(nextKey);
+    if (model.children.length || hasThirdLevelHint(label)) return `${model.label}（${nextHint}）`;
+    return `${label}（${nextHint}）`;
   });
 };
 

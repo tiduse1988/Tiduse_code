@@ -41,6 +41,13 @@
     (event) => {
       const target = event.target.closest("a, button, #goHome, .brand, .stage-item, .flex.items-center.gap-3");
       if (!target || disabledLike(target)) return;
+      if (
+        target.closest(
+          "[data-bid-range-modal], [data-lot-selection-modal], [data-upload-progress], [data-logout-menu], [data-biz-toast]"
+        )
+      ) {
+        return;
+      }
 
       const route = routeFor(target);
       if (!route) return;

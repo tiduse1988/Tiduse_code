@@ -1234,11 +1234,18 @@
               <i class="fas fa-circle-exclamation"></i>
             </div>
             <p class="text-base font-bold text-surface-900">请先选择投标文件内容量</p>
-            <p class="mt-2 text-sm text-surface-500">请返回项目列表，点击“生成标书”，在弹框中选择页数档位后再生成目录。</p>
+            <p class="mt-2 text-sm text-surface-500">请在弹框中选择页数档位，确认后系统会立即重新生成目录。</p>
           </div>`;
       }
       if (chapterBadge) chapterBadge.textContent = "未选择";
       toast("请先在首页选择投标文件内容量", "warn");
+      window.setTimeout(() => {
+        openBidPageRangeModal(project.id, {
+          project,
+          redirect: false,
+          afterSave: () => renderOutlinePage().catch((error) => toast(error.message, "error"))
+        });
+      }, 80);
       return;
     }
     const needsDeepSeekOutline =
@@ -1794,9 +1801,9 @@
     if (label) label.textContent = `共 ${count} 个项目`;
   };
 
-  const openBidPageRangeModal = (projectId) => {
+  const openBidPageRangeModal = (projectId, options = {}) => {
     document.querySelector("[data-bid-range-modal]")?.remove();
-    const currentProject = projectsCache.find((project) => project.id === projectId);
+    const currentProject = options.project || projectsCache.find((project) => project.id === projectId);
     const saved = currentProject?.bidPageRange || readState().bidPageRangeByProject?.[projectId] || "100_300";
     const modal = document.createElement("div");
     modal.dataset.bidRangeModal = "true";
@@ -1846,17 +1853,28 @@
         return;
       }
       const value = modal.querySelector("input[name='bidPageRange']:checked")?.value || "100_300";
+      const confirmButton = modal.querySelector("[data-action='confirm']");
       try {
-        await api(apiPath(`/api/projects/${projectId}/bid-options`), { method: "POST", body: JSON.stringify({ bidPageRange: value }) });
+        setButtonDisabled(confirmButton, true);
+        const data = await api(apiPath(`/api/projects/${projectId}/bid-options`), { method: "POST", body: JSON.stringify({ bidPageRange: value }) });
+        if (data.project) {
+          projectsCache = projectsCache.map((project) => (project.id === projectId ? data.project : project));
+          if (!projectsCache.some((project) => project.id === projectId)) projectsCache.unshift(data.project);
+        }
         const state = readState();
         writeState({
           activeProjectId: projectId,
           bidPageRangeByProject: { ...(state.bidPageRangeByProject || {}), [projectId]: value }
         });
         modal.remove();
-        toast(`已选择${bidPageRangeMeta(value).label}，正在进入生成目录`);
-        window.location.href = "./outline.html";
+        toast(`已选择${bidPageRangeMeta(value).label}，正在生成目录`);
+        if (typeof options.afterSave === "function") {
+          await options.afterSave(data.project);
+        } else if (options.redirect !== false) {
+          window.location.href = "./outline.html";
+        }
       } catch (error) {
+        setButtonDisabled(confirmButton, false);
         toast(error.message, "error");
       }
     });

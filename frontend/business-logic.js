@@ -1256,8 +1256,8 @@
       <table class="outline-scoring-table">
         <thead>
           <tr>
-            <th style="width:92px">评分项</th>
-            <th style="width:54px;text-align:center">分值</th>
+            <th style="width:150px">评分项</th>
+            <th style="width:64px;text-align:center">分值</th>
             <th>评分细则</th>
           </tr>
         </thead>

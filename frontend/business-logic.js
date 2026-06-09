@@ -306,6 +306,12 @@
     Boolean(project?.bidGenerated) ||
     (Array.isArray(project?.bidDocument?.technicalChapters) && project.bidDocument.technicalChapters.length > 0);
 
+  const hasOutlineDocument = (project) => {
+    const outline = project?.outlineDocument || {};
+    return Boolean(project?.outlineGenerated) ||
+      Boolean(outline.businessPart?.length || outline.technicalPart?.length || outline.attachmentsPart?.length);
+  };
+
   const bidGenerationRequest = (project) =>
     JSON.stringify({ bidPageRange: selectedBidPageRange(project) });
 
@@ -804,6 +810,8 @@
   const renderAnalysisPending = (project) => {
     document.body.classList.remove("analysis-booting");
     document.title = `${project?.name || "招标文件"} - 招标文件解析中`;
+    const nextButton = document.querySelector("[data-purpose='analysis-next-action']");
+    if (nextButton) nextButton.hidden = true;
     const message = project?.message || "AI正在解析招标文件，请稍候。";
     const progress = Math.max(0, Math.min(100, Number(project?.progress || 0)));
     setSectionHtml(
@@ -857,6 +865,21 @@
       duration: firstContent(budgetPricing, ["服务期", "工期", "交付期"]) || firstContent(projectBasicInfo, ["服务期", "工期"]) || "未明确",
       deadline: firstContent(keyDates, ["投标截止", "磋商截止", "响应截止", "开标时间"]) || ""
     };
+  };
+
+  const renderAnalysisNextAction = (project) => {
+    const button = document.querySelector("[data-purpose='analysis-next-action']");
+    if (!button) return;
+    if (!project || project.status !== "completed") {
+      button.hidden = true;
+      return;
+    }
+    const hasOutline = hasOutlineDocument(project);
+    const hasBid = hasBidTechnicalChapters(project);
+    const label = !hasOutline ? "生成目录" : hasBid ? "查看标书" : "生成标书";
+    button.hidden = false;
+    button.dataset.nextTarget = !hasOutline ? "outline" : "generate";
+    button.textContent = label;
   };
 
   const updateProjectInfoBlocks = (project, meta) => {
@@ -1572,6 +1595,7 @@
     const scoringReview = deriveExactScoringRows(project).length ? deriveExactScoringRows(project) : raw.scoringReview;
 
     document.title = `${meta.projectName} - 招标文件解析结果`;
+    renderAnalysisNextAction(project);
 
     document.querySelector(".overview")?.remove();
 
@@ -2268,6 +2292,13 @@
         const text = textOf(button);
         const projectId = await getActiveProjectId();
         if (!projectId) return;
+
+        if (button.dataset.purpose === "analysis-next-action") {
+          stop(event);
+          writeState({ activeProjectId: projectId });
+          location.href = button.dataset.nextTarget === "outline" ? "./outline.html" : "./generate.html";
+          return;
+        }
 
         if (text.includes("导出DOCX")) {
           stop(event);

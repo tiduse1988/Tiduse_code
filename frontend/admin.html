@@ -636,12 +636,13 @@
       location.replace("http://localhost:8091/ai-bid/admin.html");
     }
 
-    const tokenKey = "latoumiao-admin-token";
+    const tokenKey = "latoumiao-token";
+    const legacyAdminTokenKey = "latoumiao-admin-token";
     const decodedPathname = decodeURIComponent(location.pathname);
     const firstSegment = decodedPathname.split("/").filter(Boolean)[0] || "";
     const projectBase = firstSegment && !firstSegment.includes(".") ? `/${firstSegment}` : "";
     const apiPath = (url) => `${projectBase}${url}`;
-    const token = () => localStorage.getItem(tokenKey) || "";
+    const token = () => localStorage.getItem(tokenKey) || localStorage.getItem(legacyAdminTokenKey) || "";
     const setText = (id, value) => document.getElementById(id).textContent = value;
     const fmtDate = (value) => value ? new Date(value).toLocaleString("zh-CN", { hour12: false }) : "-";
     const statusText = {
@@ -676,7 +677,15 @@
           ...(options.headers || {})
         }
       });
-      const data = await res.json();
+      const raw = await res.text();
+      let data = {};
+      if (raw) {
+        try {
+          data = JSON.parse(raw);
+        } catch {
+          throw new Error(res.ok ? "服务器返回格式异常，请刷新后重试" : raw.slice(0, 120) || "请求失败");
+        }
+      }
       if (!res.ok) throw new Error(data.error || "请求失败");
       return data;
     };
@@ -893,6 +902,7 @@
         error.textContent = message;
       };
       const submit = async () => {
+        if (save.disabled) return;
         const value = password.value.trim();
         const confirm = confirmPassword.value.trim();
         if (value.length < 6) {
@@ -944,6 +954,7 @@
         });
         if (data.user.role !== "admin") throw new Error("该账号不是管理员");
         localStorage.setItem(tokenKey, data.token);
+        localStorage.removeItem(legacyAdminTokenKey);
         await loadDashboard();
       } catch (error) {
         setText("error", error.message);
@@ -957,6 +968,7 @@
     document.getElementById("goFront").addEventListener("click", () => location.href = "./home.html");
     document.getElementById("logout").addEventListener("click", () => {
       localStorage.removeItem(tokenKey);
+      localStorage.removeItem(legacyAdminTokenKey);
       setText("adminName", "未登录");
       showDashboard(false);
     });

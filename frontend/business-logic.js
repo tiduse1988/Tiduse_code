@@ -10,6 +10,7 @@
   const page = decodedPathname.split("/").pop() || "index.html";
   const stateKey = "latoumiao-bid-state";
   const tokenKey = "latoumiao-token";
+  const adminTokenKey = "latoumiao-admin-token";
   const firstSegment = decodedPathname.split("/").filter(Boolean)[0] || "";
   const projectBase = firstSegment && !firstSegment.includes(".") ? `/${firstSegment}` : "";
   const apiPath = (url) => `${projectBase}${url}`;
@@ -28,10 +29,14 @@
     return next;
   };
 
-  const token = () => localStorage.getItem(tokenKey) || "";
-  const setToken = (value) => localStorage.setItem(tokenKey, value);
+  const token = () => localStorage.getItem(tokenKey) || localStorage.getItem(adminTokenKey) || "";
+  const setToken = (value) => {
+    localStorage.setItem(tokenKey, value);
+    localStorage.removeItem(adminTokenKey);
+  };
   const logout = () => {
     localStorage.removeItem(tokenKey);
+    localStorage.removeItem(adminTokenKey);
     localStorage.removeItem(stateKey);
     location.href = "./index.html";
   };
@@ -1741,6 +1746,16 @@
     const password = document.querySelector("#loginPassword");
     const saved = readState().rememberAccount;
     if (saved && account) account.value = saved;
+
+    if (token()) {
+      api(apiPath("/api/session"))
+        .then((data) => {
+          if (!data.user) return;
+          writeState({ user: data.user });
+          location.replace(data.user.role === "admin" ? "./admin.html" : "./home.html");
+        })
+        .catch(() => clearToken());
+    }
 
     const doLogin = async (event) => {
       stop(event);

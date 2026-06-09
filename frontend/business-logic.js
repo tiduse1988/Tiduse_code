@@ -271,6 +271,32 @@
 
   const countRows = (...groups) => groups.reduce((sum, rows) => sum + (Array.isArray(rows) ? rows.length : 0), 0);
 
+  const procurementMeaningPattern = /采购|建设|工程|施工|设计|设备|硬件|软件|系统|平台|服务|运维|安装|调试|试运行|交付|验收|保修|范围|需求|内容/;
+  const procurementNoisePattern = /项目解析摘要|项目摘要|综合评估|关键风险|保证金|预算|最高限价|付款|报价|评分|评标|资格条件|资格要求|废标|投标人须知/;
+
+  const procurementRequirementRows = (raw = {}) => {
+    const direct = Array.isArray(raw.procurementRequirements) ? raw.procurementRequirements : [];
+    const rows = direct
+      .map((row) => ({
+        item: row.item || row.category || row.name || "采购需求",
+        requirement: row.requirement || row.content || row.info || row.detail || "",
+        responsePoint: row.responsePoint || row.note || "按招标文件采购/建设/服务范围逐项响应",
+        sourcePage: row.sourcePage || row.source || ""
+      }))
+      .filter((row) => row.requirement && procurementMeaningPattern.test(`${row.item}${row.requirement}`) && !(procurementNoisePattern.test(`${row.item}${row.requirement}`) && !procurementMeaningPattern.test(row.requirement)));
+    if (rows.length) return rows;
+
+    return (Array.isArray(raw.technicalReview) ? raw.technicalReview : [])
+      .filter((row) => procurementMeaningPattern.test(`${row.item || ""}${row.requirement || ""}`) && !procurementNoisePattern.test(`${row.item || ""}${row.requirement || ""}`))
+      .slice(0, 8)
+      .map((row) => ({
+        item: row.item || "采购/建设/服务内容",
+        requirement: row.requirement || "",
+        responsePoint: row.responsePoint || "按技术/服务要求逐项响应",
+        sourcePage: row.sourcePage || ""
+      }));
+  };
+
   const scoreMax = (value) => {
     const numbers = String(value ?? "").match(/\d+(?:\.\d+)?/g) || [];
     if (!numbers.length) return value ?? "";
@@ -1649,13 +1675,16 @@
       "section-requirements",
       "采购需求",
       `
-      <div class="grid">
-        <div class="card">
-          <h3>项目解析摘要</h3>
-          <p>${esc(project.result?.summary || "AI已完成招标文件解析，请以原文及人工复核为准。")}</p>
-        </div>
-        ${table(["价格要素", "具体信息", "说明"], budgetPricing, ["item", "info", "note"])}
-        ${table(["保证金要素", "具体要求", "注意事项"], guaranteeInfo, ["item", "requirement", "note"])}
+      ${table(
+        ["需求项", "具体采购/建设/服务内容", "响应要点", "来源页码"],
+        procurementRequirementRows(raw),
+        ["item", "requirement", "responsePoint", "sourcePage"]
+      )}
+      <div class="notice" style="margin-top:14px">
+        <span class="icon-box" aria-hidden="true">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M4 4v15.5"></path><path d="M6.5 4H20v13H6.5A2.5 2.5 0 0 0 4 19.5"></path></svg>
+        </span>
+        <div><strong>解析口径</strong><span>采购需求指客户本次想购买、建设、实施或交付的服务、工程、硬件、软件、系统功能和承包范围；预算、保证金、付款方式和评分办法不作为采购需求展示。</span></div>
       </div>`
     );
 
@@ -1681,6 +1710,7 @@
         guaranteeInfo,
         qualification.qualificationReview,
         qualification.certificateChecklist,
+        raw.procurementRequirements,
         raw.businessReview,
         raw.technicalReview,
         scoringReview,

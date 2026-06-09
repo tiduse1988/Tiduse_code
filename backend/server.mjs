@@ -668,6 +668,7 @@ const countReportItems = (raw) => {
     raw.basicReview?.guaranteeInfo,
     raw.qualificationCompliance?.qualificationReview,
     raw.qualificationCompliance?.certificateChecklist,
+    raw.procurementRequirements,
     raw.businessReview,
     raw.technicalReview,
     raw.scoringReview,
@@ -1212,6 +1213,147 @@ const cleanScoringCriteria = (value) =>
     .replace(/(\d)\s+(\d)(分钟|分|%|月|日|年|元)/g, "$1$2$3")
     .trim();
 
+const procurementSectionPattern =
+  /采购需求|项目需求|发包人要求|功能要求|工程规模及内容|建设规模及内容|建设规模|建设内容|项目概况与招标范围|工程范围|包括的工作|招标范围|承包范围|服务内容|服务范围|采购内容|采购范围|供货要求|设备清单|清单及参数|工程量清单|主要建设|设计、采购、施工|EPC/i;
+
+const procurementNoisePattern =
+  /项目解析摘要|项目摘要|综合评估|关键风险|投标保证金|履约保证金|保证金|预算金额|最高限价|报价要求|付款方式|评标办法|评分标准|资格条件|资格要求|废标|投标人须知/;
+
+const cleanRequirementSnippet = (value = "") =>
+  String(value || "")
+    .replace(/\r/g, "")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/([。；;])\s*(?=[一二三四五六七八九十\d]+[、.．]|（[一二三四五六七八九十]+）)/g, "$1\n")
+    .trim();
+
+const requirementScore = (text = "") => {
+  const value = String(text || "");
+  let score = 0;
+  if (/本项目|本次招标|本工程|本合同/.test(value)) score += 30;
+  if (/本项目主要建设|本次招标为|本次采购|本工程主要建设/.test(value)) score += 45;
+  if (/招标范围[:：]\s*本次招标为|采购范围[:：]\s*本次采购|服务范围[:：]\s*本次服务/.test(value)) score += 35;
+  if (/本项目|本次招标|本工程|本合同|建设|采购|施工|服务|设备|系统|平台|硬件|软件/.test(value)) score += 45;
+  if (/工程规模及内容|建设规模及内容|建设内容|招标范围|包括的工作|承包范围|服务范围|采购范围/.test(value)) score += 45;
+  if (/设计|采购|施工|安装|调试|试运行|竣工|验收|保修|运维|交付/.test(value)) score += 20;
+  if (/项目总投资|预算金额|建设地点/.test(value) && /招标范围/.test(value)) score -= 45;
+  if (/见投标人须知前附表|投标有效期、工期、质量标准|主要合同条件、技术标准和要求/.test(value)) score -= 90;
+  if (/通常包括但不限于|永久工程的设计、采购、施工范围/.test(value) && !/本次招标为|本项目主要建设|本次采购/.test(value)) score -= 45;
+  if (/通常包括但不限于/.test(value) && !/本项目|本次招标|本工程/.test(value)) score -= 35;
+  if (/永久工程的设计、采购、施工范围。\s*2\.\s*临时工程的设计与施工范围/.test(value) && !/本次招标|本项目|本工程/.test(value)) score -= 55;
+  if (procurementNoisePattern.test(value) && !/建设|采购|施工|服务|设备|系统/.test(value)) score -= 45;
+  return score;
+};
+
+const collectRequirementCandidates = (fullText = "", terms = [], stopPattern = null, maxLength = 1800) => {
+  const text = String(fullText || "");
+  const candidates = [];
+  for (const term of terms) {
+    let index = -1;
+    while ((index = text.indexOf(term, index + 1)) >= 0) {
+      const before = Math.max(0, index - 16);
+      const raw = text.slice(before, index + maxLength);
+      const body = raw.slice(Math.max(0, index - before));
+      const stopIndex = stopPattern ? body.search(stopPattern) : -1;
+      const snippet = cleanRequirementSnippet(stopIndex > 80 ? body.slice(0, stopIndex) : body);
+      if (snippet.length < 45) continue;
+      candidates.push({ term, snippet, score: requirementScore(snippet) });
+    }
+  }
+  const specific = candidates.filter((item) => /本项目|本次招标|本工程/.test(item.snippet));
+  const source = specific.length ? specific : candidates;
+  return source.sort((a, b) => b.score - a.score || b.snippet.length - a.snippet.length);
+};
+
+const numberedRequirementStop = (terms) =>
+  new RegExp(
+    `(?:\\n|^)\\s*(?:(?:[一二三四五六七八九十]+|\\d+)\\s*[、.．)]|（[一二三四五六七八九十]+）|\\([一二三四五六七八九十]+\\))?\\s*(?:${terms})`,
+    "i"
+  );
+
+const deriveProcurementRequirementsFromExtraction = (extraction = {}, selectedLot = null) => {
+  const fullText = String(extraction.fullText || "");
+  const rows = [];
+  const add = (item, requirement, sourcePage = "") => {
+    const text = cleanRequirementSnippet(requirement).slice(0, 1800);
+    if (!text || text.length < 45) return;
+    if (selectedLot && textMentionsOtherLot(text, selectedLot)) return;
+    if (rows.some((row) => row.requirement.slice(0, 80) === text.slice(0, 80))) return;
+    rows.push({
+      item,
+      requirement: text,
+      responsePoint: /设计|采购|施工|安装|调试|试运行|验收|保修/.test(text)
+        ? "围绕设计、采购、施工、设备安装调试、验收交付及保修责任逐项响应"
+        : "围绕客户本次采购/建设/服务对象和交付范围逐项响应",
+      sourcePage
+    });
+  };
+
+  const scale = collectRequirementCandidates(
+    fullText,
+    ["工程规模及内容", "建设规模及内容", "建设规模", "建设内容"],
+    numberedRequirementStop("2\\.4|2．4|计划工期|招标范围|工程范围|发包人提供|投标人资格|质量要求|标段划分|合同估算价"),
+    2200
+  )[0];
+  if (scale) add(scale.term, scale.snippet);
+
+  const scope = collectRequirementCandidates(
+    fullText,
+    ["包括的工作", "招标范围", "承包范围", "采购范围", "服务范围", "服务内容", "采购内容"],
+    numberedRequirementStop("发包人提供|投标人资格|工作界区|第七章|质量要求|计划工期|标段划分|合同估算价"),
+    2600
+  )[0];
+  if (scope) add(scope.term, scope.snippet);
+
+  const functional = rows.length >= 2
+    ? []
+    : collectRequirementCandidates(
+        fullText,
+        ["发包人要求", "功能要求", "供货要求", "设备清单", "清单及参数"],
+        numberedRequirementStop("发包人提供|投标人资格|第六章|第七章|附件|质量要求|计划工期|标段划分"),
+        2600
+      )
+        .filter((item) => !rows.some((row) => item.snippet.includes(row.requirement.slice(0, 80)) || row.requirement.includes(item.snippet.slice(0, 80))))
+        .slice(0, 2);
+  functional.forEach((item) => add(item.term, item.snippet));
+
+  if (!rows.length) {
+    const pageCandidates = (Array.isArray(extraction.pages) ? extraction.pages : [])
+      .filter((page) => procurementSectionPattern.test(String(page?.text || "")))
+      .map((page) => ({
+        page,
+        text: cleanRequirementSnippet(page.text || "").slice(0, 1800),
+        score: requirementScore(page.text || "")
+      }))
+      .sort((a, b) => b.score - a.score);
+    pageCandidates.slice(0, 3).forEach((item) => add("采购/建设/服务范围", item.text, item.page?.page ? `第${item.page.page}页` : ""));
+  }
+
+  return rows.slice(0, 8);
+};
+
+const mergeProcurementRequirements = (...groups) => {
+  const rows = [];
+  const add = (row) => {
+    if (!row) return;
+    const item = String(row.item || row.name || row.category || "采购需求").trim();
+    const requirement = String(row.requirement || row.content || row.info || row.detail || row.responsePoint || "").trim();
+    if (!requirement || requirement.length < 12) return;
+    const whole = `${item} ${requirement}`;
+    if (procurementNoisePattern.test(whole) && !procurementSectionPattern.test(whole)) return;
+    const normalized = whole.replace(/\s+/g, "").slice(0, 90);
+    if (rows.some((existing) => `${existing.item}${existing.requirement}`.replace(/\s+/g, "").startsWith(normalized.slice(0, 55)))) return;
+    rows.push({
+      item,
+      requirement,
+      responsePoint: row.responsePoint || row.note || "按招标文件采购/建设/服务范围逐项响应",
+      sourcePage: row.sourcePage || row.source || ""
+    });
+  };
+  groups.flat().forEach(add);
+  return rows;
+};
+
 const deriveScoringReviewFromExtraction = (extraction = {}) => {
   const rows = [];
   const normalize = (value) => String(value ?? "").replace(/\r/g, "").trim();
@@ -1284,7 +1426,8 @@ const analyzeWithDeepSeek = async (project) => {
     quality: extraction.quality || {}
   };
   const tableSamples = (extraction.tables || []).slice(0, 40);
-  const sourceSample = sourceText.slice(0, 90000);
+  const analysisTextPack = buildKeySectionText(extraction, sourceText, 90000);
+  const sourceSample = analysisTextPack.text;
   const selectedLot = project.selectedLot || null;
   const promptProjectName = selectedLot && isGenericProjectName(project, project.originalName || project.name)
     ? `请从正文识别真实项目名称并追加${selectedLot.label}`
@@ -1302,11 +1445,11 @@ const analyzeWithDeepSeek = async (project) => {
         {
           role: "system",
           content:
-            "你是专业招投标文件解析助手。请严格输出 JSON，不要输出 Markdown。报告风格参考正式招标文件深度解析报告：分区清晰、以表格字段为主、每项有具体内容/备注/合规判断。必须基于给定正文和表格样本，不得编造确定性事实；缺失内容写“未明确/待核实”。评分标准必须逐条按招标文件原文提取，不得总结、删减、改写；分值字段只填写该项最高分。"
+            "你是专业招投标文件解析助手。请严格输出 JSON，不要输出 Markdown。报告风格参考正式招标文件深度解析报告：分区清晰、以表格字段为主、每项有具体内容/备注/合规判断。必须基于给定正文和表格样本，不得编造确定性事实；缺失内容写“未明确/待核实”。评分标准必须逐条按招标文件原文提取，不得总结、删减、改写；分值字段只填写该项最高分。采购需求必须按客户本次想购买、建设、实施、交付的服务、工程、硬件、软件、系统功能和范围提取，不能用项目摘要、预算金额、保证金、付款方式或评分办法替代。"
         },
         {
           role: "user",
-          content: `请按“深度解析报告”结构解析以下招标文件，并返回 JSON。${selectedLotInstruction}\n\n项目名称：${promptProjectName}\n文件名：${project.fileName}\n文件大小：${sizeText(project.fileSize)}\n服务端提取质量：${JSON.stringify(extractionBrief)}\n表格样本：${JSON.stringify(tableSamples).slice(0, 30000)}\n正文：${sourceSample}\n\nJSON 字段必须包含：\n{\n  "summary": "报告摘要，概括项目、范围、关键风险，100-180字",\n  "extractedItems": 数字,\n  "riskCount": 数字,\n  "manualReviewRequired": true或false,\n  "projectHeader": {"projectName":"","bidNo":"","tenderee":"","agency":"","analysisDate":"","version":"V1.0"},\n  "basicReview": {\n    "projectBasicInfo": [{"item":"项目名称","content":"","remark":""}],\n    "keyDates": [{"node":"时间节点","time":"","reminder":""}],\n    "budgetPricing": [{"item":"价格要素","info":"","note":""}],\n    "guaranteeInfo": [{"item":"保证金要素","requirement":"","note":""}]\n  },\n  "qualificationCompliance": {\n    "qualificationReview": [{"item":"审查项目","requirement":"","evidence":"证明材料","judgement":"可通过/建议核实/高风险/未明确"}],\n    "certificateChecklist": [{"name":"证照名称","required":"必须/可选/未明确","issuer":"","validity":"","sealed":"是/否/未明确","source":"获取方式或来源"}]\n  },\n  "businessReview": [{"item":"商务要求","requirement":"","responsePoint":"","riskLevel":"低/中/高"}],\n  "technicalReview": [{"item":"技术或服务要求","requirement":"","responsePoint":"","scoreRelated":"是/否/未明确"}],\n  "scoringReview": [{"category":"评分项","score":"只填最高分，如10/15/30","criteria":"从招标文件评分细则逐字粘贴完整原文，不得删减改写","responseStrategy":"","sourcePage":"页码或未明确"}],\n  "rejectionClauses": [{"clause":"废标/无效条款","risk":"","action":""}],\n  "submissionFormat": [{"item":"文件格式要求","requirement":"","note":""}],\n  "materialsChecklist": [{"material":"资料名称","required":"必须/可选/未明确","source":"来源","note":""}],\n  "bidOutline": {\n    "businessPart": ["必须依据响应文件格式要求生成商务目录"],\n    "technicalPart": ["必须依据评分表技术要求生成技术目录"],\n    "attachmentsPart": ["依据资格/资料清单生成附件目录"]\n  },\n  "extractionQuality": {"pageCount":数字,"charCount":数字,"tableCount":数字,"textCoverage":数字,"warnings":["完整性或OCR提示"]}\n}`
+          content: `请按“深度解析报告”结构解析以下招标文件，并返回 JSON。${selectedLotInstruction}\n\n项目名称：${promptProjectName}\n文件名：${project.fileName}\n文件大小：${sizeText(project.fileSize)}\n服务端提取质量：${JSON.stringify(extractionBrief)}\n正文范围：${analysisTextPack.mode}\n关键页：${(analysisTextPack.selectedPages || []).join("、") || "全文"}\n表格样本：${JSON.stringify(tableSamples).slice(0, 30000)}\n正文：${sourceSample}\n\nJSON 字段必须包含：\n{\n  "summary": "报告摘要，概括项目、范围、关键风险，100-180字",\n  "extractedItems": 数字,\n  "riskCount": 数字,\n  "manualReviewRequired": true或false,\n  "projectHeader": {"projectName":"","bidNo":"","tenderee":"","agency":"","analysisDate":"","version":"V1.0"},\n  "basicReview": {\n    "projectBasicInfo": [{"item":"项目名称","content":"","remark":""}],\n    "keyDates": [{"node":"时间节点","time":"","reminder":""}],\n    "budgetPricing": [{"item":"价格要素","info":"","note":""}],\n    "guaranteeInfo": [{"item":"保证金要素","requirement":"","note":""}]\n  },\n  "qualificationCompliance": {\n    "qualificationReview": [{"item":"审查项目","requirement":"","evidence":"证明材料","judgement":"可通过/建议核实/高风险/未明确"}],\n    "certificateChecklist": [{"name":"证照名称","required":"必须/可选/未明确","issuer":"","validity":"","sealed":"是/否/未明确","source":"获取方式或来源"}]\n  },\n  "businessReview": [{"item":"商务要求","requirement":"","responsePoint":"","riskLevel":"低/中/高"}],\n  "procurementRequirements": [{"item":"采购/建设/服务/工程/硬件需求项","requirement":"本次招标客户想购买、建设、实施或交付的具体内容和范围，不要填预算、保证金、付款或评分摘要","responsePoint":"投标响应要点","sourcePage":"页码或未明确"}],\n  "technicalReview": [{"item":"技术或服务要求","requirement":"","responsePoint":"","scoreRelated":"是/否/未明确"}],\n  "scoringReview": [{"category":"评分项","score":"只填最高分，如10/15/30","criteria":"从招标文件评分细则逐字粘贴完整原文，不得删减改写","responseStrategy":"","sourcePage":"页码或未明确"}],\n  "rejectionClauses": [{"clause":"废标/无效条款","risk":"","action":""}],\n  "submissionFormat": [{"item":"文件格式要求","requirement":"","note":""}],\n  "materialsChecklist": [{"material":"资料名称","required":"必须/可选/未明确","source":"来源","note":""}],\n  "bidOutline": {\n    "businessPart": ["必须依据响应文件格式要求生成商务目录"],\n    "technicalPart": ["必须依据评分表技术要求生成技术目录"],\n    "attachmentsPart": ["依据资格/资料清单生成附件目录"]\n  },\n  "extractionQuality": {"pageCount":数字,"charCount":数字,"tableCount":数字,"textCoverage":数字,"warnings":["完整性或OCR提示"]}\n}\n\n采购需求提取要求：\n1. 采购需求指本次招标客户想要买、建设、实施、交付的服务、工程、硬件、软件、系统功能或承包范围。\n2. 优先从“采购需求、项目需求、发包人要求、功能要求、工程规模及内容、工程范围、包括的工作、建设内容、招标范围、承包范围、服务内容、服务范围、供货要求、设备清单、清单及参数”等章节提取。\n3. EPC/工程项目必须重点提取设计、采购、施工、设备安装调试、试运行移交、竣工交付、竣工试验、工程保修等范围。\n4. 不得把项目摘要、预算金额、最高限价、保证金、付款方式、资格条件、评分办法当作采购需求。`
         }
       ]
     });
@@ -1315,6 +1458,11 @@ const analyzeWithDeepSeek = async (project) => {
     const parsed = await parseDeepSeekJson({ apiKey, content, signal: controller.signal });
     const exactScoringReview = deriveScoringReviewFromExtraction(extraction);
     if (exactScoringReview.length) parsed.scoringReview = filterRowsBySelectedLot(exactScoringReview, selectedLot);
+    const exactProcurementRequirements = deriveProcurementRequirementsFromExtraction(extraction, selectedLot);
+    parsed.procurementRequirements = mergeProcurementRequirements(
+      exactProcurementRequirements,
+      Array.isArray(parsed.procurementRequirements) ? parsed.procurementRequirements : []
+    );
     if (selectedLot) {
       const parsedLotProjectName = lotProjectNameFromParsed(project, selectedLot, findParsedProjectName(parsed));
       parsed.projectHeader = { ...(parsed.projectHeader || {}), projectName: parsedLotProjectName };
@@ -1324,6 +1472,7 @@ const analyzeWithDeepSeek = async (project) => {
       }
       if (parsed.basicReview?.budgetPricing) parsed.basicReview.budgetPricing = filterRowsBySelectedLot(parsed.basicReview.budgetPricing, selectedLot);
       if (parsed.basicReview?.guaranteeInfo) parsed.basicReview.guaranteeInfo = filterRowsBySelectedLot(parsed.basicReview.guaranteeInfo, selectedLot);
+      if (parsed.procurementRequirements) parsed.procurementRequirements = filterRowsBySelectedLot(parsed.procurementRequirements, selectedLot);
       if (parsed.businessReview) parsed.businessReview = filterRowsBySelectedLot(parsed.businessReview, selectedLot);
       if (parsed.technicalReview) parsed.technicalReview = filterRowsBySelectedLot(parsed.technicalReview, selectedLot);
       if (parsed.scoringReview) parsed.scoringReview = filterRowsBySelectedLot(parsed.scoringReview, selectedLot);
@@ -1365,6 +1514,7 @@ const buildStructuredReportText = (raw = {}) => {
     ["预算与报价", raw.basicReview?.budgetPricing],
     ["保证金信息", raw.basicReview?.guaranteeInfo],
     ["资格审查", raw.qualificationCompliance],
+    ["采购需求", raw.procurementRequirements],
     ["商务要求", raw.businessReview],
     ["技术/服务要求", raw.technicalReview],
     ["评分标准", raw.scoringReview],
@@ -1389,7 +1539,7 @@ const buildStructuredReportText = (raw = {}) => {
 const keySectionPatterns = [
   { label: "评分标准", score: 120, pattern: /评标办法|评分标准|评审标准|评审因素|评分因素|分值|技术评分|商务评分|综合评分/ },
   { label: "响应文件格式", score: 115, pattern: /投标文件格式|响应文件格式|响应文件组成|资格审查资料|商务和技术偏差|投标函|授权委托|开标一览表|报价明细/ },
-  { label: "采购需求", score: 105, pattern: /采购需求|项目需求|服务内容|服务范围|建设内容|供货要求|设备清单|清单及参数/ },
+  { label: "采购需求", score: 115, pattern: procurementSectionPattern },
   { label: "技术要求", score: 105, pattern: /技术要求|技术参数|服务要求|实施方案|运维服务|质量要求|验收要求|交付要求/ },
   { label: "资格条件", score: 95, pattern: /资格条件|资格要求|资格审查|投标人资格|供应商资格|营业执照|财务|纳税|社保|业绩|信誉|认证证书/ },
   { label: "商务要求", score: 85, pattern: /商务要求|商务条款|合同条款|服务期|工期|付款方式|报价要求|投标保证金|履约保证金/ },
@@ -2017,6 +2167,8 @@ const headerMap = {
   有效期要求: "validity",
   是否需盖章: "sealed",
   获取方式: "source",
+  需求项: "item",
+  "具体采购/建设/服务内容": "requirement",
   要求项: "item",
   响应要点: "responsePoint",
   风险等级: "riskLevel",
@@ -2030,7 +2182,8 @@ const headerMap = {
   处理建议: "action",
   文件要求: "item",
   资料名称: "material",
-  来源: "source"
+  来源: "source",
+  来源页: "sourcePage"
 };
 
 const stripLeadingNumber = (value) =>
@@ -2327,9 +2480,10 @@ const renderAnalysisReport = (project, result) => {
     ${tableHtml("2.资质证照清单表", ["证照名称", "是否必需", "发证机关", "有效期要求", "是否需盖章", "获取方式"], raw.qualificationCompliance?.certificateChecklist)}
     <h2>C.商务、技术与评分</h2>
     ${tableHtml("1.商务要求表", ["要求项", "具体要求", "响应要点", "风险等级"], raw.businessReview)}
-    ${tableHtml("2.技术要求表", ["要求项", "具体要求", "响应要点", "评分关联"], raw.technicalReview)}
-    ${tableHtml("3.评分标准表", ["评分项", "分值", "评分说明", "响应策略"], raw.scoringReview)}
-    ${tableHtml("4.废标风险表", ["条款", "风险", "处理建议"], raw.rejectionClauses)}
+    ${tableHtml("2.采购需求表", ["需求项", "具体采购/建设/服务内容", "响应要点", "来源页"], raw.procurementRequirements)}
+    ${tableHtml("3.技术要求表", ["要求项", "具体要求", "响应要点", "评分关联"], raw.technicalReview)}
+    ${tableHtml("4.评分标准表", ["评分项", "分值", "评分说明", "响应策略"], raw.scoringReview)}
+    ${tableHtml("5.废标风险表", ["条款", "风险", "处理建议"], raw.rejectionClauses)}
     <h2>D.文件与大纲</h2>
     ${tableHtml("1.文件格式要求表", ["文件要求", "具体要求", "备注"], raw.submissionFormat)}
     ${tableHtml("2.资料清单表", ["资料名称", "是否必需", "来源", "备注"], raw.materialsChecklist)}
@@ -2470,6 +2624,7 @@ const renderAnalysisPdf = async (project, result) => {
     table(doc, "保证金信息", ["保证金要素", "具体要求", "注意事项"], raw.basicReview?.guaranteeInfo, ["item", "requirement", "note"]);
     table(doc, "资格性审查要求", ["审查项目", "具体要求", "证明材料", "符合性判断"], raw.qualificationCompliance?.qualificationReview, ["item", "requirement", "evidence", "judgement"]);
     table(doc, "商务要求", ["要求项", "具体要求", "响应要点", "风险等级"], raw.businessReview, ["item", "requirement", "responsePoint", "riskLevel"]);
+    table(doc, "采购需求", ["需求项", "具体采购/建设/服务内容", "响应要点", "来源"], raw.procurementRequirements, ["item", "requirement", "responsePoint", "sourcePage"]);
     table(doc, "技术要求", ["要求项", "具体要求", "响应要点", "评分关联"], raw.technicalReview, ["item", "requirement", "responsePoint", "scoreRelated"]);
     table(doc, "评分标准", ["评分项", "分值", "评分说明", "响应策略"], raw.scoringReview, ["category", "score", "criteria", "responseStrategy"]);
     table(doc, "废标风险", ["条款", "风险", "处理建议"], raw.rejectionClauses, ["clause", "risk", "action"]);
@@ -2516,6 +2671,7 @@ const downloadPayload = async (kind, project, result) => {
         ["项目基本信息", JSON.stringify(raw.basicReview?.projectBasicInfo || [])],
         ["关键时间节点", JSON.stringify(raw.basicReview?.keyDates || [])],
         ["资格审查", JSON.stringify(raw.qualificationCompliance?.qualificationReview || [])],
+        ["采购需求", JSON.stringify(raw.procurementRequirements || [])],
         ["商务要求", JSON.stringify(raw.businessReview || [])],
         ["技术要求", JSON.stringify(raw.technicalReview || [])],
         ["评分标准", JSON.stringify(raw.scoringReview || [])],

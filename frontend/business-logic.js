@@ -1217,9 +1217,70 @@
       </div>`;
   };
 
+  const outlineScoringRows = (project) => {
+    if (!project) return [];
+    const meta = projectMeta(project);
+    const exactRows = deriveExactScoringRows(project);
+    const rawRows = Array.isArray(meta.raw?.scoringReview) ? meta.raw.scoringReview : [];
+    const rows = exactRows.length ? exactRows : rawRows;
+    const normalized = rows
+      .map((row) => ({
+        category: row.category || row.item || row.name || row.step || "评分项",
+        score: scoreMax(row.score || row.scoreOriginal || row.points || row.value || ""),
+        criteria: row.criteria || row.requirement || row.detail || row.content || row.description || ""
+      }))
+      .filter((row) => row.category || row.score || row.criteria);
+    const seen = new Set();
+    return normalized.filter((row) => {
+      const key = `${row.category}-${row.score}-${String(row.criteria).slice(0, 40)}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  };
+
+  const renderOutlineScoringPanel = (project) => {
+    const body = document.querySelector("[data-purpose='outline-scoring-body']");
+    const count = document.querySelector("[data-purpose='outline-scoring-count']");
+    if (!body) return;
+    const rows = outlineScoringRows(project);
+    if (count) count.textContent = rows.length ? `${rows.length} 项` : "待提取";
+    if (!rows.length) {
+      body.innerHTML = `
+        <div class="m-5 rounded-xl border border-amber-100 bg-amber-50 p-5 text-sm leading-6 text-amber-700">
+          暂未读取到结构化评分表。请先确认招标文件解析已完成，或在解析报告“评分标准”中复核原文。
+        </div>`;
+      return;
+    }
+    body.innerHTML = `
+      <table class="outline-scoring-table">
+        <thead>
+          <tr>
+            <th style="width:92px">评分项</th>
+            <th style="width:54px;text-align:center">分值</th>
+            <th>评分细则</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows
+            .map((row) => {
+              const scoreText = row.score || "-";
+              const scoreNumber = Number(String(scoreText).match(/\d+(?:\.\d+)?/)?.[0] || 0);
+              return `<tr class="${scoreNumber >= 10 ? "is-important" : ""}">
+                <td class="score-item">${esc(row.category || "评分项")}</td>
+                <td class="score-value">${esc(scoreText)}</td>
+                <td class="score-criteria">${esc(row.criteria || "评分细则未明确，建议人工核对原文。")}</td>
+              </tr>`;
+            })
+            .join("")}
+        </tbody>
+      </table>`;
+  };
+
   const renderOutlinePage = async () => {
     let project = await getActiveProject();
     if (!project) return;
+    renderOutlineScoringPanel(project);
     const selectedRange = project.bidPageRange ? normalizeBidPageRange(project.bidPageRange) : "";
     const state = readState();
     const forceDeepSeekOutline = state.forceRegenerateOutlineProjectId === project.id;
@@ -1266,6 +1327,7 @@
       toast("正在调用 DeepSeek 生成目录，请稍候", "warn");
       const data = await api(apiPath(`/api/projects/${project.id}/generate-outline`), { method: "POST", body: "{}" });
       project = data.project;
+      renderOutlineScoringPanel(project);
     }
     const meta = projectMeta(project);
     const groups = outlineGroups(meta.raw, project);

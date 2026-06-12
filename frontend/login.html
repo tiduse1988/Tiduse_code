@@ -248,9 +248,21 @@
       text-align: center;
     }
 
+    .icp-footer {
+      position: fixed;
+      left: 50%;
+      bottom: 18px;
+      transform: translateX(-50%);
+      color: #637086;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0;
+      white-space: nowrap;
+    }
+
     @media (max-width: 820px) {
       body {
-        padding: 16px;
+        padding: 16px 16px 48px;
       }
 
       .page {
@@ -313,10 +325,11 @@
 
         <button class="submit" type="submit">登录</button>
         <div class="message"></div>
-        <div class="support">遇到问题？请联系企业管理员开通账号。</div>
+        <div class="support">个人测试用网站</div>
       </form>
     </section>
   </main>
+  <div class="icp-footer">黔ICP备2026008773号-2</div>
 
   <script>
     document.querySelectorAll(".show-password").forEach((button) => {

@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能投标系统 - 项目列表</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: #f8f9fa;
+        }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 3px;
+        }
+        
+        /* Progress bar animations */
+        @keyframes progress-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        .progress-animate {
+            animation: progress-pulse 2s ease-in-out infinite;
+        }
+        
+        /* Card hover effect */
+        .project-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .project-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+        }
+        
+        /* Upload area dashed border animation */
+        .upload-area {
+            background-image: url("data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='100%25' height='100%25' fill='none' rx='16' ry='16' stroke='%233B82F6FF' stroke-width='2' stroke-dasharray='12%2c 8' stroke-dashoffset='0' stroke-linecap='square'/%3e%3c/svg%3e");
+        }
+        
+        /* Button styles */
+        .btn-primary {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        }
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+        }
+        
+        .btn-secondary {
+            background: #f3f4f6;
+            color: #374151;
+        }
+        .btn-secondary:hover {
+            background: #e5e7eb;
+        }
+        
+        /* Progress bar colors */
+        .progress-pending { background: #e5e7eb; }
+        .progress-parsing { background: #f59e0b; }
+        .progress-complete { background: #10b981; }
+        .progress-failed { background: #ef4444; }
+    </style>
+</head>
+<body class="min-h-screen bg-gray-50">
+
+    <!-- Header -->
+    <header class="bg-white shadow-sm border-b border-gray-100 sticky top-0 z-50">
+        <div class="w-[1220px] mx-auto px-6 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-file-contract text-white text-sm"></i>
+                </div>
+                <div class="flex items-center gap-2">
+                    <h1 class="text-lg font-bold text-gray-900">智能投标系统</h1>
+                    <span class="text-xs text-gray-400 font-medium px-2 py-0.5 bg-gray-100 rounded-full">AI辅助招投标平台</span>
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                <button class="relative p-2 text-gray-400 hover:text-gray-600 transition-colors">
+                    <i class="fas fa-bell text-lg"></i>
+                    <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"></span>
+                </button>
+                <div class="flex items-center gap-3 pl-4 border-l border-gray-200">
+                    <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                        <span class="text-blue-700 font-semibold text-sm">张</span>
+                    </div>
+                    <div class="text-sm">
+                        <p class="font-medium text-gray-900">张工</p>
+                        <p class="text-xs text-gray-400">高级标书专员</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="w-[1220px] mx-auto px-6 py-8">
+        
+        <!-- Upload Area -->
+        <div class="upload-area rounded-2xl bg-blue-50/50 py-12 mb-8 cursor-pointer hover:bg-blue-50 transition-colors group">
+            <div class="text-center">
+                <div class="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mx-auto mb-4 group-hover:shadow-md transition-shadow">
+                    <i class="fas fa-cloud-upload-alt text-3xl text-blue-500"></i>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">上传招标文件</h3>
+                <p class="text-sm text-gray-500">支持 PDF/DOCX/DOC 格式，单文件最大 50MB</p>
+            </div>
+        </div>
+
+        <!-- Project List Header -->
+        <div class="flex items-center justify-between mb-6">
+            <div>
+                <h2 class="text-xl font-bold text-gray-900">项目列表</h2>
+                <p class="text-sm text-gray-500 mt-1">共 12 个项目</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <div class="relative">
+                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+                    <input type="text" placeholder="搜索项目名称..." 
+                           class="w-64 pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all">
+                </div>
+                <select class="px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer">
+                    <option>上传时间 降序</option>
+                    <option>上传时间 升序</option>
+                    <option>项目名称 A-Z</option>
+                </select>
+                <button class="p-2.5 bg-white border border-gray-200 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-colors">
+                    <i class="fas fa-list"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Project Cards Grid -->
+        <div class="grid grid-cols-3 gap-5">
+            
+            <!-- Card 1: Parsing (68%) -->
+            <div class="project-card bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-lg p-5">
+                <div class="flex items-start justify-between mb-3">
+                    <h3 class="text-sm font-semibold text-gray-900 leading-relaxed line-clamp-2 min-h-[40px]" title="2024年市级智慧政务云平台建设项目">
+                        2024年市级智慧政务云平台建设项目
+                    </h3>
+                </div>
+                <div class="flex items-center gap-2 text-xs text-gray-400 mb-4">
+                    <span>2024-06-15 14:32</span>
+                    <span class="w-1 h-1 bg-gray-300 rounded-full"></span>
+                    <span>12.5 MB</span>
+                </div>
+                
+                <!-- Progress Bar Only -->
+                <div class="mb-3">
+                    <div class="flex items-center justify-between mb-1.5">
+                        <span class="text-xs text-amber-600 font-medium">预计剩余 12 秒</span>
+                        <span class="text-xs text-amber-600 font-semibold">68%</span>
+                    </div>
+                    <div class="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <div class="h-full bg-amber-500 rounded-full progress-animate" style="width: 68%"></div>
+                    </div>
+                </div>
+                
+                <!-- Action Buttons -->
+                <div class="flex items-center gap-2 pt-3 border-t border-gray-100">
+                    <button class="flex-1 px-3 py-2 text-xs font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
+                        <i class="fas fa-download mr-1"></i>下载招标文件
+                    </button>
+                    <button class="flex-1 px-3 py-2 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors">
+                        <i class="fas fa-eye mr-1"></i>查看解析
+                    </button>
+                </div>
+                <div class="flex items-center gap-2 mt-2">
+                    <button class="flex-1 px-3 py-2 text-xs font-medium text-white btn-primary rounded-lg transition-colors">
+                        <i class="fas fa-magic mr-1"></i>生成标书
+                    </button>
+                    <button class="px-3 py-2 text-xs font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
+                        <i class="fas fa-check-double mr-1"></i>标书核验
+                    </button>
+                </div>
+            </div>
+
+            <!-- Card 2: Complete (100%) - Bid Generated -->
+            <div class="project-card bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-lg p-5">
+                <div class="flex items-start justify-between mb-3">
+                    <h3 class="text-sm font-semibold text-gray-900 leading-relaxed line-clamp-2 min-h-[40px]" title="2024年城市轨道交通信号系统升级改造工程">
+                        2024年城市轨道交通信号系统升级改造工程
+                    </h3>
+                </div>
+                <div class="flex items-center gap-2 text-xs text-gray-400 mb-4">
+                    <span>2024-06-14 09:15</span>
+                    <span class="w-1 h-1 bg-gray-300 rounded-full"></span>
+                    <span>28.3 MB</span>
+                </div>
+                
+                <!-- Progress Bar Only -->
+                <div class="mb-3">
+                    <div class="flex items-center justify-end mb-1.5">
+                        <span class="text-xs text-emerald-600 font-semibold">100%</span>
+                    </div>
+                    <div class="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <div class="h-full bg-emerald-500 rounded-full" style="width: 100%"></div>
+                    </div>
+                </div>
+                
+                <!-- Action Buttons -->
+                <div class="flex items-center gap-2 pt-3 border-t border-gray-100">
+                    <button class="flex-1 px-3 py-2 text-xs font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
+                        <i class="fas fa-download mr-1"></i>下载招标文件
+                    </button>
+                    <button class="flex-1 px-3 py-2 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors">
+                        <i class="fas fa-eye mr-1"></i>查看解析
+                    </button>
+                </div>
+                <div class="flex items-center gap-2 mt-2">
+                    <button class="flex-1 px-3 py-2 text-xs font-medium text-white btn-primary rounded-lg transition-colors">
+                        <i class="fas fa-file-alt mr-1"></i>查看标书
+                    </button>
+                    <button class="px-3 py-2 text-xs font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
+                        <i class="fas fa-check-double mr-1"></i>标书核验
+                    </button>
+                </div>
+            </div>
+
+            <!-- Card 3: Complete (100%) - Bid Generated -->
+            <div class="project-card bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-lg p-5">
+                <div class="flex items-start justify-between mb-3">
+                    <h3 class="text-sm font-semibold text-gray-900 leading-relaxed line-clamp-2 min-h-[40px]" title="2024年智慧校园信息化建设项目（二期）">
+                        2024年智慧校园信息化建设项目（二期）
+                    </h3>
+                </div>
+                <div class="flex items-center gap-2 text-xs text-gray-400 mb-4">
+                    <span>2024-06-13 16:45</span>
+                    <span class="w-1 h-1 bg-gray-300 rounded-full"></span>
+                    <span>15.8 MB</span>
+                </div>
+                
+                <!-- Progress Bar Only -->
+                <div class="mb-3">
+                    <div class="flex items-center justify-end mb-1.5">
+                        <span class="text-xs text-emerald-600 font-semibold">100%</span>
+                    </div>
+                    <div class="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <div class="h-full bg-emerald-500 rounded-full" style="width: 100%"></div>
+                    </div>
+                </div>
+                
+                <!-- Action Buttons -->
+                <div class="flex items-center gap-2 pt-3 border-t border-gray-100">
+                    <button class="flex-1 px-3 py-2 text-xs font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
+                        <i class="fas fa-download mr-1"></i>下载招标文件
+                    </button>
+                    <button class="flex-1 px-3 py-2 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors">
+                        <i class="fas fa-eye mr-1"></i>查看解析
+                    </button>
+                </div>
+                <div class="flex items-center gap-2 mt-2">
+                    <button class="flex-1 px-3 py-2 text-xs font-medium text-white btn-primary rounded-lg transition-colors">
+                        <i class="fas fa-file-alt mr-1"></i>查看标书
+                    </button>
+                    <button class="px-3 py-2 text-xs font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
+                        <i class="fas fa-check-double mr-1"></i>标书核验
+                    </button>
+                </div>
+            </div>
+
+            <!-- Card 4: Failed -->
+            <div class="project-card bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-lg p-5">
+                <div class="flex items-start justify-between mb-3">
+                    <h3 class="text-sm font-semibold text-gray-900 leading-relaxed line-clamp-2 min-h-[40px]" title="2024年市政道路照明设施维护项目">
+                        2024年市政道路照明设施维护项目
+                    </h3>
+                </div>
+                <div class="flex items-center gap-2 text-xs text-gray-400 mb-4">
+                    <span>2024-06-12 11:20</span>
+                    <span class="w-1 h-1 bg-gray-300 rounded-full"></span>
+                    <span>8.6 MB</span>
+                </div>
+                
+                <!-- Progress Bar Only -->
+                <div class="mb-3">
+                    <div class="flex items-center justify-between mb-1.5">
+                        <span class="text-xs text-red-500 font-medium">文件格式异常，无法识别文本内容</span>
+                        <span class="text-xs text-red-500 font-semibold">--</span>
+                    </div>
+                    <div class="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <div class="h-full bg-red-500 rounded-full" style="width: 15%"></div>
+                    </div>
+                </div>
+                
+                <!-- Action Buttons -->
+                <div class="flex items-center gap-2 pt-3 border-t border-gray-100">
+                    <button class="flex-1 px-3 py-2 text-xs font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
+                        <i class="fas fa-download mr-1"></i>下载招标文件
+                    </button>
+                    <button class="flex-1 px-3 py-2 text-xs font-medium text-amber-600 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors">
+                        <i class="fas fa-redo mr-1"></i>重新解析
+                    </button>
+                </div>
+                <div class="flex items-center gap-2 mt-2">
+                    <button class="flex-1 px-3 py-2 text-xs font-medium text-white btn-primary rounded-lg transition-colors opacity-50 cursor-not-allowed">
+                        <i class="fas fa-magic mr-1"></i>生成标书
+                    </button>
+                    <button class="px-3 py-2 text-xs font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors opacity-50 cursor-not-allowed">
+                        <i class="fas fa-check-double mr-1"></i>标书核验
+                    </button>
+                </div>
+            </div>
+
+            <!-- Card 5: Pending (0%) -->
+            <div class="project-card bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-lg p-5">
+                <div class="flex items-start justify-between mb-3">
+                    <h3 class="text-sm font-semibold text-gray-900 leading-relaxed line-clamp-2 min-h-[40px]" title="2024年区属医院信息化系统升级项目">
+                        2024年区属医院信息化系统升级项目
+                    </h3>
+                </div>
+                <div class="flex items-center gap-2 text-xs text-gray-400 mb-4">
+                    <span>2024-06-15 15:01</span>
+                    <span class="w-1 h-1 bg-gray-300 rounded-full"></span>
+                    <span>22.1 MB</span>
+                </div>
+                
+                <!-- Progress Bar Only -->
+                <div class="mb-3">
+                    <div class="flex items-center justify-between mb-1.5">
+                        <span class="text-xs text-gray-400 font-medium">队列中，预计等待 2 分钟</span>
+                        <span class="text-xs text-gray-400 font-semibold">--</span>
+                    </div>
+                    <div class="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <div class="h-full bg-gray-300 rounded-full" style="width: 0%"></div>
+                    </div>
+                </div>
+                
+                <!-- Action Buttons -->
+                <div class="flex items-center gap-2 pt-3 border-t border-gray-100">
+                    <button class="flex-1 px-3 py-2 text-xs font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
+                        <i class="fas fa-download mr-1"></i>下载招标文件
+                    </button>
+                    <button class="flex-1 px-3 py-2 text-xs font-medium text-gray-400 bg-gray-50 rounded-lg cursor-not-allowed">
+                        <i class="fas fa-eye mr-1"></i>查看解析
+                    </button>
+                </div>
+                <div class="flex items-center gap-2 mt-2">
+                    <button class="flex-1 px-3 py-2 text-xs font-medium text-white btn-primary rounded-lg transition-colors opacity-50 cursor-not-allowed">
+                        <i class="fas fa-magic mr-1"></i>生成标书
+                    </button>
+                    <button class="px-3 py-2 text-xs font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors opacity-50 cursor-not-allowed">
+                        <i class="fas fa-check-double mr-1"></i>标书核验
+                    </button>
+                </div>
+            </div>
+
+            <!-- Card 6: Complete (100%) - Bid Generated -->
+            <div class="project-card bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-lg p-5">
+                <div class="flex items-start justify-between mb-3">
+                    <h3 class="text-sm font-semibold text-gray-900 leading-relaxed line-clamp-2 min-h-[40px]" title="2024年智慧交通信号优化工程（第一批）">
+                        2024年智慧交通信号优化工程（第一批）
+                    </h3>
+                </div>
+                <div class="flex items-center gap-2 text-xs text-gray-400 mb-4">
+                    <span>2024-06-11 08:30</span>
+                    <span class="w-1 h-1 bg-gray-300 rounded-full"></span>
+                    <span>18.4 MB</span>
+                </div>
+                
+                <!-- Progress Bar Only -->
+                <div class="mb-3">
+                    <div class="flex items-center justify-end mb-1.5">
+                        <span class="text-xs text-emerald-600 font-semibold">100%</span>
+                    </div>
+                    <div class="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <div class="h-full bg-emerald-500 rounded-full" style="width: 100%"></div>
+                    </div>
+                </div>
+                
+                <!-- Action Buttons -->
+                <div class="flex items-center gap-2 pt-3 border-t border-gray-100">
+                    <button class="flex-1 px-3 py-2 text-xs font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
+                        <i class="fas fa-download mr-1"></i>下载招标文件
+                    </button>
+                    <button class="flex-1 px-3 py-2 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors">
+                        <i class="fas fa-eye mr-1"></i>查看解析
+                    </button>
+                </div>
+                <div class="flex items-center gap-2 mt-2">
+                    <button class="flex-1 px-3 py-2 text-xs font-medium text-white btn-primary rounded-lg transition-colors">
+                        <i class="fas fa-file-alt mr-1"></i>查看标书
+                    </button>
+                    <button class="px-3 py-2 text-xs font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
+                        <i class="fas fa-check-double mr-1"></i>标书核验
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Load More -->
+        <div class="flex justify-center mt-10">
+            <button class="px-8 py-3 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm">
+                加载更多项目
+            </button>
+        </div>
+
+    </main>
+
+<script src="./static-links.js"></script>
+</body>
+</html>

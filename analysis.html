@@ -1,0 +1,1404 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>招标文件解析结果</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: oklch(1 0 0);
+      --surface: oklch(0.982 0.004 255);
+      --panel: oklch(0.996 0.001 255);
+      --panel-strong: oklch(0.955 0.010 255);
+      --ink: oklch(0.205 0.030 255);
+      --muted: oklch(0.445 0.026 255);
+      --faint: oklch(0.650 0.020 255);
+      --line: oklch(0.900 0.012 255);
+      --line-strong: oklch(0.820 0.018 255);
+      --primary: oklch(0.450 0.150 260);
+      --primary-strong: oklch(0.385 0.150 260);
+      --primary-soft: oklch(0.950 0.035 260);
+      --accent: oklch(0.610 0.170 35);
+      --accent-soft: oklch(0.955 0.045 35);
+      --danger: oklch(0.540 0.190 28);
+      --danger-soft: oklch(0.955 0.045 28);
+      --warning: oklch(0.670 0.155 75);
+      --warning-soft: oklch(0.965 0.055 75);
+      --success: oklch(0.560 0.140 155);
+      --success-soft: oklch(0.955 0.045 155);
+      --shadow: 0 8px 24px oklch(0.205 0.030 255 / 0.08);
+      --radius: 12px;
+      --header-h: 56px;
+      --nav-h: 52px;
+      --footer-h: 72px;
+      font-family: "Noto Sans SC", -apple-system, BlinkMacSystemFont, "Segoe UI", ui-sans-serif, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      background: var(--bg);
+    }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      color: var(--ink);
+      background:
+        linear-gradient(180deg, oklch(0.975 0.010 255), var(--bg) 360px),
+        var(--bg);
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    button {
+      font: inherit;
+    }
+
+    .shell {
+      width: min(1180px, calc(100% - 40px));
+      margin: 0 auto;
+    }
+
+    .topbar {
+      position: fixed;
+      inset: 0 0 auto;
+      z-index: 30;
+      height: var(--header-h);
+      background: var(--bg);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .topbar-inner {
+      position: relative;
+      width: 100%;
+      max-width: none;
+      margin: 0;
+      padding: 0 24px;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      min-width: 0;
+      gap: 12px;
+      font-weight: 700;
+    }
+
+    .brand-mark {
+      width: 32px;
+      height: 32px;
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      border-radius: 8px;
+      color: white;
+      background: var(--primary);
+    }
+
+    .brand-title {
+      color: var(--ink);
+      font-size: 18px;
+      font-weight: 700;
+      line-height: 1.2;
+      letter-spacing: -0.01em;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .topbar-stage {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      transform: translate(-50%, -50%);
+      white-space: nowrap;
+    }
+
+    .stage-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+    }
+
+    .stage-item.is-active {
+      color: var(--primary);
+    }
+
+    .stage-item.is-muted {
+      opacity: 0.5;
+    }
+
+    .stage-dot {
+      width: 32px;
+      height: 32px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      color: var(--muted);
+      background: var(--line);
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .stage-item.is-active .stage-dot {
+      color: white;
+      background: var(--primary);
+      box-shadow: 0 0 0 4px oklch(0.450 0.150 260 / 0.15);
+    }
+
+    .stage-label {
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .stage-item.is-muted .stage-label {
+      font-weight: 500;
+    }
+
+    .stage-line {
+      width: 80px;
+      height: 1px;
+      background: var(--line);
+    }
+
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .icon-button {
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      border: 0;
+      border-radius: 8px;
+      color: var(--muted);
+      background: transparent;
+      cursor: pointer;
+      transition: background-color 160ms ease, color 160ms ease;
+    }
+
+    .icon-button:hover {
+      color: var(--primary);
+      background: var(--surface);
+    }
+
+    .topbar-divider {
+      width: 1px;
+      height: 24px;
+      background: var(--line);
+      margin: 0 8px;
+    }
+
+    .user-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .user-meta {
+      text-align: right;
+    }
+
+    .user-name {
+      margin: 0;
+      color: var(--ink);
+      font-size: 12px;
+      font-weight: 500;
+      line-height: 1.35;
+    }
+
+    .user-role {
+      margin: 1px 0 0;
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.3;
+    }
+
+    .avatar {
+      width: 32px;
+      height: 32px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      color: var(--primary);
+      background: var(--primary-soft);
+      border: 1px solid oklch(0.820 0.055 260);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .hero {
+      min-height: calc(var(--header-h) + var(--nav-h));
+      background: var(--bg);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 24px;
+      align-items: end;
+      padding-bottom: 26px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 30px;
+      line-height: 1.18;
+      letter-spacing: 0;
+      text-wrap: balance;
+    }
+
+    .subtitle {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 10px 0 0;
+      color: var(--muted);
+    }
+
+    .actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .btn {
+      min-height: 38px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      padding: 8px 13px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 700;
+      transition: background-color 180ms ease, border-color 180ms ease, transform 160ms ease, color 180ms ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+    }
+
+    .btn:focus-visible,
+    .nav-link:focus-visible,
+    .expand-btn:focus-visible {
+      outline: 3px solid oklch(0.735 0.110 260 / 0.48);
+      outline-offset: 2px;
+    }
+
+    .btn-primary {
+      color: white;
+      background: var(--primary);
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-strong);
+    }
+
+    .btn-secondary {
+      color: var(--ink);
+      border-color: var(--line);
+      background: var(--surface);
+    }
+
+    .btn-secondary:hover {
+      background: var(--panel-strong);
+    }
+
+    .nav-wrap {
+      position: fixed;
+      inset: var(--header-h) 0 auto;
+      top: var(--header-h);
+      z-index: 25;
+      height: var(--nav-h);
+      background: oklch(1 0 0 / 0.96);
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(10px);
+    }
+
+    .nav-track {
+      height: 100%;
+      display: flex;
+      gap: 20px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+
+    .nav-track::-webkit-scrollbar {
+      display: none;
+    }
+
+    .nav-link {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      height: 100%;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 650;
+      white-space: nowrap;
+    }
+
+    .nav-link::after {
+      content: "";
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      height: 3px;
+      border-radius: 999px 999px 0 0;
+      background: transparent;
+    }
+
+    .nav-link.active {
+      color: var(--primary);
+    }
+
+    .nav-link.active::after {
+      background: var(--primary);
+    }
+
+    main {
+      padding: 28px 0 calc(var(--footer-h) + 36px);
+    }
+
+    .overview {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+
+    .summary-tile {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 16px;
+      background: var(--panel);
+    }
+
+    .summary-tile span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .summary-tile strong {
+      display: block;
+      margin-top: 4px;
+      font-size: 20px;
+      line-height: 1.25;
+    }
+
+    .summary-tile.risk {
+      border-color: oklch(0.785 0.070 28);
+      background: var(--danger-soft);
+    }
+
+    .summary-tile.risk strong {
+      color: var(--danger);
+    }
+
+    section {
+      scroll-margin-top: calc(var(--header-h) + var(--nav-h) + 18px);
+      margin-top: 30px;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .section-title h2 {
+      margin: 0;
+      font-size: 20px;
+      line-height: 1.3;
+      text-wrap: balance;
+    }
+
+    .section-title .line {
+      width: 36px;
+      height: 3px;
+      border-radius: 999px;
+      background: var(--primary);
+    }
+
+    .grid {
+      display: grid;
+      gap: 14px;
+    }
+
+    .grid-2 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .grid-3 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+      padding: 18px;
+    }
+
+    .card.danger {
+      border-color: oklch(0.800 0.070 28);
+      background: var(--danger-soft);
+    }
+
+    .card.warning {
+      border-color: oklch(0.825 0.080 75);
+      background: var(--warning-soft);
+    }
+
+    .field-label {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    .field-value {
+      display: block;
+      color: var(--ink);
+      font-size: 18px;
+      font-weight: 760;
+    }
+
+    .money {
+      color: var(--danger);
+      font-size: 24px;
+      font-weight: 780;
+    }
+
+    .inline-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .inline-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 9px;
+      color: var(--muted);
+    }
+
+    .dot {
+      width: 7px;
+      height: 7px;
+      flex: 0 0 auto;
+      margin-top: 9px;
+      border-radius: 50%;
+      background: var(--primary);
+    }
+
+    .danger .dot,
+    .dot.danger {
+      background: var(--danger);
+    }
+
+    .table-card {
+      overflow: hidden;
+      padding: 0;
+    }
+
+    .table-scroll {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      min-width: 620px;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    th,
+    td {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: middle;
+    }
+
+    th {
+      color: var(--muted);
+      background: var(--surface);
+      font-size: 13px;
+      font-weight: 760;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .critical-row td {
+      color: var(--danger);
+      background: var(--danger-soft);
+      font-weight: 760;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 24px;
+      border-radius: 999px;
+      padding: 2px 9px;
+      color: var(--ink);
+      background: var(--surface);
+      border: 1px solid var(--line);
+      font-size: 12px;
+      font-weight: 760;
+      white-space: nowrap;
+    }
+
+    .tag-danger {
+      color: white;
+      border-color: var(--danger);
+      background: var(--danger);
+    }
+
+    .tag-warning {
+      color: oklch(0.255 0.060 75);
+      border-color: oklch(0.840 0.095 75);
+      background: var(--warning-soft);
+    }
+
+    .tag-info {
+      color: var(--primary);
+      border-color: oklch(0.820 0.055 260);
+      background: var(--primary-soft);
+    }
+
+    .progress {
+      display: grid;
+      gap: 12px;
+    }
+
+    .progress-row {
+      display: grid;
+      gap: 6px;
+    }
+
+    .progress-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .bar {
+      height: 8px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: var(--panel-strong);
+    }
+
+    .bar span {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: var(--primary);
+    }
+
+    .metric-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .metric-card strong {
+      display: block;
+      font-size: 26px;
+      line-height: 1.1;
+    }
+
+    .metric-card small {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .icon-box {
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      border-radius: 10px;
+      color: var(--primary);
+      background: var(--primary-soft);
+    }
+
+    .clamped {
+      display: -webkit-box;
+      overflow: hidden;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
+
+    .clamped.expanded {
+      display: block;
+    }
+
+    .expand-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      margin-top: 12px;
+      padding: 0;
+      border: 0;
+      color: var(--primary);
+      background: transparent;
+      cursor: pointer;
+      font-weight: 760;
+    }
+
+    .score-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .score {
+      display: grid;
+      justify-items: center;
+      gap: 8px;
+      padding: 16px 8px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      text-align: center;
+    }
+
+    .ring {
+      --value: 60%;
+      width: 74px;
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: conic-gradient(var(--primary) var(--value), var(--line) 0);
+    }
+
+    .ring::before {
+      content: attr(data-label);
+      width: 54px;
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: var(--panel);
+      font-weight: 780;
+    }
+
+    .notice {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 14px;
+      background: var(--surface);
+    }
+
+    .notice strong {
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    .item-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 12px;
+      background: var(--surface);
+      font-weight: 700;
+    }
+
+    .bottom-bar {
+      position: fixed;
+      inset: auto 0 0;
+      z-index: 30;
+      min-height: var(--footer-h);
+      border-top: 1px solid var(--line);
+      background: oklch(1 0 0 / 0.95);
+      box-shadow: 0 -8px 22px oklch(0.205 0.030 255 / 0.07);
+      backdrop-filter: blur(12px);
+    }
+
+    .bottom-inner {
+      min-height: var(--footer-h);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .status {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    .divider {
+      width: 1px;
+      height: 18px;
+      background: var(--line);
+    }
+
+    .icon {
+      width: 18px;
+      height: 18px;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+      flex: 0 0 auto;
+    }
+
+    @media (max-width: 900px) {
+      .shell {
+        width: min(100% - 28px, 1180px);
+      }
+
+      .topbar-stage {
+        display: none;
+      }
+
+      .hero-grid {
+        grid-template-columns: 1fr;
+        align-items: start;
+      }
+
+      .actions {
+        justify-content: flex-start;
+      }
+
+      .overview,
+      .grid-3,
+      .score-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .grid-2 {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      :root {
+        --footer-h: 76px;
+      }
+
+      .topbar-actions .icon-button,
+      .topbar-divider,
+      .user-meta,
+      .divider {
+        display: none;
+      }
+
+      .topbar-inner {
+        padding: 0 14px;
+      }
+
+      .brand-title {
+        font-size: 17px;
+      }
+
+      h1 {
+        font-size: 25px;
+      }
+
+      .overview,
+      .grid-3,
+      .score-grid,
+      .item-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .bottom-inner {
+        align-items: center;
+        flex-direction: row;
+        justify-content: center;
+        padding: 10px 0;
+      }
+
+      .bottom-inner .status {
+        display: none;
+      }
+
+      .bottom-inner .actions {
+        justify-content: stretch;
+        width: 100%;
+      }
+
+      .bottom-inner .btn {
+        flex: 1;
+        padding-inline: 8px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 1ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="shell topbar-inner">
+      <a class="brand" href="#top" aria-label="返回顶部">
+        <span class="brand-mark" aria-hidden="true">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7z"></path><path d="M14 3v5h5"></path><path d="M9 13h6"></path><path d="M9 17h6"></path></svg>
+        </span>
+        <span class="brand-title">AI投标系统</span>
+      </a>
+      <div class="topbar-stage" aria-label="流程进度">
+        <div class="stage-item is-active">
+          <span class="stage-dot">1</span>
+          <span class="stage-label">生成目录</span>
+        </div>
+        <span class="stage-line" aria-hidden="true"></span>
+        <div class="stage-item is-muted">
+          <span class="stage-dot">2</span>
+          <span class="stage-label">生成标书</span>
+        </div>
+      </div>
+      <div class="topbar-actions" aria-label="顶部操作">
+        <button class="icon-button" type="button" aria-label="通知">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+        </button>
+        <button class="icon-button" type="button" aria-label="帮助">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 1 1 4.92 2.3c-.77.52-1.01.94-1.01 1.7"></path><path d="M12 17h.01"></path></svg>
+        </button>
+        <span class="topbar-divider" aria-hidden="true"></span>
+        <div class="user-card" aria-label="当前用户">
+          <div class="user-meta">
+            <p class="user-name">张工</p>
+            <p class="user-role">高级商务经理</p>
+          </div>
+          <span class="avatar" aria-hidden="true">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M20 21a8 8 0 0 0-16 0"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          </span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="hero" id="top">
+    <nav class="nav-wrap" aria-label="解析结果导航">
+      <div class="shell nav-track" id="tab-navigation">
+        <a class="nav-link active" href="#section-info">项目基本信息</a>
+        <a class="nav-link" href="#section-timeline">重要时间节点</a>
+        <a class="nav-link" href="#section-eligibility">资格条件</a>
+        <a class="nav-link" href="#section-business">商务要求</a>
+        <a class="nav-link" href="#section-technical">技术要求</a>
+        <a class="nav-link" href="#section-scoring">评分标准</a>
+        <a class="nav-link" href="#section-termination">废标条款</a>
+        <a class="nav-link" href="#section-requirements">采购需求</a>
+        <a class="nav-link" href="#section-submission">投标文件要求</a>
+      </div>
+    </nav>
+  </div>
+
+  <main class="shell">
+    <div class="overview" aria-label="关键摘要">
+      <div class="summary-tile">
+        <span>预算金额</span>
+        <strong>500 万元</strong>
+      </div>
+      <div class="summary-tile">
+        <span>建设周期</span>
+        <strong>180 日历天</strong>
+      </div>
+      <div class="summary-tile">
+        <span>评分重点</span>
+        <strong>技术 60%</strong>
+      </div>
+      <div class="summary-tile risk">
+        <span>高优先级风险</span>
+        <strong>3 项</strong>
+      </div>
+    </div>
+
+    <section id="section-info">
+      <div class="section-title">
+        <h2>项目基本信息</h2>
+        <span class="line" aria-hidden="true"></span>
+      </div>
+      <div class="grid grid-3">
+        <div class="card">
+          <span class="field-label">项目名称</span>
+          <span class="field-value">2023年智慧政务大厅升级改造采购项目</span>
+        </div>
+        <div class="card">
+          <span class="field-label">采购人</span>
+          <span class="field-value">某市人民政府政务服务中心</span>
+        </div>
+        <div class="card">
+          <span class="field-label">采购方式</span>
+          <span class="field-value">公开招标</span>
+        </div>
+        <div class="card">
+          <span class="field-label">预算金额</span>
+          <span class="money">¥ 5,000,000.00</span>
+        </div>
+        <div class="card">
+          <span class="field-label">最高限价</span>
+          <span class="money">¥ 5,000,000.00</span>
+        </div>
+        <div class="card">
+          <span class="field-label">工期 / 期限</span>
+          <span class="field-value">180 日历天</span>
+        </div>
+        <div class="card">
+          <span class="field-label">所属行业</span>
+          <span class="field-value">软件和信息技术服务业</span>
+        </div>
+        <div class="card">
+          <span class="field-label">投标保证金</span>
+          <span class="field-value">不要求缴纳</span>
+        </div>
+      </div>
+    </section>
+
+    <section id="section-timeline">
+      <div class="section-title">
+        <h2>重要时间节点</h2>
+        <span class="line" aria-hidden="true"></span>
+      </div>
+      <div class="card table-card">
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>事项节点</th>
+                <th>具体时间</th>
+                <th>备注 / 提示</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>招标公告发布</strong></td>
+                <td>2023-11-01 09:00</td>
+                <td>已发布</td>
+              </tr>
+              <tr>
+                <td><strong>现场踏勘 / 公开答疑</strong></td>
+                <td>2023-11-05 14:00</td>
+                <td>市中心政务大厅 3 楼</td>
+              </tr>
+              <tr>
+                <td><strong>质疑截止日期</strong></td>
+                <td>2023-11-10 17:00</td>
+                <td><span class="tag tag-warning">提前完成资料核对</span></td>
+              </tr>
+              <tr class="critical-row">
+                <td>投标截止 / 开标时间</td>
+                <td>2023-11-21 09:30</td>
+                <td>逾期投递将拒收</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="section-eligibility">
+      <div class="section-title">
+        <h2>资格条件</h2>
+        <span class="line" aria-hidden="true"></span>
+      </div>
+      <div class="grid grid-2">
+        <div class="card">
+          <h3>准入门槛</h3>
+          <ul class="inline-list">
+            <li><span class="dot"></span>具有独立法人资格</li>
+            <li><span class="dot"></span>注册资金不低于 1000 万元</li>
+            <li><span class="dot"></span>近三年内无重大违法记录</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>资质要求</h3>
+          <ul class="inline-list">
+            <li><span class="dot"></span>国家秘密载体印制资质（乙级）</li>
+            <li><span class="dot"></span>软件能力成熟度 CMMI3</li>
+          </ul>
+        </div>
+      </div>
+      <div class="card table-card" style="margin-top:14px">
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>证书名称</th>
+                <th>要求级别</th>
+                <th>必要性</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>ISO9001 质量管理体系</strong></td>
+                <td>有效证书</td>
+                <td><span class="tag tag-danger">必需</span></td>
+              </tr>
+              <tr>
+                <td><strong>ISO27001 信息安全管理</strong></td>
+                <td>有效证书</td>
+                <td><span class="tag tag-danger">必需</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="section-business">
+      <div class="section-title">
+        <h2>商务要求</h2>
+        <span class="line" aria-hidden="true"></span>
+      </div>
+      <div class="grid grid-3">
+        <div class="card">
+          <h3>付款方式</h3>
+          <div class="progress">
+            <div class="progress-row">
+              <div class="progress-meta"><span>预付款</span><strong>30%</strong></div>
+              <div class="bar" aria-hidden="true"><span style="width:30%"></span></div>
+            </div>
+            <div class="progress-row">
+              <div class="progress-meta"><span>进度款</span><strong>40%</strong></div>
+              <div class="bar" aria-hidden="true"><span style="width:40%"></span></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <h3>售后服务</h3>
+          <p>3 年原厂质保，7x24 小时支持，2 小时内到达现场响应。</p>
+        </div>
+        <div class="card danger">
+          <h3>风险条款</h3>
+          <p><strong>违约金比例设为每日 0.5%</strong>，高于行业平均水平 0.1%，需重点关注并提前评估履约成本。</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="section-technical">
+      <div class="section-title">
+        <h2>技术要求</h2>
+        <span class="line" aria-hidden="true"></span>
+      </div>
+      <div class="grid grid-2">
+        <div class="card metric-card">
+          <div>
+            <small>并发性能</small>
+            <strong>≥ 500 用户</strong>
+          </div>
+          <span class="icon-box" aria-hidden="true">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+          </span>
+        </div>
+        <div class="card metric-card">
+          <div>
+            <small>响应速度</small>
+            <strong>≤ 1 秒</strong>
+          </div>
+          <span class="icon-box" aria-hidden="true">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M12 14l4-4"></path><path d="M3.34 19a10 10 0 1 1 17.32 0"></path></svg>
+          </span>
+        </div>
+        <div class="card" style="grid-column:1/-1">
+          <h3>安全与兼容性</h3>
+          <p class="clamped" id="tech-text">系统需通过网络安全等级保护（三级）测评，支持国密算法加密传输。前端需兼容 Chrome 80+、Firefox 及主流国产浏览器；支持国产信创数据库。系统需通过网络安全等级保护（三级）测评，支持国密算法加密传输。前端需兼容 Chrome 80+、Firefox 及主流国产浏览器；支持国产信创数据库。</p>
+          <button class="expand-btn" type="button" data-target="tech-text">
+            <span>展开全文</span>
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <section id="section-scoring">
+      <div class="section-title">
+        <h2>评分标准</h2>
+        <span class="line" aria-hidden="true"></span>
+      </div>
+      <div class="card">
+        <h3>分值构成</h3>
+        <div class="score-grid">
+          <div class="score">
+            <span class="ring" style="--value:60%" data-label="60%"></span>
+            <strong>技术方案</strong>
+          </div>
+          <div class="score">
+            <span class="ring" style="--value:30%" data-label="30%"></span>
+            <strong>商务资信</strong>
+          </div>
+          <div class="score">
+            <span class="ring" style="--value:10%" data-label="10%"></span>
+            <strong>价格评分</strong>
+          </div>
+        </div>
+      </div>
+      <div class="card table-card" style="margin-top:14px">
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>评分项</th>
+                <th>分值</th>
+                <th>评分细则</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>同类项目业绩</strong></td>
+                <td><span class="tag tag-info">15 分</span></td>
+                <td>每提供 1 个类似案例得 3 分</td>
+              </tr>
+              <tr>
+                <td><strong>实施进度保障</strong></td>
+                <td><span class="tag tag-info">10 分</span></td>
+                <td>根据计划科学性打分</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="notice warning" style="margin-top:14px">
+        <span class="icon-box" aria-hidden="true">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M9 18h6"></path><path d="M10 22h4"></path><path d="M2 12a10 10 0 1 1 20 0c0 3-1.5 4.5-3 6H5c-1.5-1.5-3-3-3-6z"></path></svg>
+        </span>
+        <div>
+          <strong>价格评分提示</strong>
+          <span>价格采用低价优先法计算，需注意不要恶意低价，以免触发评审质疑。</span>
+        </div>
+      </div>
+    </section>
+
+    <section id="section-termination">
+      <div class="section-title">
+        <h2>废标条款</h2>
+        <span class="line" aria-hidden="true"></span>
+      </div>
+      <div class="grid grid-2">
+        <div class="card danger">
+          <h3>资格废标</h3>
+          <ul class="inline-list">
+            <li><span class="dot danger"></span>缺少营业执照原件扫描件</li>
+            <li><span class="dot danger"></span>联合体无协议书</li>
+          </ul>
+        </div>
+        <div class="card danger">
+          <h3>技术废标</h3>
+          <ul class="inline-list">
+            <li><span class="dot danger"></span><strong>(*) 实质性指标负偏离</strong></li>
+            <li><span class="dot danger"></span>响应内容缺漏项</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="section-requirements">
+      <div class="section-title">
+        <h2>采购需求</h2>
+        <span class="line" aria-hidden="true"></span>
+      </div>
+      <div class="grid">
+        <div class="card">
+          <h3>总体概况</h3>
+          <p>旨在通过人工智能、大数据等技术手段对智慧政务大厅进行升级，实现政务办理的自动化与智能化。</p>
+        </div>
+        <div class="card">
+          <h3>核心软硬件清单</h3>
+          <div class="item-grid">
+            <div class="item"><span>智能导办机器人</span><span class="tag tag-info">x 4</span></div>
+            <div class="item"><span>多功能一体机</span><span class="tag tag-info">x 12</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="section-submission">
+      <div class="section-title">
+        <h2>投标文件要求</h2>
+        <span class="line" aria-hidden="true"></span>
+      </div>
+      <div class="card table-card">
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>文件组成</th>
+                <th>份数</th>
+                <th>必要性</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>技术标（正本）</strong></td>
+                <td>1 份</td>
+                <td><span class="tag tag-danger">必交</span></td>
+              </tr>
+              <tr>
+                <td><strong>商务标（正本）</strong></td>
+                <td>1 份</td>
+                <td><span class="tag tag-danger">必交</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="notice" style="margin-top:14px">
+        <span class="icon-box" aria-hidden="true">
+          <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg>
+        </span>
+        <div>
+          <strong>附件清单</strong>
+          <span>请确保证件扫描件清晰可见，且所有页码均加盖公章。</span>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="bottom-bar">
+    <div class="shell bottom-inner">
+      <div class="status">
+        <span>解析于 2023-10-27 14:30</span>
+        <span class="divider" aria-hidden="true"></span>
+        <span><strong>48</strong> 个解析项已提取</span>
+      </div>
+      <div class="actions">
+        <button class="btn btn-secondary" type="button">导出 DOCX</button>
+        <button class="btn btn-secondary" type="button">导出 Excel</button>
+        <button class="btn btn-primary" type="button" onclick="window.print()">导出 PDF</button>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    const navLinks = [...document.querySelectorAll(".nav-link")];
+    const sections = navLinks
+      .map((link) => document.querySelector(link.getAttribute("href")))
+      .filter(Boolean);
+
+    const setActive = () => {
+      const offset = Number.parseInt(getComputedStyle(document.documentElement).getPropertyValue("--header-h")) +
+        Number.parseInt(getComputedStyle(document.documentElement).getPropertyValue("--nav-h")) + 80;
+      let current = sections[0].id;
+
+      for (const section of sections) {
+        if (section.getBoundingClientRect().top <= offset) current = section.id;
+      }
+
+      navLinks.forEach((link) => {
+        const isActive = link.getAttribute("href") === `#${current}`;
+        link.classList.toggle("active", isActive);
+        if (isActive) link.setAttribute("aria-current", "true");
+        else link.removeAttribute("aria-current");
+      });
+    };
+
+    document.addEventListener("scroll", setActive, { passive: true });
+    window.addEventListener("resize", setActive);
+    navLinks.forEach((link) => {
+      link.addEventListener("click", (event) => {
+        event.preventDefault();
+        const target = document.querySelector(link.getAttribute("href"));
+        const headerHeight = Number.parseInt(getComputedStyle(document.documentElement).getPropertyValue("--header-h"));
+        const navHeight = Number.parseInt(getComputedStyle(document.documentElement).getPropertyValue("--nav-h"));
+        const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+        navLinks.forEach((item) => {
+          item.classList.toggle("active", item === link);
+          if (item === link) item.setAttribute("aria-current", "true");
+          else item.removeAttribute("aria-current");
+        });
+
+        if (target) {
+          window.scrollTo({
+            top: target.getBoundingClientRect().top + window.scrollY - headerHeight - navHeight - 18,
+            behavior: prefersReducedMotion ? "auto" : "smooth"
+          });
+        }
+      });
+    });
+    setActive();
+
+    document.querySelectorAll(".expand-btn").forEach((button) => {
+      button.addEventListener("click", () => {
+        const target = document.getElementById(button.dataset.target);
+        const expanded = target.classList.toggle("expanded");
+        button.querySelector("span").textContent = expanded ? "收起全文" : "展开全文";
+        button.setAttribute("aria-expanded", String(expanded));
+      });
+    });
+  </script>
+<script src="./static-links.js"></script>
+</body>
+</html>

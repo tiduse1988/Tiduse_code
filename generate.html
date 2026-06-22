@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AI投标系统 - 生成标书</title>
+<!-- BEGIN: External Resources -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<!-- END: External Resources -->
+<script data-purpose="tailwind-config">
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#2563eb',
+            primaryHover: '#1d4ed8',
+            surface: {
+              50: '#f8fafc',
+              100: '#f1f5f9',
+              200: '#e2e8f0',
+              300: '#cbd5e1',
+              400: '#94a3b8',
+              500: '#64748b',
+              600: '#475569',
+              700: '#334155',
+              800: '#1e293b',
+              900: '#0f172a',
+            }
+          }
+        }
+      }
+    }
+  </script>
+<style data-purpose="global-styles">
+    * {
+      font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    body {
+      min-width: 1220px;
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+  </style>
+<style data-purpose="component-styles">
+    .doc-page {
+      box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.1);
+      aspect-ratio: 1 / 1.414;
+    }
+    .tooltip {
+      position: relative;
+    }
+    .tooltip::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 4px 8px;
+      background: #1e293b;
+      color: white;
+      font-size: 11px;
+      border-radius: 4px;
+      white-space: nowrap;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.2s ease;
+      margin-bottom: 6px;
+      z-index: 50;
+    }
+    .tooltip:hover::after {
+      opacity: 1;
+      visibility: visible;
+    }
+  </style>
+</head>
+<body class="bg-surface-100 h-screen flex flex-col text-surface-700 antialiased overflow-hidden">
+<!-- BEGIN: TopNavigation -->
+<header class="h-14 bg-white border-b border-surface-200 flex items-center justify-between px-6 shrink-0 z-30">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+<i class="fas fa-file-signature text-white text-sm"></i>
+</div>
+<span class="font-bold text-surface-800 text-lg tracking-tight">AI投标系统</span>
+</div>
+<div class="absolute left-1/2 -translate-x-1/2 flex items-center gap-4">
+<div class="flex items-center gap-2">
+<div class="w-7 h-7 rounded-full bg-green-500 text-white flex items-center justify-center text-xs">
+<i class="fas fa-check"></i>
+</div>
+<div>
+<p class="text-xs font-bold text-surface-700">1 生成目录</p>
+<p class="text-[10px] text-surface-400">规划标书大纲结构</p>
+</div>
+</div>
+<div class="w-12 h-px bg-surface-200"></div>
+<div class="flex items-center gap-2">
+<div class="w-7 h-7 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold ring-4 ring-primary/15">2</div>
+<div>
+<p class="text-xs font-bold text-primary">2 生成标书</p>
+<p class="text-[10px] text-surface-400">AI自动填充内容</p>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="w-9 h-9 rounded-lg hover:bg-surface-100 flex items-center justify-center text-surface-500 transition-colors">
+<i class="fas fa-bell"></i>
+</button>
+<button class="w-9 h-9 rounded-lg hover:bg-surface-100 flex items-center justify-center text-surface-500 transition-colors">
+<i class="fas fa-question-circle"></i>
+</button>
+<div class="h-6 w-px bg-surface-200 mx-2"></div>
+<div class="flex items-center gap-3">
+<div class="text-right">
+<p class="text-xs font-medium text-surface-800">张工</p>
+<p class="text-[10px] text-surface-400">高级商务经理</p>
+</div>
+<div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
+<i class="fas fa-user text-primary text-xs"></i>
+</div>
+</div>
+</div>
+</header>
+<!-- END: TopNavigation -->
+<!-- BEGIN: MainWorkspace -->
+<main class="flex-1 flex overflow-hidden">
+<!-- BEGIN: DocumentOutline -->
+<aside class="w-72 bg-white border-r border-surface-200 shrink-0 flex flex-col overflow-hidden">
+<div class="h-16 px-5 flex items-center justify-between border-b border-surface-100">
+<h2 class="text-lg font-bold text-surface-800">目录</h2>
+<div class="flex items-center gap-2">
+<button class="w-8 h-8 rounded-lg border border-surface-200 hover:bg-surface-50 flex items-center justify-center text-surface-600 transition-colors">
+<i class="fas fa-search text-sm"></i>
+</button>
+<button class="w-8 h-8 rounded-lg border border-surface-200 hover:bg-surface-50 flex items-center justify-center text-surface-600 transition-colors">
+<i class="fas fa-chevron-down text-xs"></i>
+</button>
+<button class="w-8 h-8 rounded-lg border border-surface-200 hover:bg-surface-50 flex items-center justify-center text-surface-600 transition-colors">
+<i class="fas fa-chevron-up text-xs"></i>
+</button>
+<button class="w-8 h-8 rounded-lg border border-surface-200 hover:bg-surface-50 flex items-center justify-center text-surface-600 transition-colors">
+<i class="fas fa-bars text-xs"></i>
+</button>
+</div>
+</div>
+<nav class="flex-1 overflow-y-auto px-5 py-4 text-sm">
+<div class="space-y-3">
+<div>
+<div class="flex items-center gap-2 text-primary font-bold">
+<i class="fas fa-caret-down text-surface-400 w-3"></i>
+<span class="truncate">第一章 产品方案介绍</span>
+</div>
+<div class="mt-3 ml-6 space-y-3 text-surface-700">
+<div class="flex items-center gap-2">
+<i class="fas fa-caret-right text-surface-400 w-3"></i>
+<span class="truncate">第一节 系统产品定位与设计理念</span>
+</div>
+<div class="flex items-center gap-2">
+<i class="fas fa-caret-right text-surface-400 w-3"></i>
+<span class="truncate">第二节 系统功能模块架构</span>
+</div>
+<div class="flex items-center gap-2">
+<i class="fas fa-caret-right text-surface-400 w-3"></i>
+<span class="truncate">第三节 AI质控引擎技术方案</span>
+</div>
+<div class="flex items-center gap-2">
+<i class="fas fa-caret-right text-surface-400 w-3"></i>
+<span class="truncate">第四节 质检规则体系设计</span>
+</div>
+</div>
+</div>
+<div>
+<div class="flex items-center gap-2 font-medium text-surface-800">
+<i class="fas fa-caret-down text-surface-400 w-3"></i>
+<span class="truncate">第二章 初步实施计划与服务方案</span>
+</div>
+<div class="mt-3 ml-6 space-y-3 text-surface-700">
+<div class="flex items-center gap-2">
+<i class="fas fa-caret-right text-surface-400 w-3"></i>
+<span class="truncate">第一节 项目实施总体计划</span>
+</div>
+<div class="flex items-center gap-2">
+<i class="fas fa-caret-right text-surface-400 w-3"></i>
+<span class="truncate">第二节 系统部署与集成方案</span>
+</div>
+<div class="flex items-center gap-2">
+<i class="fas fa-caret-right text-surface-400 w-3"></i>
+<span class="truncate">第三节 病历AI质控系统试运行方案</span>
+</div>
+<div class="flex items-center gap-2">
+<i class="fas fa-caret-right text-surface-400 w-3"></i>
+<span class="truncate">第四节 系统正式上线与切换方案</span>
+</div>
+<div class="flex items-center gap-2">
+<i class="fas fa-caret-right text-surface-400 w-3"></i>
+<span class="truncate">第五节 病历AI质控服务体系架构</span>
+</div>
+<div class="flex items-center gap-2">
+<i class="fas fa-caret-right text-surface-400 w-3"></i>
+<span class="truncate">第六节 实时质控服务流程</span>
+</div>
+<div class="flex items-center gap-2">
+<i class="fas fa-caret-right text-surface-400 w-3"></i>
+<span class="truncate">第七节 事后分析与指标统计服务</span>
+</div>
+<div class="flex items-center gap-2">
+<i class="fas fa-caret-right text-surface-400 w-3"></i>
+<span class="truncate">第八节 服务响应与问题解决机制</span>
+</div>
+<div class="flex items-center gap-2">
+<i class="fas fa-caret-right text-surface-400 w-3"></i>
+<span class="truncate">第九节 系统运维与规则更新服务</span>
+</div>
+</div>
+</div>
+<div>
+<div class="flex items-center gap-2 font-medium text-surface-800">
+<i class="fas fa-caret-down text-surface-400 w-3"></i>
+<span class="truncate">第三章 其他服务响应</span>
+</div>
+<div class="mt-3 ml-6 space-y-3 text-surface-700">
+<div class="flex items-center gap-2">
+<i class="fas fa-caret-right text-surface-400 w-3"></i>
+<span class="truncate">第一节 病历统计报表导出服务</span>
+</div>
+<div class="flex items-center gap-2">
+<i class="fas fa-caret-right text-surface-400 w-3"></i>
+<span class="truncate">第二节 年度质控概况与质检报告</span>
+</div>
+<div class="flex items-center gap-2">
+<i class="fas fa-caret-right text-surface-400 w-3"></i>
+<span class="truncate">第三节 重大缺陷文书保存卡控</span>
+</div>
+<div class="flex items-center gap-2">
+<i class="fas fa-caret-right text-surface-400 w-3"></i>
+<span class="truncate">第四节 归档病历质检问题明细</span>
+</div>
+</div>
+</div>
+</div>
+</nav>
+</aside>
+<!-- END: DocumentOutline -->
+<!-- BEGIN: DocumentContentArea -->
+<div class="flex-1 flex flex-col items-center py-6 px-8 overflow-hidden bg-surface-100">
+<div class="w-full max-w-4xl flex-1 flex flex-col bg-white rounded-xl shadow-lg border border-surface-200 overflow-hidden">
+<!-- BEGIN: DocumentPreview -->
+<div class="flex-1 overflow-y-auto p-12 bg-surface-200/50 flex justify-center">
+<div class="doc-page w-full max-w-2xl bg-white p-16 flex flex-col">
+<h1 class="text-3xl font-bold text-center text-black mb-12 tracking-widest">投 标 函</h1>
+<div class="space-y-6 text-sm text-surface-800 leading-relaxed text-justify">
+<p class="font-bold">致：XX市政府采购中心</p>
+<p>我方已仔细研究了 <span class="border-b border-surface-800 px-1">XX市政府采购信息化建设项目</span> 招标文件的全部内容，愿意以人民币（大写） <span class="border-b border-surface-800 px-1">壹仟贰佰万元整</span> （¥12,000,000.00）的投标总报价，按招标文件规定的各项要求完成该项目。</p>
+<p>1. 我方承诺在招标文件规定的投标有效期内（90天）撤销投标文件的，投标保证金将不予退还。</p>
+<p>2. 随本投标函提交投标保证金一份，金额为人民币 <span class="border-b border-surface-800 px-1">拾万元整</span>。</p>
+<p>3. 我方在此声明，所递交的投标文件及有关资料内容完整、真实和准确。且我方在参加本次政府采购活动前三年内，在经营活动中没有重大违法记录。</p>
+<p>4. 我方承诺，如我方中标：</p>
+<ul class="list-disc pl-6 space-y-2">
+<li>将在收到中标通知书后 <span class="border-b border-surface-800 px-1">30</span> 日内与采购人签订合同。</li>
+<li>将按招标文件的规定履行合同责任和义务。</li>
+<li>将在合同约定的工期内完成全部建设任务。</li>
+</ul>
+<p>5. 技术方案概要：本方案采用微服务架构，基于Spring Cloud框架构建，确保系统具备高可用性、可扩展性。前端采用Vue 3.0技术栈，保障用户交互体验流畅。安全防护方面，我们将部署多层次防火墙及数据加密机制，确保政务数据万无一失...</p>
+</div>
+<div class="mt-20 self-end text-right space-y-4">
+<p>投标人：<span class="font-bold">XXXX科技有限公司（盖章）</span></p>
+<p>法定代表人或其委托代理人：<span class="font-bold text-surface-400">（签字）</span></p>
+<p>日期：2023年 10月 24日</p>
+</div>
+</div>
+</div>
+<!-- END: DocumentPreview -->
+</div>
+</div>
+<!-- END: DocumentContentArea -->
+<!-- BEGIN: RightSidebar -->
+<aside class="w-80 bg-white border-l border-surface-200 flex flex-col shrink-0 overflow-y-auto z-20">
+<!-- Sidebar Body: Project Metadata -->
+<div class="p-6 space-y-6">
+<div>
+<h3 class="text-xs font-bold text-surface-400 uppercase tracking-widest mb-4">项目信息</h3>
+<div class="bg-surface-50 rounded-xl p-4 border border-surface-100 space-y-4">
+<div>
+<p class="text-[10px] text-surface-400 mb-1">项目名称</p>
+<p class="text-xs font-bold text-surface-800 leading-relaxed">XX市政府采购信息化建设项目</p>
+</div>
+<div class="flex justify-between">
+<div>
+<p class="text-[10px] text-surface-400 mb-1">最后保存</p>
+<p class="text-xs font-medium text-surface-600">14:55:12</p>
+</div>
+<div>
+<p class="text-[10px] text-surface-400 mb-1">文档状态</p>
+<span class="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium">生成完成</span>
+</div>
+</div>
+</div>
+</div>
+<div>
+<h3 class="text-xs font-bold text-surface-400 uppercase tracking-widest mb-4">生成状态</h3>
+<!-- BEGIN: GenerationStatus -->
+<div class="bg-green-50/70 rounded-xl p-4 border border-green-100 space-y-4">
+<div class="flex items-center gap-3">
+<div class="w-9 h-9 rounded-full bg-green-500 text-white flex items-center justify-center shrink-0">
+<i class="fas fa-check text-sm"></i>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center justify-between mb-1.5">
+<span class="text-xs font-bold text-surface-800">标书内容生成已完成</span>
+<span class="text-xs font-medium text-green-700">100%</span>
+</div>
+<div class="w-full bg-white h-2 rounded-full overflow-hidden">
+<div class="bg-green-500 h-full w-full"></div>
+</div>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-3 pt-3 border-t border-green-100">
+<div>
+<p class="text-[10px] text-surface-400 mb-1">总页数</p>
+<p class="text-sm font-bold text-surface-800">42</p>
+</div>
+<div>
+<p class="text-[10px] text-surface-400 mb-1">预计阅读</p>
+<p class="text-sm font-bold text-surface-800">15 min</p>
+</div>
+</div>
+</div>
+<!-- END: GenerationStatus -->
+</div>
+</div>
+<!-- Sidebar Footer: Actions -->
+<div class="mt-auto p-6 border-t border-surface-100 bg-white">
+<div class="flex flex-col gap-3">
+<button class="w-full h-11 rounded-lg text-sm font-bold bg-white border border-surface-200 text-surface-600 hover:bg-surface-50 transition-all flex items-center justify-center gap-2">
+<i class="fas fa-redo-alt"></i>
+            重新生成
+          </button>
+<button class="w-full h-11 rounded-xl text-sm font-bold text-white bg-primary hover:bg-primaryHover shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all flex items-center justify-center gap-2">
+<i class="fas fa-file-download"></i>
+            下载标书
+          </button>
+</div>
+</div>
+</aside>
+<!-- END: RightSidebar -->
+</main>
+<!-- END: MainWorkspace -->
+<script src="./static-links.js"></script>
+</body></html>

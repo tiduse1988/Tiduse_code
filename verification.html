@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>AI投标系统 - 标书核验</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          primary: '#2563eb',
+          primaryHover: '#1d4ed8',
+          surface: {
+            50: '#f8fafc',
+            100: '#f1f5f9',
+            200: '#e2e8f0',
+            300: '#cbd5e1',
+            400: '#94a3b8',
+            500: '#64748b',
+            600: '#475569',
+            700: '#334155',
+            800: '#1e293b',
+            900: '#0f172a'
+          }
+        }
+      }
+    }
+  }
+</script>
+<style>
+  * { font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  body { min-width: 1220px; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: #f1f5f9; }
+  ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+  .doc-page { box-shadow: 0 4px 20px -2px rgba(0,0,0,.1); aspect-ratio: 1 / 1.414; }
+</style>
+</head>
+<body class="bg-surface-100 h-screen flex flex-col text-surface-700 antialiased overflow-hidden">
+<header class="h-14 bg-white border-b border-surface-200 flex items-center justify-between px-6 shrink-0 z-30">
+  <div class="flex items-center gap-3 cursor-pointer" id="goHome">
+    <div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+      <i class="fas fa-file-signature text-white text-sm"></i>
+    </div>
+    <span class="font-bold text-surface-800 text-lg tracking-tight">AI投标系统</span>
+  </div>
+  <div class="absolute left-1/2 -translate-x-1/2 text-sm font-bold text-primary">标书核验</div>
+  <div class="flex items-center gap-4">
+    <button class="w-9 h-9 rounded-lg hover:bg-surface-100 flex items-center justify-center text-surface-500 transition-colors">
+      <i class="fas fa-bell"></i>
+    </button>
+    <button class="w-9 h-9 rounded-lg hover:bg-surface-100 flex items-center justify-center text-surface-500 transition-colors">
+      <i class="fas fa-question-circle"></i>
+    </button>
+    <div class="h-6 w-px bg-surface-200 mx-2"></div>
+    <div class="flex items-center gap-3">
+      <div class="text-right">
+        <p class="text-xs font-medium text-surface-800">张工</p>
+        <p class="text-[10px] text-surface-400">高级商务经理</p>
+      </div>
+      <div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
+        <i class="fas fa-user text-primary text-xs"></i>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="flex-1 flex overflow-hidden">
+  <aside class="w-80 bg-white border-r border-surface-200 shrink-0 flex flex-col overflow-hidden">
+    <div class="p-6 border-b border-surface-100">
+      <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-50 text-green-700 text-xs font-bold mb-3">
+        <i class="fas fa-check-circle"></i>项目已解析
+      </span>
+      <h1 class="text-lg font-bold text-surface-900 leading-snug mb-3">2024年城市轨道交通信号系统升级改造工程</h1>
+      <div class="flex items-center gap-2 text-xs text-surface-500">
+        <span>招标编号：CT-2024-0614</span>
+        <span class="w-1 h-1 rounded-full bg-surface-300"></span>
+        <span>截止：06-28 17:30</span>
+      </div>
+    </div>
+    <div class="p-6 border-b border-surface-100 space-y-3">
+      <div class="flex items-center gap-3 p-3 rounded-xl border border-surface-200">
+        <i class="far fa-file-pdf text-primary text-xl"></i>
+        <div>
+          <p class="text-sm font-bold text-surface-800">招标文件.pdf</p>
+          <p class="text-xs text-surface-500">28.3 MB，已解析</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3 p-3 rounded-xl border border-surface-200" id="bidFile">
+        <i class="far fa-file-word text-primary text-xl"></i>
+        <div>
+          <p class="text-sm font-bold text-surface-800">投标文件.docx</p>
+          <p class="text-xs text-surface-500">96 页，待核验</p>
+        </div>
+      </div>
+      <div class="rounded-xl border border-dashed border-blue-200 bg-blue-50/40 p-4">
+        <p class="text-xs text-surface-600 leading-relaxed mb-3">上传最终版标书后，系统会对照招标文件重新核验格式、响应、材料和报价。</p>
+        <button id="uploadBid" class="w-full h-10 rounded-lg bg-white border border-surface-200 text-sm font-bold text-surface-700 hover:bg-surface-50 transition-colors">
+          <i class="fas fa-upload mr-1"></i>上传标书
+        </button>
+      </div>
+    </div>
+    <div class="p-6 space-y-4">
+      <div class="flex items-start gap-3">
+        <div class="w-8 h-8 rounded-full bg-green-500 text-white flex items-center justify-center"><i class="fas fa-check text-xs"></i></div>
+        <div><p class="text-sm font-bold text-surface-800">招标文件解析</p><p class="text-xs text-surface-500">已抽取 52 条核验规则</p></div>
+      </div>
+      <div class="flex items-start gap-3">
+        <div class="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center"><i class="fas fa-shield-alt text-xs"></i></div>
+        <div><p class="text-sm font-bold text-surface-800">标书核验</p><p class="text-xs text-surface-500">独立核验投标文件</p></div>
+      </div>
+      <div class="flex items-start gap-3">
+        <div class="w-8 h-8 rounded-full bg-green-500 text-white flex items-center justify-center"><i class="fas fa-file-export text-xs"></i></div>
+        <div><p class="text-sm font-bold text-surface-800">核验报告</p><p class="text-xs text-surface-500">导出问题清单和修订建议</p></div>
+      </div>
+    </div>
+    <div class="mt-auto p-6 border-t border-surface-100 bg-white space-y-3">
+      <button id="runVerify" class="w-full h-11 rounded-xl text-sm font-bold text-white bg-primary hover:bg-primaryHover shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all">
+        <i class="fas fa-shield-alt mr-1"></i>开始核验
+      </button>
+      <button id="exportReport" class="w-full h-11 rounded-lg text-sm font-bold bg-white border border-surface-200 text-surface-600 hover:bg-surface-50 transition-all">
+        <i class="fas fa-file-export mr-1"></i>导出核验报告
+      </button>
+    </div>
+  </aside>
+
+  <section class="flex-1 min-w-0 overflow-y-auto p-6">
+    <div class="flex items-start justify-between mb-5">
+      <div>
+        <h2 class="text-2xl font-bold text-surface-900 mb-1">标书核验</h2>
+        <p class="text-sm text-surface-500">对照招标文件自动检查硬性条款、材料完整性、格式规范和报价一致性。</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <button id="locateFirst" class="h-10 px-4 rounded-lg border border-surface-200 bg-white text-sm font-bold text-surface-700 hover:bg-surface-50">
+          <i class="fas fa-crosshairs mr-1"></i>定位首个问题
+        </button>
+        <button id="rerunVerify" class="h-10 px-4 rounded-lg bg-primary text-white text-sm font-bold hover:bg-primaryHover">
+          <i class="fas fa-wand-magic-sparkles mr-1"></i>重新核验
+        </button>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-5 gap-4 mb-5">
+      <div class="bg-white rounded-xl border border-surface-200 p-5"><strong id="score" class="block text-3xl text-primary font-bold">86</strong><span class="text-xs text-surface-500">综合通过分</span></div>
+      <div class="bg-white rounded-xl border border-surface-200 p-5"><strong class="block text-3xl text-red-600 font-bold">3</strong><span class="text-xs text-surface-500">必须修复</span></div>
+      <div class="bg-white rounded-xl border border-surface-200 p-5"><strong class="block text-3xl text-amber-600 font-bold">5</strong><span class="text-xs text-surface-500">建议确认</span></div>
+      <div class="bg-white rounded-xl border border-surface-200 p-5"><strong class="block text-3xl text-green-600 font-bold">42</strong><span class="text-xs text-surface-500">已通过规则</span></div>
+      <div class="bg-white rounded-xl border border-surface-200 p-5"><strong class="block text-3xl text-surface-900 font-bold">52</strong><span class="text-xs text-surface-500">核验规则总数</span></div>
+    </div>
+
+    <div class="grid grid-cols-[0.78fr_1fr] gap-5">
+      <section class="bg-white rounded-xl border border-surface-200 overflow-hidden">
+        <div class="h-14 px-5 border-b border-surface-100 flex items-center justify-between">
+          <h3 class="text-base font-bold text-surface-900">核验维度</h3>
+          <div class="flex gap-2"><span class="text-xs font-bold text-primary bg-blue-50 border border-blue-200 px-3 py-1 rounded-full">规则</span><span class="text-xs font-bold text-surface-500 bg-white border border-surface-200 px-3 py-1 rounded-full">比对</span></div>
+        </div>
+        <div class="p-5 space-y-3">
+          <div class="grid grid-cols-[36px_1fr_auto] items-center gap-3 p-3 rounded-xl border border-surface-200">
+            <span class="w-9 h-9 rounded-lg bg-red-50 text-red-600 flex items-center justify-center"><i class="fas fa-triangle-exclamation"></i></span>
+            <div><p class="text-sm font-bold text-surface-800">资格材料完整性</p><p class="text-xs text-surface-500">营业执照、资质证书、授权书、承诺函</p></div>
+            <span class="text-xs font-bold text-red-600 bg-red-50 px-2.5 py-1 rounded-full">2 项缺失</span>
+          </div>
+          <div class="grid grid-cols-[36px_1fr_auto] items-center gap-3 p-3 rounded-xl border border-surface-200">
+            <span class="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center"><i class="fas fa-circle-exclamation"></i></span>
+            <div><p class="text-sm font-bold text-surface-800">实质性条款响应</p><p class="text-xs text-surface-500">工期、质保、付款、违约责任</p></div>
+            <span class="text-xs font-bold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full">3 项待确认</span>
+          </div>
+          <div class="grid grid-cols-[36px_1fr_auto] items-center gap-3 p-3 rounded-xl border border-surface-200">
+            <span class="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center"><i class="fas fa-table-list"></i></span>
+            <div><p class="text-sm font-bold text-surface-800">报价一致性</p><p class="text-xs text-surface-500">报价表、投标函、分项清单金额比对</p></div>
+            <span class="text-xs font-bold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full">1 处差异</span>
+          </div>
+          <div class="grid grid-cols-[36px_1fr_auto] items-center gap-3 p-3 rounded-xl border border-surface-200">
+            <span class="w-9 h-9 rounded-lg bg-green-50 text-green-600 flex items-center justify-center"><i class="fas fa-circle-check"></i></span>
+            <div><p class="text-sm font-bold text-surface-800">格式与签章要求</p><p class="text-xs text-surface-500">封面、页码、目录、签字盖章位置</p></div>
+            <span class="text-xs font-bold text-green-600 bg-green-50 px-2.5 py-1 rounded-full">已通过</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="bg-surface-200/70 rounded-xl border border-surface-200 overflow-hidden">
+        <div class="h-14 px-5 bg-white border-b border-surface-200 flex items-center justify-between">
+          <div class="text-sm font-bold text-surface-700">投标文件.docx <span class="text-surface-300 mx-1">•</span> 第 18 页，投标函</div>
+          <div class="flex gap-2 text-surface-500"><i class="fas fa-minus"></i><i class="fas fa-plus"></i><i class="fas fa-expand"></i></div>
+        </div>
+        <div class="p-8 flex justify-center overflow-auto max-h-[690px]">
+          <article class="doc-page w-[620px] min-w-[620px] bg-white p-16">
+            <h2 class="text-3xl font-bold text-center text-black mb-12 tracking-widest">投 标 函</h2>
+            <div class="space-y-6 text-sm text-surface-800 leading-relaxed text-justify">
+              <p class="font-bold">致：XX市政府采购中心</p>
+              <p>我方已仔细研究了《城市轨道交通信号系统升级改造工程》招标文件的全部内容，愿意以人民币（大写）壹仟贰佰万元整（<mark class="bg-red-100 rounded px-1">¥12,000,000.00</mark>）的投标总报价完成本项目。</p>
+              <p>一、我方承诺投标有效期为 <mark class="bg-blue-100 rounded px-1">90 天</mark>，在投标有效期内遵守招标文件约定。</p>
+              <p>二、我方承诺项目实施周期为 <mark class="bg-amber-100 rounded px-1">210 日历天</mark>，具体实施计划详见第二章。</p>
+              <p>三、我方承诺所递交的投标文件及有关资料内容完整、真实和准确。随本投标文件提交投标保证金，金额为人民币拾万元整。</p>
+            </div>
+          </article>
+        </div>
+      </section>
+    </div>
+  </section>
+
+  <aside class="w-[380px] bg-white border-l border-surface-200 shrink-0 flex flex-col overflow-hidden">
+    <div class="p-5 border-b border-surface-100">
+      <h3 class="text-base font-bold text-surface-900 mb-4">问题清单</h3>
+      <div class="flex gap-2"><span class="text-xs font-bold text-primary bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-full">全部 8</span><span class="text-xs font-bold text-surface-600 bg-white border border-surface-200 px-3 py-1.5 rounded-full">必须修复 3</span><span class="text-xs font-bold text-surface-600 bg-white border border-surface-200 px-3 py-1.5 rounded-full">建议确认 5</span></div>
+    </div>
+    <div class="flex-1 overflow-y-auto p-4 space-y-3">
+      <button class="w-full text-left rounded-xl border border-blue-300 bg-blue-50/30 p-4 shadow-sm">
+        <div class="flex justify-between mb-2"><span class="text-xs font-bold text-red-600 bg-red-50 px-2 py-1 rounded-full"><i class="fas fa-triangle-exclamation mr-1"></i>必须修复</span><span class="text-xs text-surface-500">P18</span></div>
+        <p class="text-sm font-bold text-surface-900 mb-2">投标函总价与报价汇总表不一致</p>
+        <p class="text-xs text-surface-500">投标函写明 ¥12,000,000.00，报价汇总表识别为 ¥12,060,000.00。</p>
+      </button>
+      <button class="w-full text-left rounded-xl border border-surface-200 bg-white p-4">
+        <div class="flex justify-between mb-2"><span class="text-xs font-bold text-red-600 bg-red-50 px-2 py-1 rounded-full"><i class="fas fa-triangle-exclamation mr-1"></i>必须修复</span><span class="text-xs text-surface-500">P41</span></div>
+        <p class="text-sm font-bold text-surface-900 mb-2">资格材料缺少安全生产许可证</p>
+        <p class="text-xs text-surface-500">系统未在资格证明章节中检测到有效证书附件。</p>
+      </button>
+      <button class="w-full text-left rounded-xl border border-surface-200 bg-white p-4">
+        <div class="flex justify-between mb-2"><span class="text-xs font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-full"><i class="fas fa-circle-exclamation mr-1"></i>建议确认</span><span class="text-xs text-surface-500">P18</span></div>
+        <p class="text-sm font-bold text-surface-900 mb-2">项目工期与招标要求存在差异</p>
+        <p class="text-xs text-surface-500">实施计划章节和投标函均出现 210 日历天。</p>
+      </button>
+    </div>
+    <div class="p-4 border-t border-surface-100 bg-white grid grid-cols-2 gap-3">
+      <button class="h-10 rounded-lg border border-surface-200 bg-white text-sm font-bold text-surface-700">标记已处理</button>
+      <button id="locateOriginal" class="h-10 rounded-lg bg-primary text-white text-sm font-bold">定位原文</button>
+    </div>
+  </aside>
+</main>
+
+<script>
+  const flash = (message) => {
+    const node = document.createElement('div');
+    node.textContent = message;
+    node.className = 'fixed right-6 bottom-6 z-50 px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm font-bold shadow-lg';
+    document.body.appendChild(node);
+    setTimeout(() => node.remove(), 1800);
+  };
+  document.getElementById('goHome').addEventListener('click', () => window.location.href = './home.html');
+  document.getElementById('uploadBid').addEventListener('click', () => {
+    document.getElementById('bidFile').classList.add('bg-blue-50', 'border-blue-200');
+    flash('标书已上传，可以开始核验');
+  });
+  document.getElementById('runVerify').addEventListener('click', () => {
+    document.getElementById('score').textContent = '88';
+    flash('核验完成，综合通过分更新为 88');
+  });
+  document.getElementById('rerunVerify').addEventListener('click', () => {
+    document.getElementById('score').textContent = '88';
+    flash('重新核验完成');
+  });
+  document.getElementById('exportReport').addEventListener('click', () => flash('已生成核验报告'));
+  document.getElementById('locateFirst').addEventListener('click', () => flash('已定位到投标函报价位置'));
+  document.getElementById('locateOriginal').addEventListener('click', () => flash('已定位到原文高亮'));
+</script>
+<script src="./static-links.js"></script>
+</body>
+</html>

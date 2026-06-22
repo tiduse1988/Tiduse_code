@@ -1,0 +1,3554 @@
+AI投标移动端静态界面代码汇总
+生成时间：2026-06-02
+包含文件：index.html、login.html、home.html、analysis.html、outline.html、generate.html、verification.html
+
+====================================================================================================
+文件：index.html
+====================================================================================================
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>登录</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+      color: #182033;
+      background:
+        radial-gradient(circle at 15% 20%, rgba(41, 116, 255, 0.18), transparent 28%),
+        radial-gradient(circle at 86% 12%, rgba(21, 184, 166, 0.16), transparent 26%),
+        linear-gradient(135deg, #f7f9ff 0%, #eef4ff 46%, #f8fbff 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 28px;
+    }
+
+    .page {
+      width: min(1040px, 100%);
+      min-height: 620px;
+      display: grid;
+      grid-template-columns: 1fr 430px;
+      background: rgba(255, 255, 255, 0.86);
+      border: 1px solid rgba(171, 186, 213, 0.7);
+      box-shadow: 0 24px 80px rgba(38, 61, 102, 0.16);
+      overflow: hidden;
+      border-radius: 22px;
+      backdrop-filter: blur(18px);
+    }
+
+    .brand {
+      padding: 54px;
+      background:
+        linear-gradient(145deg, rgba(18, 42, 86, 0.92), rgba(22, 83, 164, 0.78)),
+        url("https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1200&q=80");
+      background-size: cover;
+      background-position: center;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 20px;
+      font-weight: 800;
+    }
+
+    .logo-mark {
+      width: 40px;
+      height: 40px;
+      display: grid;
+      place-items: center;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.18);
+      border: 1px solid rgba(255, 255, 255, 0.26);
+    }
+
+    .brand h1 {
+      margin: 0 0 16px;
+      max-width: 440px;
+      font-size: 42px;
+      line-height: 1.12;
+      letter-spacing: 0;
+    }
+
+    .brand p {
+      margin: 0;
+      max-width: 420px;
+      color: rgba(255, 255, 255, 0.82);
+      font-size: 16px;
+      line-height: 1.7;
+    }
+
+    .panel {
+      position: relative;
+      padding: 58px 48px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      background:
+        linear-gradient(180deg, rgba(247, 250, 255, 0.98), rgba(255, 255, 255, 0.96));
+    }
+
+    .panel::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 5px;
+      background: linear-gradient(90deg, #1356d8, #14b8a6);
+    }
+
+    .auth-form {
+      width: 100%;
+      max-width: 360px;
+      margin: 0 auto;
+    }
+
+    .title {
+      margin-bottom: 30px;
+    }
+
+    .title h2 {
+      margin: 0 0 8px;
+      font-size: 32px;
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+
+    .title p {
+      margin: 0;
+      color: #637086;
+      font-size: 14px;
+    }
+
+    .field {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      color: #344159;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    input {
+      width: 100%;
+      height: 48px;
+      padding: 0 14px;
+      border: 1px solid #cfd8e8;
+      border-radius: 12px;
+      outline: none;
+      color: #182033;
+      background: #fbfdff;
+      font-size: 15px;
+      transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+    }
+
+    input::placeholder {
+      color: #6f7d93;
+    }
+
+    input:focus {
+      border-color: #2563eb;
+      background: #ffffff;
+      box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.14);
+    }
+
+    .password-wrap {
+      position: relative;
+    }
+
+    .password-wrap input {
+      padding-right: 72px;
+    }
+
+    .show-password {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      border: 0;
+      background: transparent;
+      color: #1356d8;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin: 4px 0 22px;
+      color: #637086;
+      font-size: 14px;
+    }
+
+    .remember {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .remember input {
+      width: 16px;
+      height: 16px;
+    }
+
+    a {
+      color: #1356d8;
+      text-decoration: none;
+      font-weight: 700;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .submit {
+      width: 100%;
+      height: 52px;
+      border: 0;
+      border-radius: 13px;
+      color: #ffffff;
+      background: linear-gradient(135deg, #1356d8, #0f7abf);
+      box-shadow: 0 14px 28px rgba(19, 86, 216, 0.24);
+      font-size: 16px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .submit:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 18px 32px rgba(19, 86, 216, 0.28);
+    }
+
+    .message {
+      min-height: 22px;
+      margin-top: 14px;
+      color: #0a7a48;
+      font-size: 14px;
+      text-align: center;
+    }
+
+    .support {
+      margin-top: 22px;
+      color: #637086;
+      font-size: 14px;
+      text-align: center;
+    }
+
+    @media (max-width: 820px) {
+      body {
+        padding: 16px;
+      }
+
+      .page {
+        grid-template-columns: 1fr;
+        min-height: auto;
+      }
+
+      .brand {
+        min-height: 260px;
+        padding: 34px;
+      }
+
+      .brand h1 {
+        font-size: 32px;
+      }
+
+      .panel {
+        padding: 40px 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="brand">
+      <div class="logo">
+        <div class="logo-mark">AI</div>
+        <span>TenderSense AI</span>
+      </div>
+      <div>
+        <h1>智能投标系统入口</h1>
+        <p>登录后进入工作台，管理招标文件、风险识别、项目分析与团队协作。</p>
+      </div>
+    </section>
+
+    <section class="panel">
+      <form class="auth-form" id="login" onsubmit="return handleSubmit(event, '登录成功')">
+        <div class="title">
+          <h2>欢迎回来</h2>
+          <p>请输入账号信息，继续进入智能投标工作台。</p>
+        </div>
+
+        <div class="field">
+          <label for="loginAccount">邮箱或用户名</label>
+          <input id="loginAccount" type="text" placeholder="name@company.com" required />
+        </div>
+
+        <div class="field">
+          <label for="loginPassword">密码</label>
+          <div class="password-wrap">
+            <input id="loginPassword" type="password" placeholder="请输入密码" required />
+            <button class="show-password" type="button">显示</button>
+          </div>
+        </div>
+
+        <div class="row">
+          <label class="remember"><input type="checkbox" />记住我</label>
+          <a href="#">忘记密码？</a>
+        </div>
+
+        <button class="submit" type="submit">登录</button>
+        <div class="message"></div>
+        <div class="support">遇到问题？请联系企业管理员开通账号。</div>
+      </form>
+    </section>
+  </main>
+
+  <script>
+    document.querySelectorAll(".show-password").forEach((button) => {
+      button.addEventListener("click", () => {
+        const input = button.parentElement.querySelector("input");
+        const showing = input.type === "text";
+        input.type = showing ? "password" : "text";
+        button.textContent = showing ? "显示" : "隐藏";
+      });
+    });
+
+    function handleSubmit(event, text) {
+      event.preventDefault();
+      const message = event.target.querySelector(".message");
+      message.textContent = text + "，这是静态演示页面。";
+      return false;
+    }
+  </script>
+<script src="./static-links.js"></script>
+</body>
+</html>
+
+====================================================================================================
+文件：login.html
+====================================================================================================
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>登录</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+      color: #182033;
+      background:
+        radial-gradient(circle at 15% 20%, rgba(41, 116, 255, 0.18), transparent 28%),
+        radial-gradient(circle at 86% 12%, rgba(21, 184, 166, 0.16), transparent 26%),
+        linear-gradient(135deg, #f7f9ff 0%, #eef4ff 46%, #f8fbff 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 28px;
+    }
+
+    .page {
+      width: min(1040px, 100%);
+      min-height: 620px;
+      display: grid;
+      grid-template-columns: 1fr 430px;
+      background: rgba(255, 255, 255, 0.86);
+      border: 1px solid rgba(171, 186, 213, 0.7);
+      box-shadow: 0 24px 80px rgba(38, 61, 102, 0.16);
+      overflow: hidden;
+      border-radius: 22px;
+      backdrop-filter: blur(18px);
+    }
+
+    .brand {
+      padding: 54px;
+      background:
+        linear-gradient(145deg, rgba(18, 42, 86, 0.92), rgba(22, 83, 164, 0.78)),
+        url("https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1200&q=80");
+      background-size: cover;
+      background-position: center;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 20px;
+      font-weight: 800;
+    }
+
+    .logo-mark {
+      width: 40px;
+      height: 40px;
+      display: grid;
+      place-items: center;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.18);
+      border: 1px solid rgba(255, 255, 255, 0.26);
+    }
+
+    .brand h1 {
+      margin: 0 0 16px;
+      max-width: 440px;
+      font-size: 42px;
+      line-height: 1.12;
+      letter-spacing: 0;
+    }
+
+    .brand p {
+      margin: 0;
+      max-width: 420px;
+      color: rgba(255, 255, 255, 0.82);
+      font-size: 16px;
+      line-height: 1.7;
+    }
+
+    .panel {
+      position: relative;
+      padding: 58px 48px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      background:
+        linear-gradient(180deg, rgba(247, 250, 255, 0.98), rgba(255, 255, 255, 0.96));
+    }
+
+    .panel::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 5px;
+      background: linear-gradient(90deg, #1356d8, #14b8a6);
+    }
+
+    .auth-form {
+      width: 100%;
+      max-width: 360px;
+      margin: 0 auto;
+    }
+
+    .title {
+      margin-bottom: 30px;
+    }
+
+    .title h2 {
+      margin: 0 0 8px;
+      font-size: 32px;
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+
+    .title p {
+      margin: 0;
+      color: #637086;
+      font-size: 14px;
+    }
+
+    .field {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      color: #344159;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    input {
+      width: 100%;
+      height: 48px;
+      padding: 0 14px;
+      border: 1px solid #cfd8e8;
+      border-radius: 12px;
+      outline: none;
+      color: #182033;
+      background: #fbfdff;
+      font-size: 15px;
+      transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+    }
+
+    input::placeholder {
+      color: #6f7d93;
+    }
+
+    input:focus {
+      border-color: #2563eb;
+      background: #ffffff;
+      box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.14);
+    }
+
+    .password-wrap {
+      position: relative;
+    }
+
+    .password-wrap input {
+      padding-right: 72px;
+    }
+
+    .show-password {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      border: 0;
+      background: transparent;
+      color: #1356d8;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin: 4px 0 22px;
+      color: #637086;
+      font-size: 14px;
+    }
+
+    .remember {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .remember input {
+      width: 16px;
+      height: 16px;
+    }
+
+    a {
+      color: #1356d8;
+      text-decoration: none;
+      font-weight: 700;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .submit {
+      width: 100%;
+      height: 52px;
+      border: 0;
+      border-radius: 13px;
+      color: #ffffff;
+      background: linear-gradient(135deg, #1356d8, #0f7abf);
+      box-shadow: 0 14px 28px rgba(19, 86, 216, 0.24);
+      font-size: 16px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .submit:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 18px 32px rgba(19, 86, 216, 0.28);
+    }
+
+    .message {
+      min-height: 22px;
+      margin-top: 14px;
+      color: #0a7a48;
+      font-size: 14px;
+      text-align: center;
+    }
+
+    .support {
+      margin-top: 22px;
+      color: #637086;
+      font-size: 14px;
+      text-align: center;
+    }
+
+    @media (max-width: 820px) {
+      body {
+        padding: 16px;
+      }
+
+      .page {
+        grid-template-columns: 1fr;
+        min-height: auto;
+      }
+
+      .brand {
+        min-height: 260px;
+        padding: 34px;
+      }
+
+      .brand h1 {
+        font-size: 32px;
+      }
+
+      .panel {
+        padding: 40px 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="brand">
+      <div class="logo">
+        <div class="logo-mark">AI</div>
+        <span>TenderSense AI</span>
+      </div>
+      <div>
+        <h1>智能投标系统入口</h1>
+        <p>登录后进入工作台，管理招标文件、风险识别、项目分析与团队协作。</p>
+      </div>
+    </section>
+
+    <section class="panel">
+      <form class="auth-form" id="login" onsubmit="return handleSubmit(event, '登录成功')">
+        <div class="title">
+          <h2>欢迎回来</h2>
+          <p>请输入账号信息，继续进入智能投标工作台。</p>
+        </div>
+
+        <div class="field">
+          <label for="loginAccount">邮箱或用户名</label>
+          <input id="loginAccount" type="text" placeholder="name@company.com" required />
+        </div>
+
+        <div class="field">
+          <label for="loginPassword">密码</label>
+          <div class="password-wrap">
+            <input id="loginPassword" type="password" placeholder="请输入密码" required />
+            <button class="show-password" type="button">显示</button>
+          </div>
+        </div>
+
+        <div class="row">
+          <label class="remember"><input type="checkbox" />记住我</label>
+          <a href="#">忘记密码？</a>
+        </div>
+
+        <button class="submit" type="submit">登录</button>
+        <div class="message"></div>
+        <div class="support">遇到问题？请联系企业管理员开通账号。</div>
+      </form>
+    </section>
+  </main>
+
+  <script>
+    document.querySelectorAll(".show-password").forEach((button) => {
+      button.addEventListener("click", () => {
+        const input = button.parentElement.querySelector("input");
+        const showing = input.type === "text";
+        input.type = showing ? "password" : "text";
+        button.textContent = showing ? "显示" : "隐藏";
+      });
+    });
+
+    function handleSubmit(event, text) {
+      event.preventDefault();
+      const message = event.target.querySelector(".message");
+      message.textContent = text + "，这是静态演示页面。";
+      return false;
+    }
+  </script>
+<script src="./static-links.js"></script>
+</body>
+</html>
+
+====================================================================================================
+文件：home.html
+====================================================================================================
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能投标系统 - 项目列表</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: #f8f9fa;
+        }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 3px;
+        }
+        
+        /* Progress bar animations */
+        @keyframes progress-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        .progress-animate {
+            animation: progress-pulse 2s ease-in-out infinite;
+        }
+        
+        /* Card hover effect */
+        .project-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .project-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+        }
+        
+        /* Upload area dashed border animation */
+        .upload-area {
+            background-image: url("data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='100%25' height='100%25' fill='none' rx='16' ry='16' stroke='%233B82F6FF' stroke-width='2' stroke-dasharray='12%2c 8' stroke-dashoffset='0' stroke-linecap='square'/%3e%3c/svg%3e");
+        }
+        
+        /* Button styles */
+        .btn-primary {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        }
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+        }
+        
+        .btn-secondary {
+            background: #f3f4f6;
+            color: #374151;
+        }
+        .btn-secondary:hover {
+            background: #e5e7eb;
+        }
+        
+        /* Progress bar colors */
+        .progress-pending { background: #e5e7eb; }
+        .progress-parsing { background: #f59e0b; }
+        .progress-complete { background: #10b981; }
+        .progress-failed { background: #ef4444; }
+    </style>
+</head>
+<body class="min-h-screen bg-gray-50">
+
+    <!-- Header -->
+    <header class="bg-white shadow-sm border-b border-gray-100 sticky top-0 z-50">
+        <div class="w-[1220px] mx-auto px-6 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-file-contract text-white text-sm"></i>
+                </div>
+                <div class="flex items-center gap-2">
+                    <h1 class="text-lg font-bold text-gray-900">智能投标系统</h1>
+                    <span class="text-xs text-gray-400 font-medium px-2 py-0.5 bg-gray-100 rounded-full">AI辅助招投标平台</span>
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                <button class="relative p-2 text-gray-400 hover:text-gray-600 transition-colors">
+                    <i class="fas fa-bell text-lg"></i>
+                    <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"></span>
+                </button>
+                <div class="flex items-center gap-3 pl-4 border-l border-gray-200">
+                    <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                        <span class="text-blue-700 font-semibold text-sm">张</span>
+                    </div>
+                    <div class="text-sm">
+                        <p class="font-medium text-gray-900">张工</p>
+                        <p class="text-xs text-gray-400">高级标书专员</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="w-[1220px] mx-auto px-6 py-8">
+        
+        <!-- Upload Area -->
+        <div class="upload-area rounded-2xl bg-blue-50/50 py-12 mb-8 cursor-pointer hover:bg-blue-50 transition-colors group">
+            <div class="text-center">
+                <div class="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mx-auto mb-4 group-hover:shadow-md transition-shadow">
+                    <i class="fas fa-cloud-upload-alt text-3xl text-blue-500"></i>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">上传招标文件</h3>
+                <p class="text-sm text-gray-500">支持 PDF/DOCX/DOC 格式，单文件最大 50MB</p>
+            </div>
+        </div>
+
+        <!-- Project List Header -->
+        <div class="flex items-center justify-between mb-6">
+            <div>
+                <h2 class="text-xl font-bold text-gray-900">项目列表</h2>
+                <p class="text-sm text-gray-500 mt-1">共 12 个项目</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <div class="relative">
+                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+                    <input type="text" placeholder="搜索项目名称..." 
+                           class="w-64 pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all">
+                </div>
+                <select class="px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer">
+                    <option>上传时间 降序</option>
+                    <option>上传时间 升序</option>
+                    <option>项目名称 A-Z</option>
+                </select>
+                <button class="p-2.5 bg-white border border-gray-200 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-colors">
+                    <i class="fas fa-list"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Project Cards Grid -->
+        <div class="grid grid-cols-3 gap-5">
+            
+            <!-- Card 1: Parsing (68%) -->
+            <div class="project-card bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-lg p-5">
+                <div class="flex items-start justify-between mb-3">
+                    <h3 class="text-sm font-semibold text-gray-900 leading-relaxed line-clamp-2 min-h-[40px]" title="2024年市级智慧政务云平台建设项目">
+                        2024年市级智慧政务云平台建设项目
+                    </h3>
+                </div>
+                <div class="flex items-center gap-2 text-xs text-gray-400 mb-4">
+                    <span>2024-06-15 14:32</span>
+                    <span class="w-1 h-1 bg-gray-300 rounded-full"></span>
+                    <span>12.5 MB</span>
+                </div>
+                
+                <!-- Progress Bar Only -->
+                <div class="mb-3">
+                    <div class="flex items-center justify-between mb-1.5">
+                        <span class="text-xs text-amber-600 font-medium">预计剩余 12 秒</span>
+                        <span class="text-xs text-amber-600 font-semibold">68%</span>
+                    </div>
+                    <div class="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <div class="h-full bg-amber-500 rounded-full progress-animate" style="width: 68%"></div>
+                    </div>
+                </div>
+                
+                <!-- Action Buttons -->
+                <div class="flex items-center gap-2 pt-3 border-t border-gray-100">
+                    <button class="flex-1 px-3 py-2 text-xs font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
+                        <i class="fas fa-download mr-1"></i>下载招标文件
+                    </button>
+                    <button class="flex-1 px-3 py-2 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors">
+                        <i class="fas fa-eye mr-1"></i>查看解析
+                    </button>
+                </div>
+                <div class="flex items-center gap-2 mt-2">
+                    <button class="flex-1 px-3 py-2 text-xs font-medium text-white btn-primary rounded-lg transition-colors">
+                        <i class="fas fa-magic mr-1"></i>生成标书
+                    </button>
+                    <button class="px-3 py-2 text-xs font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
+                        <i class="fas fa-check-double mr-1"></i>标书核验
+                    </button>
+                </div>
+            </div>
+
+            <!-- Card 2: Complete (100%) - Bid Generated -->
+            <div class="project-card bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-lg p-5">
+                <div class="flex items-start justify-between mb-3">
+                    <h3 class="text-sm font-semibold text-gray-900 leading-relaxed line-clamp-2 min-h-[40px]" title="2024年城市轨道交通信号系统升级改造工程">
+                        2024年城市轨道交通信号系统升级改造工程
+                    </h3>
+                </div>
+                <div class="flex items-center gap-2 text-xs text-gray-400 mb-4">
+                    <span>2024-06-14 09:15</span>
+                    <span class="w-1 h-1 bg-gray-300 rounded-full"></span>
+                    <span>28.3 MB</span>
+                </div>
+                
+                <!-- Progress Bar Only -->
+                <div class="mb-3">
+                    <div class="flex items-center justify-end mb-1.5">
+                        <span class="text-xs text-emerald-600 font-semibold">100%</span>
+                    </div>
+                    <div class="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <div class="h-full bg-emerald-500 rounded-full" style="width: 100%"></div>
+                    </div>
+                </div>
+                
+                <!-- Action Buttons -->
+                <div class="flex items-center gap-2 pt-3 border-t border-gray-100">
+                    <button class="flex-1 px-3 py-2 text-xs font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
+                        <i class="fas fa-download mr-1"></i>下载招标文件
+                    </button>
+                    <button class="flex-1 px-3 py-2 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors">
+                        <i class="fas fa-eye mr-1"></i>查看解析
+                    </button>
+                </div>
+                <div class="flex items-center gap-2 mt-2">
+                    <button class="flex-1 px-3 py-2 text-xs font-medium text-white btn-primary rounded-lg transition-colors">
+                        <i class="fas fa-file-alt mr-1"></i>查看标书
+                    </button>
+                    <button class="px-3 py-2 text-xs font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
+                        <i class="fas fa-check-double mr-1"></i>标书核验
+                    </button>
+                </div>
+            </div>
+
+            <!-- Card 3: Complete (100%) - Bid Generated -->
+            <div class="project-card bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-lg p-5">
+                <div class="flex items-start justify-between mb-3">
+                    <h3 class="text-sm font-semibold text-gray-900 leading-relaxed line-clamp-2 min-h-[40px]" title="2024年智慧校园信息化建设项目（二期）">
+                        2024年智慧校园信息化建设项目（二期）
+                    </h3>
+                </div>
+                <div class="flex items-center gap-2 text-xs text-gray-400 mb-4">
+                    <span>2024-06-13 16:45</span>
+                    <span class="w-1 h-1 bg-gray-300 rounded-full"></span>
+                    <span>15.8 MB</span>
+                </div>
+                
+                <!-- Progress Bar Only -->
+                <div class="mb-3">
+                    <div class="flex items-center justify-end mb-1.5">
+                        <span class="text-xs text-emerald-600 font-semibold">100%</span>
+                    </div>
+                    <div class="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <div class="h-full bg-emerald-500 rounded-full" style="width: 100%"></div>
+                    </div>
+                </div>
+                
+                <!-- Action Buttons -->
+                <div class="flex items-center gap-2 pt-3 border-t border-gray-100">
+                    <button class="flex-1 px-3 py-2 text-xs font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
+                        <i class="fas fa-download mr-1"></i>下载招标文件
+                    </button>
+                    <button class="flex-1 px-3 py-2 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors">
+                        <i class="fas fa-eye mr-1"></i>查看解析
+                    </button>
+                </div>
+                <div class="flex items-center gap-2 mt-2">
+                    <button class="flex-1 px-3 py-2 text-xs font-medium text-white btn-primary rounded-lg transition-colors">
+                        <i class="fas fa-file-alt mr-1"></i>查看标书
+                    </button>
+                    <button class="px-3 py-2 text-xs font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
+                        <i class="fas fa-check-double mr-1"></i>标书核验
+                    </button>
+                </div>
+            </div>
+
+            <!-- Card 4: Failed -->
+            <div class="project-card bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-lg p-5">
+                <div class="flex items-start justify-between mb-3">
+                    <h3 class="text-sm font-semibold text-gray-900 leading-relaxed line-clamp-2 min-h-[40px]" title="2024年市政道路照明设施维护项目">
+                        2024年市政道路照明设施维护项目
+                    </h3>
+                </div>
+                <div class="flex items-center gap-2 text-xs text-gray-400 mb-4">
+                    <span>2024-06-12 11:20</span>
+                    <span class="w-1 h-1 bg-gray-300 rounded-full"></span>
+                    <span>8.6 MB</span>
+                </div>
+                
+                <!-- Progress Bar Only -->
+                <div class="mb-3">
+                    <div class="flex items-center justify-between mb-1.5">
+                        <span class="text-xs text-red-500 font-medium">文件格式异常，无法识别文本内容</span>
+                        <span class="text-xs text-red-500 font-semibold">--</span>
+                    </div>
+                    <div class="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <div class="h-full bg-red-500 rounded-full" style="width: 15%"></div>
+                    </div>
+                </div>
+                
+                <!-- Action Buttons -->
+                <div class="flex items-center gap-2 pt-3 border-t border-gray-100">
+                    <button class="flex-1 px-3 py-2 text-xs font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
+                        <i class="fas fa-download mr-1"></i>下载招标文件
+                    </button>
+                    <button class="flex-1 px-3 py-2 text-xs font-medium text-amber-600 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors">
+                        <i class="fas fa-redo mr-1"></i>重新解析
+                    </button>
+                </div>
+                <div class="flex items-center gap-2 mt-2">
+                    <button class="flex-1 px-3 py-2 text-xs font-medium text-white btn-primary rounded-lg transition-colors opacity-50 cursor-not-allowed">
+                        <i class="fas fa-magic mr-1"></i>生成标书
+                    </button>
+                    <button class="px-3 py-2 text-xs font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors opacity-50 cursor-not-allowed">
+                        <i class="fas fa-check-double mr-1"></i>标书核验
+                    </button>
+                </div>
+            </div>
+
+            <!-- Card 5: Pending (0%) -->
+            <div class="project-card bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-lg p-5">
+                <div class="flex items-start justify-between mb-3">
+                    <h3 class="text-sm font-semibold text-gray-900 leading-relaxed line-clamp-2 min-h-[40px]" title="2024年区属医院信息化系统升级项目">
+                        2024年区属医院信息化系统升级项目
+                    </h3>
+                </div>
+                <div class="flex items-center gap-2 text-xs text-gray-400 mb-4">
+                    <span>2024-06-15 15:01</span>
+                    <span class="w-1 h-1 bg-gray-300 rounded-full"></span>
+                    <span>22.1 MB</span>
+                </div>
+                
+                <!-- Progress Bar Only -->
+                <div class="mb-3">
+                    <div class="flex items-center justify-between mb-1.5">
+                        <span class="text-xs text-gray-400 font-medium">队列中，预计等待 2 分钟</span>
+                        <span class="text-xs text-gray-400 font-semibold">--</span>
+                    </div>
+                    <div class="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <div class="h-full bg-gray-300 rounded-full" style="width: 0%"></div>
+                    </div>
+                </div>
+                
+                <!-- Action Buttons -->
+                <div class="flex items-center gap-2 pt-3 border-t border-gray-100">
+                    <button class="flex-1 px-3 py-2 text-xs font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
+                        <i class="fas fa-download mr-1"></i>下载招标文件
+                    </button>
+                    <button class="flex-1 px-3 py-2 text-xs font-medium text-gray-400 bg-gray-50 rounded-lg cursor-not-allowed">
+                        <i class="fas fa-eye mr-1"></i>查看解析
+                    </button>
+                </div>
+                <div class="flex items-center gap-2 mt-2">
+                    <button class="flex-1 px-3 py-2 text-xs font-medium text-white btn-primary rounded-lg transition-colors opacity-50 cursor-not-allowed">
+                        <i class="fas fa-magic mr-1"></i>生成标书
+                    </button>
+                    <button class="px-3 py-2 text-xs font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors opacity-50 cursor-not-allowed">
+                        <i class="fas fa-check-double mr-1"></i>标书核验
+                    </button>
+                </div>
+            </div>
+
+            <!-- Card 6: Complete (100%) - Bid Generated -->
+            <div class="project-card bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-lg p-5">
+                <div class="flex items-start justify-between mb-3">
+                    <h3 class="text-sm font-semibold text-gray-900 leading-relaxed line-clamp-2 min-h-[40px]" title="2024年智慧交通信号优化工程（第一批）">
+                        2024年智慧交通信号优化工程（第一批）
+                    </h3>
+                </div>
+                <div class="flex items-center gap-2 text-xs text-gray-400 mb-4">
+                    <span>2024-06-11 08:30</span>
+                    <span class="w-1 h-1 bg-gray-300 rounded-full"></span>
+                    <span>18.4 MB</span>
+                </div>
+                
+                <!-- Progress Bar Only -->
+                <div class="mb-3">
+                    <div class="flex items-center justify-end mb-1.5">
+                        <span class="text-xs text-emerald-600 font-semibold">100%</span>
+                    </div>
+                    <div class="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <div class="h-full bg-emerald-500 rounded-full" style="width: 100%"></div>
+                    </div>
+                </div>
+                
+                <!-- Action Buttons -->
+                <div class="flex items-center gap-2 pt-3 border-t border-gray-100">
+                    <button class="flex-1 px-3 py-2 text-xs font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
+                        <i class="fas fa-download mr-1"></i>下载招标文件
+                    </button>
+                    <button class="flex-1 px-3 py-2 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors">
+                        <i class="fas fa-eye mr-1"></i>查看解析
+                    </button>
+                </div>
+                <div class="flex items-center gap-2 mt-2">
+                    <button class="flex-1 px-3 py-2 text-xs font-medium text-white btn-primary rounded-lg transition-colors">
+                        <i class="fas fa-file-alt mr-1"></i>查看标书
+                    </button>
+                    <button class="px-3 py-2 text-xs font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
+                        <i class="fas fa-check-double mr-1"></i>标书核验
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Load More -->
+        <div class="flex justify-center mt-10">
+            <button class="px-8 py-3 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm">
+                加载更多项目
+            </button>
+        </div>
+
+    </main>
+
+<script src="./static-links.js"></script>
+</body>
+</html>
+
+====================================================================================================
+文件：analysis.html
+====================================================================================================
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>招标文件解析结果</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: oklch(1 0 0);
+      --surface: oklch(0.982 0.004 255);
+      --panel: oklch(0.996 0.001 255);
+      --panel-strong: oklch(0.955 0.010 255);
+      --ink: oklch(0.205 0.030 255);
+      --muted: oklch(0.445 0.026 255);
+      --faint: oklch(0.650 0.020 255);
+      --line: oklch(0.900 0.012 255);
+      --line-strong: oklch(0.820 0.018 255);
+      --primary: oklch(0.450 0.150 260);
+      --primary-strong: oklch(0.385 0.150 260);
+      --primary-soft: oklch(0.950 0.035 260);
+      --accent: oklch(0.610 0.170 35);
+      --accent-soft: oklch(0.955 0.045 35);
+      --danger: oklch(0.540 0.190 28);
+      --danger-soft: oklch(0.955 0.045 28);
+      --warning: oklch(0.670 0.155 75);
+      --warning-soft: oklch(0.965 0.055 75);
+      --success: oklch(0.560 0.140 155);
+      --success-soft: oklch(0.955 0.045 155);
+      --shadow: 0 8px 24px oklch(0.205 0.030 255 / 0.08);
+      --radius: 12px;
+      --header-h: 56px;
+      --nav-h: 52px;
+      --footer-h: 72px;
+      font-family: "Noto Sans SC", -apple-system, BlinkMacSystemFont, "Segoe UI", ui-sans-serif, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      background: var(--bg);
+    }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      color: var(--ink);
+      background:
+        linear-gradient(180deg, oklch(0.975 0.010 255), var(--bg) 360px),
+        var(--bg);
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    button {
+      font: inherit;
+    }
+
+    .shell {
+      width: min(1180px, calc(100% - 40px));
+      margin: 0 auto;
+    }
+
+    .topbar {
+      position: fixed;
+      inset: 0 0 auto;
+      z-index: 30;
+      height: var(--header-h);
+      background: var(--bg);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .topbar-inner {
+      position: relative;
+      width: 100%;
+      max-width: none;
+      margin: 0;
+      padding: 0 24px;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      min-width: 0;
+      gap: 12px;
+      font-weight: 700;
+    }
+
+    .brand-mark {
+      width: 32px;
+      height: 32px;
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      border-radius: 8px;
+      color: white;
+      background: var(--primary);
+    }
+
+    .brand-title {
+      color: var(--ink);
+      font-size: 18px;
+      font-weight: 700;
+      line-height: 1.2;
+      letter-spacing: -0.01em;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .topbar-stage {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      transform: translate(-50%, -50%);
+      white-space: nowrap;
+    }
+
+    .stage-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+    }
+
+    .stage-item.is-active {
+      color: var(--primary);
+    }
+
+    .stage-item.is-muted {
+      opacity: 0.5;
+    }
+
+    .stage-dot {
+      width: 32px;
+      height: 32px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      color: var(--muted);
+      background: var(--line);
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .stage-item.is-active .stage-dot {
+      color: white;
+      background: var(--primary);
+      box-shadow: 0 0 0 4px oklch(0.450 0.150 260 / 0.15);
+    }
+
+    .stage-label {
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .stage-item.is-muted .stage-label {
+      font-weight: 500;
+    }
+
+    .stage-line {
+      width: 80px;
+      height: 1px;
+      background: var(--line);
+    }
+
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .icon-button {
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      border: 0;
+      border-radius: 8px;
+      color: var(--muted);
+      background: transparent;
+      cursor: pointer;
+      transition: background-color 160ms ease, color 160ms ease;
+    }
+
+    .icon-button:hover {
+      color: var(--primary);
+      background: var(--surface);
+    }
+
+    .topbar-divider {
+      width: 1px;
+      height: 24px;
+      background: var(--line);
+      margin: 0 8px;
+    }
+
+    .user-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .user-meta {
+      text-align: right;
+    }
+
+    .user-name {
+      margin: 0;
+      color: var(--ink);
+      font-size: 12px;
+      font-weight: 500;
+      line-height: 1.35;
+    }
+
+    .user-role {
+      margin: 1px 0 0;
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.3;
+    }
+
+    .avatar {
+      width: 32px;
+      height: 32px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      color: var(--primary);
+      background: var(--primary-soft);
+      border: 1px solid oklch(0.820 0.055 260);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .hero {
+      min-height: calc(var(--header-h) + var(--nav-h));
+      background: var(--bg);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 24px;
+      align-items: end;
+      padding-bottom: 26px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 30px;
+      line-height: 1.18;
+      letter-spacing: 0;
+      text-wrap: balance;
+    }
+
+    .subtitle {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 10px 0 0;
+      color: var(--muted);
+    }
+
+    .actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .btn {
+      min-height: 38px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      padding: 8px 13px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 700;
+      transition: background-color 180ms ease, border-color 180ms ease, transform 160ms ease, color 180ms ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+    }
+
+    .btn:focus-visible,
+    .nav-link:focus-visible,
+    .expand-btn:focus-visible {
+      outline: 3px solid oklch(0.735 0.110 260 / 0.48);
+      outline-offset: 2px;
+    }
+
+    .btn-primary {
+      color: white;
+      background: var(--primary);
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-strong);
+    }
+
+    .btn-secondary {
+      color: var(--ink);
+      border-color: var(--line);
+      background: var(--surface);
+    }
+
+    .btn-secondary:hover {
+      background: var(--panel-strong);
+    }
+
+    .nav-wrap {
+      position: fixed;
+      inset: var(--header-h) 0 auto;
+      top: var(--header-h);
+      z-index: 25;
+      height: var(--nav-h);
+      background: oklch(1 0 0 / 0.96);
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(10px);
+    }
+
+    .nav-track {
+      height: 100%;
+      display: flex;
+      gap: 20px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+
+    .nav-track::-webkit-scrollbar {
+      display: none;
+    }
+
+    .nav-link {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      height: 100%;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 650;
+      white-space: nowrap;
+    }
+
+    .nav-link::after {
+      content: "";
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      height: 3px;
+      border-radius: 999px 999px 0 0;
+      background: transparent;
+    }
+
+    .nav-link.active {
+      color: var(--primary);
+    }
+
+    .nav-link.active::after {
+      background: var(--primary);
+    }
+
+    main {
+      padding: 28px 0 calc(var(--footer-h) + 36px);
+    }
+
+    .overview {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+
+    .summary-tile {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 16px;
+      background: var(--panel);
+    }
+
+    .summary-tile span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .summary-tile strong {
+      display: block;
+      margin-top: 4px;
+      font-size: 20px;
+      line-height: 1.25;
+    }
+
+    .summary-tile.risk {
+      border-color: oklch(0.785 0.070 28);
+      background: var(--danger-soft);
+    }
+
+    .summary-tile.risk strong {
+      color: var(--danger);
+    }
+
+    section {
+      scroll-margin-top: calc(var(--header-h) + var(--nav-h) + 18px);
+      margin-top: 30px;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .section-title h2 {
+      margin: 0;
+      font-size: 20px;
+      line-height: 1.3;
+      text-wrap: balance;
+    }
+
+    .section-title .line {
+      width: 36px;
+      height: 3px;
+      border-radius: 999px;
+      background: var(--primary);
+    }
+
+    .grid {
+      display: grid;
+      gap: 14px;
+    }
+
+    .grid-2 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .grid-3 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+      padding: 18px;
+    }
+
+    .card.danger {
+      border-color: oklch(0.800 0.070 28);
+      background: var(--danger-soft);
+    }
+
+    .card.warning {
+      border-color: oklch(0.825 0.080 75);
+      background: var(--warning-soft);
+    }
+
+    .field-label {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    .field-value {
+      display: block;
+      color: var(--ink);
+      font-size: 18px;
+      font-weight: 760;
+    }
+
+    .money {
+      color: var(--danger);
+      font-size: 24px;
+      font-weight: 780;
+    }
+
+    .inline-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .inline-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 9px;
+      color: var(--muted);
+    }
+
+    .dot {
+      width: 7px;
+      height: 7px;
+      flex: 0 0 auto;
+      margin-top: 9px;
+      border-radius: 50%;
+      background: var(--primary);
+    }
+
+    .danger .dot,
+    .dot.danger {
+      background: var(--danger);
+    }
+
+    .table-card {
+      overflow: hidden;
+      padding: 0;
+    }
+
+    .table-scroll {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      min-width: 620px;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    th,
+    td {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: middle;
+    }
+
+    th {
+      color: var(--muted);
+      background: var(--surface);
+      font-size: 13px;
+      font-weight: 760;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .critical-row td {
+      color: var(--danger);
+      background: var(--danger-soft);
+      font-weight: 760;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 24px;
+      border-radius: 999px;
+      padding: 2px 9px;
+      color: var(--ink);
+      background: var(--surface);
+      border: 1px solid var(--line);
+      font-size: 12px;
+      font-weight: 760;
+      white-space: nowrap;
+    }
+
+    .tag-danger {
+      color: white;
+      border-color: var(--danger);
+      background: var(--danger);
+    }
+
+    .tag-warning {
+      color: oklch(0.255 0.060 75);
+      border-color: oklch(0.840 0.095 75);
+      background: var(--warning-soft);
+    }
+
+    .tag-info {
+      color: var(--primary);
+      border-color: oklch(0.820 0.055 260);
+      background: var(--primary-soft);
+    }
+
+    .progress {
+      display: grid;
+      gap: 12px;
+    }
+
+    .progress-row {
+      display: grid;
+      gap: 6px;
+    }
+
+    .progress-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .bar {
+      height: 8px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: var(--panel-strong);
+    }
+
+    .bar span {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: var(--primary);
+    }
+
+    .metric-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .metric-card strong {
+      display: block;
+      font-size: 26px;
+      line-height: 1.1;
+    }
+
+    .metric-card small {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .icon-box {
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      border-radius: 10px;
+      color: var(--primary);
+      background: var(--primary-soft);
+    }
+
+    .clamped {
+      display: -webkit-box;
+      overflow: hidden;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
+
+    .clamped.expanded {
+      display: block;
+    }
+
+    .expand-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      margin-top: 12px;
+      padding: 0;
+      border: 0;
+      color: var(--primary);
+      background: transparent;
+      cursor: pointer;
+      font-weight: 760;
+    }
+
+    .score-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .score {
+      display: grid;
+      justify-items: center;
+      gap: 8px;
+      padding: 16px 8px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      text-align: center;
+    }
+
+    .ring {
+      --value: 60%;
+      width: 74px;
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: conic-gradient(var(--primary) var(--value), var(--line) 0);
+    }
+
+    .ring::before {
+      content: attr(data-label);
+      width: 54px;
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: var(--panel);
+      font-weight: 780;
+    }
+
+    .notice {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 14px;
+      background: var(--surface);
+    }
+
+    .notice strong {
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    .item-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 12px;
+      background: var(--surface);
+      font-weight: 700;
+    }
+
+    .bottom-bar {
+      position: fixed;
+      inset: auto 0 0;
+      z-index: 30;
+      min-height: var(--footer-h);
+      border-top: 1px solid var(--line);
+      background: oklch(1 0 0 / 0.95);
+      box-shadow: 0 -8px 22px oklch(0.205 0.030 255 / 0.07);
+      backdrop-filter: blur(12px);
+    }
+
+    .bottom-inner {
+      min-height: var(--footer-h);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .status {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    .divider {
+      width: 1px;
+      height: 18px;
+      background: var(--line);
+    }
+
+    .icon {
+      width: 18px;
+      height: 18px;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+      flex: 0 0 auto;
+    }
+
+    @media (max-width: 900px) {
+      .shell {
+        width: min(100% - 28px, 1180px);
+      }
+
+      .topbar-stage {
+        display: none;
+      }
+
+      .hero-grid {
+        grid-template-columns: 1fr;
+        align-items: start;
+      }
+
+      .actions {
+        justify-content: flex-start;
+      }
+
+      .overview,
+      .grid-3,
+      .score-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .grid-2 {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      :root {
+        --footer-h: 76px;
+      }
+
+      .topbar-actions .icon-button,
+      .topbar-divider,
+      .user-meta,
+      .divider {
+        display: none;
+      }
+
+      .topbar-inner {
+        padding: 0 14px;
+      }
+
+      .brand-title {
+        font-size: 17px;
+      }
+
+      h1 {
+        font-size: 25px;
+      }
+
+      .overview,
+      .grid-3,
+      .score-grid,
+      .item-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .bottom-inner {
+        align-items: center;
+        flex-direction: row;
+        justify-content: center;
+        padding: 10px 0;
+      }
+
+      .bottom-inner .status {
+        display: none;
+      }
+
+      .bottom-inner .actions {
+        justify-content: stretch;
+        width: 100%;
+      }
+
+      .bottom-inner .btn {
+        flex: 1;
+        padding-inline: 8px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 1ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="shell topbar-inner">
+      <a class="brand" href="#top" aria-label="返回顶部">
+        <span class="brand-mark" aria-hidden="true">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7z"></path><path d="M14 3v5h5"></path><path d="M9 13h6"></path><path d="M9 17h6"></path></svg>
+        </span>
+        <span class="brand-title">AI投标系统</span>
+      </a>
+      <div class="topbar-stage" aria-label="流程进度">
+        <div class="stage-item is-active">
+          <span class="stage-dot">1</span>
+          <span class="stage-label">生成目录</span>
+        </div>
+        <span class="stage-line" aria-hidden="true"></span>
+        <div class="stage-item is-muted">
+          <span class="stage-dot">2</span>
+          <span class="stage-label">生成标书</span>
+        </div>
+      </div>
+      <div class="topbar-actions" aria-label="顶部操作">
+        <button class="icon-button" type="button" aria-label="通知">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+        </button>
+        <button class="icon-button" type="button" aria-label="帮助">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 1 1 4.92 2.3c-.77.52-1.01.94-1.01 1.7"></path><path d="M12 17h.01"></path></svg>
+        </button>
+        <span class="topbar-divider" aria-hidden="true"></span>
+        <div class="user-card" aria-label="当前用户">
+          <div class="user-meta">
+            <p class="user-name">张工</p>
+            <p class="user-role">高级商务经理</p>
+          </div>
+          <span class="avatar" aria-hidden="true">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M20 21a8 8 0 0 0-16 0"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          </span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="hero" id="top">
+    <nav class="nav-wrap" aria-label="解析结果导航">
+      <div class="shell nav-track" id="tab-navigation">
+        <a class="nav-link active" href="#section-info">项目基本信息</a>
+        <a class="nav-link" href="#section-timeline">重要时间节点</a>
+        <a class="nav-link" href="#section-eligibility">资格条件</a>
+        <a class="nav-link" href="#section-business">商务要求</a>
+        <a class="nav-link" href="#section-technical">技术要求</a>
+        <a class="nav-link" href="#section-scoring">评分标准</a>
+        <a class="nav-link" href="#section-termination">废标条款</a>
+        <a class="nav-link" href="#section-requirements">采购需求</a>
+        <a class="nav-link" href="#section-submission">投标文件要求</a>
+      </div>
+    </nav>
+  </div>
+
+  <main class="shell">
+    <div class="overview" aria-label="关键摘要">
+      <div class="summary-tile">
+        <span>预算金额</span>
+        <strong>500 万元</strong>
+      </div>
+      <div class="summary-tile">
+        <span>建设周期</span>
+        <strong>180 日历天</strong>
+      </div>
+      <div class="summary-tile">
+        <span>评分重点</span>
+        <strong>技术 60%</strong>
+      </div>
+      <div class="summary-tile risk">
+        <span>高优先级风险</span>
+        <strong>3 项</strong>
+      </div>
+    </div>
+
+    <section id="section-info">
+      <div class="section-title">
+        <h2>项目基本信息</h2>
+        <span class="line" aria-hidden="true"></span>
+      </div>
+      <div class="grid grid-3">
+        <div class="card">
+          <span class="field-label">项目名称</span>
+          <span class="field-value">2023年智慧政务大厅升级改造采购项目</span>
+        </div>
+        <div class="card">
+          <span class="field-label">采购人</span>
+          <span class="field-value">某市人民政府政务服务中心</span>
+        </div>
+        <div class="card">
+          <span class="field-label">采购方式</span>
+          <span class="field-value">公开招标</span>
+        </div>
+        <div class="card">
+          <span class="field-label">预算金额</span>
+          <span class="money">¥ 5,000,000.00</span>
+        </div>
+        <div class="card">
+          <span class="field-label">最高限价</span>
+          <span class="money">¥ 5,000,000.00</span>
+        </div>
+        <div class="card">
+          <span class="field-label">工期 / 期限</span>
+          <span class="field-value">180 日历天</span>
+        </div>
+        <div class="card">
+          <span class="field-label">所属行业</span>
+          <span class="field-value">软件和信息技术服务业</span>
+        </div>
+        <div class="card">
+          <span class="field-label">投标保证金</span>
+          <span class="field-value">不要求缴纳</span>
+        </div>
+      </div>
+    </section>
+
+    <section id="section-timeline">
+      <div class="section-title">
+        <h2>重要时间节点</h2>
+        <span class="line" aria-hidden="true"></span>
+      </div>
+      <div class="card table-card">
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>事项节点</th>
+                <th>具体时间</th>
+                <th>备注 / 提示</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>招标公告发布</strong></td>
+                <td>2023-11-01 09:00</td>
+                <td>已发布</td>
+              </tr>
+              <tr>
+                <td><strong>现场踏勘 / 公开答疑</strong></td>
+                <td>2023-11-05 14:00</td>
+                <td>市中心政务大厅 3 楼</td>
+              </tr>
+              <tr>
+                <td><strong>质疑截止日期</strong></td>
+                <td>2023-11-10 17:00</td>
+                <td><span class="tag tag-warning">提前完成资料核对</span></td>
+              </tr>
+              <tr class="critical-row">
+                <td>投标截止 / 开标时间</td>
+                <td>2023-11-21 09:30</td>
+                <td>逾期投递将拒收</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="section-eligibility">
+      <div class="section-title">
+        <h2>资格条件</h2>
+        <span class="line" aria-hidden="true"></span>
+      </div>
+      <div class="grid grid-2">
+        <div class="card">
+          <h3>准入门槛</h3>
+          <ul class="inline-list">
+            <li><span class="dot"></span>具有独立法人资格</li>
+            <li><span class="dot"></span>注册资金不低于 1000 万元</li>
+            <li><span class="dot"></span>近三年内无重大违法记录</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>资质要求</h3>
+          <ul class="inline-list">
+            <li><span class="dot"></span>国家秘密载体印制资质（乙级）</li>
+            <li><span class="dot"></span>软件能力成熟度 CMMI3</li>
+          </ul>
+        </div>
+      </div>
+      <div class="card table-card" style="margin-top:14px">
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>证书名称</th>
+                <th>要求级别</th>
+                <th>必要性</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>ISO9001 质量管理体系</strong></td>
+                <td>有效证书</td>
+                <td><span class="tag tag-danger">必需</span></td>
+              </tr>
+              <tr>
+                <td><strong>ISO27001 信息安全管理</strong></td>
+                <td>有效证书</td>
+                <td><span class="tag tag-danger">必需</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="section-business">
+      <div class="section-title">
+        <h2>商务要求</h2>
+        <span class="line" aria-hidden="true"></span>
+      </div>
+      <div class="grid grid-3">
+        <div class="card">
+          <h3>付款方式</h3>
+          <div class="progress">
+            <div class="progress-row">
+              <div class="progress-meta"><span>预付款</span><strong>30%</strong></div>
+              <div class="bar" aria-hidden="true"><span style="width:30%"></span></div>
+            </div>
+            <div class="progress-row">
+              <div class="progress-meta"><span>进度款</span><strong>40%</strong></div>
+              <div class="bar" aria-hidden="true"><span style="width:40%"></span></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <h3>售后服务</h3>
+          <p>3 年原厂质保，7x24 小时支持，2 小时内到达现场响应。</p>
+        </div>
+        <div class="card danger">
+          <h3>风险条款</h3>
+          <p><strong>违约金比例设为每日 0.5%</strong>，高于行业平均水平 0.1%，需重点关注并提前评估履约成本。</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="section-technical">
+      <div class="section-title">
+        <h2>技术要求</h2>
+        <span class="line" aria-hidden="true"></span>
+      </div>
+      <div class="grid grid-2">
+        <div class="card metric-card">
+          <div>
+            <small>并发性能</small>
+            <strong>≥ 500 用户</strong>
+          </div>
+          <span class="icon-box" aria-hidden="true">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+          </span>
+        </div>
+        <div class="card metric-card">
+          <div>
+            <small>响应速度</small>
+            <strong>≤ 1 秒</strong>
+          </div>
+          <span class="icon-box" aria-hidden="true">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M12 14l4-4"></path><path d="M3.34 19a10 10 0 1 1 17.32 0"></path></svg>
+          </span>
+        </div>
+        <div class="card" style="grid-column:1/-1">
+          <h3>安全与兼容性</h3>
+          <p class="clamped" id="tech-text">系统需通过网络安全等级保护（三级）测评，支持国密算法加密传输。前端需兼容 Chrome 80+、Firefox 及主流国产浏览器；支持国产信创数据库。系统需通过网络安全等级保护（三级）测评，支持国密算法加密传输。前端需兼容 Chrome 80+、Firefox 及主流国产浏览器；支持国产信创数据库。</p>
+          <button class="expand-btn" type="button" data-target="tech-text">
+            <span>展开全文</span>
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <section id="section-scoring">
+      <div class="section-title">
+        <h2>评分标准</h2>
+        <span class="line" aria-hidden="true"></span>
+      </div>
+      <div class="card">
+        <h3>分值构成</h3>
+        <div class="score-grid">
+          <div class="score">
+            <span class="ring" style="--value:60%" data-label="60%"></span>
+            <strong>技术方案</strong>
+          </div>
+          <div class="score">
+            <span class="ring" style="--value:30%" data-label="30%"></span>
+            <strong>商务资信</strong>
+          </div>
+          <div class="score">
+            <span class="ring" style="--value:10%" data-label="10%"></span>
+            <strong>价格评分</strong>
+          </div>
+        </div>
+      </div>
+      <div class="card table-card" style="margin-top:14px">
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>评分项</th>
+                <th>分值</th>
+                <th>评分细则</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>同类项目业绩</strong></td>
+                <td><span class="tag tag-info">15 分</span></td>
+                <td>每提供 1 个类似案例得 3 分</td>
+              </tr>
+              <tr>
+                <td><strong>实施进度保障</strong></td>
+                <td><span class="tag tag-info">10 分</span></td>
+                <td>根据计划科学性打分</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="notice warning" style="margin-top:14px">
+        <span class="icon-box" aria-hidden="true">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M9 18h6"></path><path d="M10 22h4"></path><path d="M2 12a10 10 0 1 1 20 0c0 3-1.5 4.5-3 6H5c-1.5-1.5-3-3-3-6z"></path></svg>
+        </span>
+        <div>
+          <strong>价格评分提示</strong>
+          <span>价格采用低价优先法计算，需注意不要恶意低价，以免触发评审质疑。</span>
+        </div>
+      </div>
+    </section>
+
+    <section id="section-termination">
+      <div class="section-title">
+        <h2>废标条款</h2>
+        <span class="line" aria-hidden="true"></span>
+      </div>
+      <div class="grid grid-2">
+        <div class="card danger">
+          <h3>资格废标</h3>
+          <ul class="inline-list">
+            <li><span class="dot danger"></span>缺少营业执照原件扫描件</li>
+            <li><span class="dot danger"></span>联合体无协议书</li>
+          </ul>
+        </div>
+        <div class="card danger">
+          <h3>技术废标</h3>
+          <ul class="inline-list">
+            <li><span class="dot danger"></span><strong>(*) 实质性指标负偏离</strong></li>
+            <li><span class="dot danger"></span>响应内容缺漏项</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="section-requirements">
+      <div class="section-title">
+        <h2>采购需求</h2>
+        <span class="line" aria-hidden="true"></span>
+      </div>
+      <div class="grid">
+        <div class="card">
+          <h3>总体概况</h3>
+          <p>旨在通过人工智能、大数据等技术手段对智慧政务大厅进行升级，实现政务办理的自动化与智能化。</p>
+        </div>
+        <div class="card">
+          <h3>核心软硬件清单</h3>
+          <div class="item-grid">
+            <div class="item"><span>智能导办机器人</span><span class="tag tag-info">x 4</span></div>
+            <div class="item"><span>多功能一体机</span><span class="tag tag-info">x 12</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="section-submission">
+      <div class="section-title">
+        <h2>投标文件要求</h2>
+        <span class="line" aria-hidden="true"></span>
+      </div>
+      <div class="card table-card">
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>文件组成</th>
+                <th>份数</th>
+                <th>必要性</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>技术标（正本）</strong></td>
+                <td>1 份</td>
+                <td><span class="tag tag-danger">必交</span></td>
+              </tr>
+              <tr>
+                <td><strong>商务标（正本）</strong></td>
+                <td>1 份</td>
+                <td><span class="tag tag-danger">必交</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="notice" style="margin-top:14px">
+        <span class="icon-box" aria-hidden="true">
+          <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg>
+        </span>
+        <div>
+          <strong>附件清单</strong>
+          <span>请确保证件扫描件清晰可见，且所有页码均加盖公章。</span>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="bottom-bar">
+    <div class="shell bottom-inner">
+      <div class="status">
+        <span>解析于 2023-10-27 14:30</span>
+        <span class="divider" aria-hidden="true"></span>
+        <span><strong>48</strong> 个解析项已提取</span>
+      </div>
+      <div class="actions">
+        <button class="btn btn-secondary" type="button">导出 DOCX</button>
+        <button class="btn btn-secondary" type="button">导出 Excel</button>
+        <button class="btn btn-primary" type="button" onclick="window.print()">导出 PDF</button>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    const navLinks = [...document.querySelectorAll(".nav-link")];
+    const sections = navLinks
+      .map((link) => document.querySelector(link.getAttribute("href")))
+      .filter(Boolean);
+
+    const setActive = () => {
+      const offset = Number.parseInt(getComputedStyle(document.documentElement).getPropertyValue("--header-h")) +
+        Number.parseInt(getComputedStyle(document.documentElement).getPropertyValue("--nav-h")) + 80;
+      let current = sections[0].id;
+
+      for (const section of sections) {
+        if (section.getBoundingClientRect().top <= offset) current = section.id;
+      }
+
+      navLinks.forEach((link) => {
+        const isActive = link.getAttribute("href") === `#${current}`;
+        link.classList.toggle("active", isActive);
+        if (isActive) link.setAttribute("aria-current", "true");
+        else link.removeAttribute("aria-current");
+      });
+    };
+
+    document.addEventListener("scroll", setActive, { passive: true });
+    window.addEventListener("resize", setActive);
+    navLinks.forEach((link) => {
+      link.addEventListener("click", (event) => {
+        event.preventDefault();
+        const target = document.querySelector(link.getAttribute("href"));
+        const headerHeight = Number.parseInt(getComputedStyle(document.documentElement).getPropertyValue("--header-h"));
+        const navHeight = Number.parseInt(getComputedStyle(document.documentElement).getPropertyValue("--nav-h"));
+        const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+        navLinks.forEach((item) => {
+          item.classList.toggle("active", item === link);
+          if (item === link) item.setAttribute("aria-current", "true");
+          else item.removeAttribute("aria-current");
+        });
+
+        if (target) {
+          window.scrollTo({
+            top: target.getBoundingClientRect().top + window.scrollY - headerHeight - navHeight - 18,
+            behavior: prefersReducedMotion ? "auto" : "smooth"
+          });
+        }
+      });
+    });
+    setActive();
+
+    document.querySelectorAll(".expand-btn").forEach((button) => {
+      button.addEventListener("click", () => {
+        const target = document.getElementById(button.dataset.target);
+        const expanded = target.classList.toggle("expanded");
+        button.querySelector("span").textContent = expanded ? "收起全文" : "展开全文";
+        button.setAttribute("aria-expanded", String(expanded));
+      });
+    });
+  </script>
+<script src="./static-links.js"></script>
+</body>
+</html>
+
+====================================================================================================
+文件：outline.html
+====================================================================================================
+<!DOCTYPE html><html lang="zh-CN" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>AI投标系统 - 生成目录</title>
+<!-- BEGIN: External Resources -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
+<!-- END: External Resources -->
+<script data-purpose="tailwind-config">
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#2563eb',
+            primaryHover: '#1d4ed8',
+            surface: {
+              50: '#f8fafc',
+              100: '#f1f5f9',
+              200: '#e2e8f0',
+              300: '#cbd5e1',
+              400: '#94a3b8',
+              500: '#64748b',
+              600: '#475569',
+              700: '#334155',
+              800: '#1e293b',
+              900: '#0f172a',
+            }
+          }
+        }
+      }
+    }
+  </script>
+<style data-purpose="global-styles">
+    * {
+      font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    body {
+      min-width: 1220px;
+    }
+    /* Custom scrollbar for better aesthetics */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+  </style>
+<style data-purpose="component-styles">
+    /* Directory Tree Item Hover Effects */
+    .tree-item .item-actions {
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+    .tree-item:hover .item-actions {
+      opacity: 1;
+    }
+    .tree-item.active {
+      background-color: #eff6ff;
+      border-left: 3px solid #2563eb;
+    }
+    /* Tooltip Helper */
+    .tooltip {
+      position: relative;
+    }
+    .tooltip::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 4px 8px;
+      background: #1e293b;
+      color: white;
+      font-size: 11px;
+      border-radius: 4px;
+      white-space: nowrap;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.2s ease;
+      margin-bottom: 6px;
+      z-index: 50;
+    }
+    .tooltip:hover::after {
+      opacity: 1;
+      visibility: visible;
+    }
+  </style>
+</head>
+<body class="bg-surface-100 h-screen flex flex-col text-surface-700 antialiased overflow-hidden">
+<!-- BEGIN: TopNavigation -->
+<header class="h-14 bg-white border-b border-surface-200 flex items-center justify-between px-6 shrink-0 z-30 relative">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+<i class="fas fa-file-signature text-white text-sm"></i>
+</div>
+<span class="font-bold text-surface-800 text-lg tracking-tight">AI投标系统</span>
+</div>
+<div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center">
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold ring-4 ring-primary/15">1</div>
+<span class="text-sm font-bold text-primary">生成目录</span>
+</div>
+<div class="w-20 h-px bg-surface-200"></div>
+<div class="flex items-center gap-2 opacity-50">
+<div class="w-8 h-8 rounded-full bg-surface-200 text-surface-500 flex items-center justify-center text-sm font-bold">2</div>
+<span class="text-sm font-medium text-surface-600">生成标书</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="w-9 h-9 rounded-lg hover:bg-surface-100 flex items-center justify-center text-surface-500 transition-colors">
+<i class="fas fa-bell"></i>
+</button>
+<button class="w-9 h-9 rounded-lg hover:bg-surface-100 flex items-center justify-center text-surface-500 transition-colors">
+<i class="fas fa-question-circle"></i>
+</button>
+<div class="h-6 w-px bg-surface-200 mx-2"></div>
+<div class="flex items-center gap-3">
+<div class="text-right">
+<p class="text-xs font-medium text-surface-800">张工</p>
+<p class="text-[10px] text-surface-400">高级商务经理</p>
+</div>
+<div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
+<i class="fas fa-user text-primary text-xs"></i>
+</div>
+</div>
+</div>
+</header>
+<!-- END: TopNavigation -->
+<!-- BEGIN: MainWorkspace -->
+<main class="flex-1 flex overflow-hidden">
+<!-- Left/Center: Directory Editing -->
+<div class="flex-1 flex flex-col items-center py-8 overflow-hidden">
+<div class="w-full max-w-4xl h-full flex flex-col bg-white rounded-xl shadow-lg border border-surface-200 overflow-hidden">
+<!-- Editor Header -->
+<div class="p-5 border-b border-surface-100 flex items-center justify-between bg-white shrink-0">
+<div class="flex items-center gap-4">
+<h2 class="text-base font-bold text-surface-800 flex items-center gap-2">
+<i class="fas fa-list-ul text-primary"></i>
+            目录结构编辑
+          </h2>
+<span class="text-[11px] font-bold text-surface-400 bg-surface-100 px-2.5 py-1 rounded-full uppercase tracking-wider">5 Chapters</span>
+</div>
+<div class="flex items-center gap-2">
+<button class="tooltip p-2 rounded-lg hover:bg-surface-50 transition-all border border-transparent hover:border-surface-200" data-tooltip="批量编辑">
+<i class="fas fa-edit text-primary text-sm"></i>
+</button>
+<button class="tooltip p-2 rounded-lg hover:bg-surface-50 transition-all border border-transparent hover:border-surface-200" data-tooltip="批量删除">
+<i class="fas fa-trash-alt text-red-500 text-sm"></i>
+</button>
+<div class="w-px h-5 bg-surface-200 mx-1"></div>
+<button class="tooltip p-2 rounded-lg hover:bg-surface-50 transition-all border border-transparent hover:border-surface-200" data-tooltip="从Word导入">
+<i class="fas fa-file-import text-green-600 text-sm"></i>
+</button>
+<button class="tooltip p-2 rounded-lg hover:bg-surface-50 transition-all border border-transparent hover:border-surface-200" data-tooltip="导出目录">
+<i class="fas fa-file-export text-surface-500 text-sm"></i>
+</button>
+</div>
+</div>
+<!-- Scrollable Tree List -->
+<div class="flex-1 overflow-y-auto p-6 custom-scrollbar space-y-1" data-purpose="directory-tree-list">
+<!-- Item: Chapter 1 (Active) -->
+<div class="tree-item active rounded-lg cursor-pointer group/item border border-transparent p-2">
+<div class="flex items-center gap-3">
+<div class="cursor-grab text-surface-300 hover:text-surface-500">
+<i class="fas fa-grip-vertical text-xs"></i>
+</div>
+<div class="flex-1 flex items-center justify-between min-w-0">
+<div class="flex items-center gap-3 min-w-0">
+<span class="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded shrink-0">第1章</span>
+<span class="text-base font-bold text-surface-800 truncate">投标函</span>
+</div>
+<div class="item-actions flex items-center gap-2">
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-primary text-xs hover:border-primary transition-colors"><i class="fas fa-pen text-[10px]"></i> 编辑</button>
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-green-600 text-xs hover:border-green-600 transition-colors"><i class="fas fa-plus text-[10px]"></i> 子项</button>
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-red-500 text-xs hover:bg-red-50 hover:border-red-200 transition-colors"><i class="fas fa-trash-alt text-[10px]"></i> 删除</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Item: Chapter 2 -->
+<div class="tree-item rounded-lg cursor-pointer hover:bg-surface-50 border border-transparent hover:border-surface-200 group/item transition-colors p-2">
+<div class="flex items-center gap-3">
+<div class="cursor-grab text-surface-300 pt-1.5"><i class="fas fa-grip-vertical text-xs"></i></div>
+<div class="flex-1 flex items-center justify-between min-w-0">
+<div class="flex items-center gap-3 min-w-0">
+<span class="text-xs font-bold text-surface-500 bg-surface-100 px-2 py-0.5 rounded shrink-0">第2章</span>
+<span class="text-base font-medium text-surface-700 truncate">法定代表人身份证明</span>
+</div>
+<div class="item-actions flex items-center gap-2">
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-primary text-xs hover:border-primary transition-colors"><i class="fas fa-pen text-[10px]"></i> 编辑</button>
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-green-600 text-xs hover:border-green-600 transition-colors"><i class="fas fa-plus text-[10px]"></i> 子项</button>
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-red-500 text-xs hover:bg-red-50 hover:border-red-200 transition-colors"><i class="fas fa-trash-alt text-[10px]"></i> 删除</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Sub-item: 2.1 -->
+<div class="tree-item rounded-lg ml-10 cursor-pointer hover:bg-surface-50 border border-transparent hover:border-surface-200 group/item transition-colors p-2">
+<div class="flex items-center gap-3">
+<div class="cursor-grab text-surface-300 pt-1.5"><i class="fas fa-grip-vertical text-xs"></i></div>
+<div class="flex-1 flex items-center justify-between min-w-0">
+<div class="flex items-center gap-3 min-w-0">
+<span class="text-xs text-surface-400 shrink-0 font-medium">2.1</span>
+<span class="text-sm text-surface-600 truncate">法定代表人身份证复印件</span>
+</div>
+<div class="item-actions flex items-center gap-2">
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-primary text-xs hover:border-primary transition-colors"><i class="fas fa-pen text-[10px]"></i> 编辑</button>
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-green-600 text-xs hover:border-green-600 transition-colors"><i class="fas fa-plus text-[10px]"></i> 子项</button>
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-red-500 text-xs hover:bg-red-50 hover:border-red-200 transition-colors"><i class="fas fa-trash-alt text-[10px]"></i> 删除</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Sub-item: 2.2 -->
+<div class="tree-item rounded-lg ml-10 cursor-pointer hover:bg-surface-50 border border-transparent hover:border-surface-200 group/item transition-colors p-2">
+<div class="flex items-center gap-3">
+<div class="cursor-grab text-surface-300 pt-1.5"><i class="fas fa-grip-vertical text-xs"></i></div>
+<div class="flex-1 flex items-center justify-between min-w-0">
+<div class="flex items-center gap-3 min-w-0">
+<span class="text-xs text-surface-400 shrink-0 font-medium">2.2</span>
+<span class="text-sm text-surface-600 truncate">授权委托书</span>
+</div>
+<div class="item-actions flex items-center gap-2">
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-primary text-xs hover:border-primary transition-colors"><i class="fas fa-pen text-[10px]"></i> 编辑</button>
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-green-600 text-xs hover:border-green-600 transition-colors"><i class="fas fa-plus text-[10px]"></i> 子项</button>
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-red-500 text-xs hover:bg-red-50 hover:border-red-200 transition-colors"><i class="fas fa-trash-alt text-[10px]"></i> 删除</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Item: Chapter 3 -->
+<div class="tree-item rounded-lg cursor-pointer hover:bg-surface-50 border border-transparent hover:border-surface-200 group/item transition-colors p-2">
+<div class="flex items-center gap-3">
+<div class="cursor-grab text-surface-300 pt-1.5"><i class="fas fa-grip-vertical text-xs"></i></div>
+<div class="flex-1 flex items-center justify-between min-w-0">
+<div class="flex items-center gap-3 min-w-0">
+<span class="text-xs font-bold text-surface-500 bg-surface-100 px-2 py-0.5 rounded shrink-0">第3章</span>
+<span class="text-base font-medium text-surface-700 truncate">投标报价表</span>
+</div>
+<div class="item-actions flex items-center gap-2">
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-primary text-xs hover:border-primary transition-colors"><i class="fas fa-pen text-[10px]"></i> 编辑</button>
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-green-600 text-xs hover:border-green-600 transition-colors"><i class="fas fa-plus text-[10px]"></i> 子项</button>
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-red-500 text-xs hover:bg-red-50 hover:border-red-200 transition-colors"><i class="fas fa-trash-alt text-[10px]"></i> 删除</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Item: Chapter 4 -->
+<div class="tree-item rounded-lg cursor-pointer hover:bg-surface-50 border border-transparent hover:border-surface-200 group/item transition-colors p-2">
+<div class="flex items-center gap-3">
+<div class="cursor-grab text-surface-300 pt-1.5"><i class="fas fa-grip-vertical text-xs"></i></div>
+<div class="flex-1 flex items-center justify-between min-w-0">
+<div class="flex items-center gap-3 min-w-0">
+<span class="text-xs font-bold text-surface-500 bg-surface-100 px-2 py-0.5 rounded shrink-0">第4章</span>
+<span class="text-base font-medium text-surface-700 truncate">技术方案</span>
+</div>
+<div class="item-actions flex items-center gap-2">
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-primary text-xs hover:border-primary transition-colors"><i class="fas fa-pen text-[10px]"></i> 编辑</button>
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-green-600 text-xs hover:border-green-600 transition-colors"><i class="fas fa-plus text-[10px]"></i> 子项</button>
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-red-500 text-xs hover:bg-red-50 hover:border-red-200 transition-colors"><i class="fas fa-trash-alt text-[10px]"></i> 删除</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Sub-items for Chapter 4 -->
+<div class="tree-item rounded-lg ml-10 cursor-pointer hover:bg-surface-50 border border-transparent hover:border-surface-200 group/item transition-colors p-2">
+<div class="flex items-center gap-3">
+<div class="cursor-grab text-surface-300"><i class="fas fa-grip-vertical text-xs"></i></div>
+<div class="flex-1 flex items-center justify-between min-w-0">
+<div class="flex items-center gap-3">
+<span class="text-xs text-surface-400 shrink-0 font-medium">4.1</span>
+<span class="text-sm text-surface-600 truncate">项目概述</span>
+</div>
+<div class="item-actions flex items-center gap-2">
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-primary text-xs hover:border-primary transition-colors"><i class="fas fa-pen text-[10px]"></i> 编辑</button>
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-green-600 text-xs hover:border-green-600 transition-colors"><i class="fas fa-plus text-[10px]"></i> 子项</button>
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-red-500 text-xs hover:bg-red-50 hover:border-red-200 transition-colors"><i class="fas fa-trash-alt text-[10px]"></i> 删除</button>
+</div>
+</div>
+</div>
+</div>
+<div class="tree-item rounded-lg ml-10 cursor-pointer hover:bg-surface-50 border border-transparent hover:border-surface-200 group/item transition-colors p-2">
+<div class="flex items-center gap-3">
+<div class="cursor-grab text-surface-300"><i class="fas fa-grip-vertical text-xs"></i></div>
+<div class="flex-1 flex items-center justify-between min-w-0">
+<div class="flex items-center gap-3">
+<span class="text-xs text-surface-400 shrink-0 font-medium">4.2</span>
+<span class="text-sm text-surface-600 truncate">技术架构</span>
+</div>
+<div class="item-actions flex items-center gap-2">
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-primary text-xs hover:border-primary transition-colors"><i class="fas fa-pen text-[10px]"></i> 编辑</button>
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-green-600 text-xs hover:border-green-600 transition-colors"><i class="fas fa-plus text-[10px]"></i> 子项</button>
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-red-500 text-xs hover:bg-red-50 hover:border-red-200 transition-colors"><i class="fas fa-trash-alt text-[10px]"></i> 删除</button>
+</div>
+</div>
+</div>
+</div>
+<div class="tree-item rounded-lg ml-10 cursor-pointer hover:bg-surface-50 border border-transparent hover:border-surface-200 group/item transition-colors p-2">
+<div class="flex items-center gap-3">
+<div class="cursor-grab text-surface-300"><i class="fas fa-grip-vertical text-xs"></i></div>
+<div class="flex-1 flex items-center justify-between min-w-0">
+<div class="flex items-center gap-3">
+<span class="text-xs text-surface-400 shrink-0 font-medium">4.3</span>
+<span class="text-sm text-surface-600 truncate">实施方案</span>
+</div>
+<div class="item-actions flex items-center gap-2">
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-primary text-xs hover:border-primary transition-colors"><i class="fas fa-pen text-[10px]"></i> 编辑</button>
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-green-600 text-xs hover:border-green-600 transition-colors"><i class="fas fa-plus text-[10px]"></i> 子项</button>
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-red-500 text-xs hover:bg-red-50 hover:border-red-200 transition-colors"><i class="fas fa-trash-alt text-[10px]"></i> 删除</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Item: Chapter 5 -->
+<div class="tree-item rounded-lg cursor-pointer hover:bg-surface-50 border border-transparent hover:border-surface-200 group/item transition-colors p-2">
+<div class="flex items-center gap-3">
+<div class="cursor-grab text-surface-300 pt-1.5"><i class="fas fa-grip-vertical text-xs"></i></div>
+<div class="flex-1 flex items-center justify-between min-w-0">
+<div class="flex items-center gap-3 min-w-0">
+<span class="text-xs font-bold text-surface-500 bg-surface-100 px-2 py-0.5 rounded shrink-0">第5章</span>
+<span class="text-base font-medium text-surface-700 truncate">商务条款</span>
+</div>
+<div class="item-actions flex items-center gap-2">
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-primary text-xs hover:border-primary transition-colors"><i class="fas fa-pen text-[10px]"></i> 编辑</button>
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-green-600 text-xs hover:border-green-600 transition-colors"><i class="fas fa-plus text-[10px]"></i> 子项</button>
+<button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-red-500 text-xs hover:bg-red-50 hover:border-red-200 transition-colors"><i class="fas fa-trash-alt text-[10px]"></i> 删除</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- New Right Sidebar: Steps and Project Info -->
+<aside class="w-80 bg-white border-l border-surface-200 flex flex-col shrink-0 overflow-y-auto z-20">
+<!-- Sidebar Body: Project Metadata -->
+<div class="p-6 space-y-6">
+<div>
+<h3 class="text-xs font-bold text-surface-400 uppercase tracking-widest mb-4">项目信息</h3>
+<div class="bg-surface-50 rounded-xl p-4 border border-surface-100 space-y-4">
+<div>
+<p class="text-[10px] text-surface-400 mb-1">项目名称</p>
+<p class="text-xs font-bold text-surface-800 leading-relaxed">XX市政府采购信息化建设项目</p>
+</div>
+<div class="flex justify-between">
+<div>
+<p class="text-[10px] text-surface-400 mb-1">最后保存</p>
+<p class="text-xs font-medium text-surface-600">14:20:05</p>
+</div>
+<div>
+<p class="text-[10px] text-surface-400 mb-1">文档状态</p>
+<span class="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium">编辑中</span>
+</div>
+</div>
+</div>
+</div>
+<div>
+<h3 class="text-xs font-bold text-surface-400 uppercase tracking-widest mb-4">操作提示</h3>
+<div class="bg-blue-50/50 rounded-xl p-4 border border-blue-100/50">
+<ul class="text-[11px] text-surface-600 space-y-2 list-disc list-inside">
+<li class="">拖拽左侧 <i class="fas fa-grip-vertical text-[9px]"></i> 图标调整顺序</li>
+<li class="">点击“子项”按钮增加层级</li>
+<li class="">编辑完成后点击下方“下一步”</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="mt-auto p-6 border-t border-surface-100 bg-white">
+<div class="flex flex-col gap-4">
+<button class="w-full h-11 rounded-lg text-sm font-bold bg-white border border-surface-200 text-surface-600 hover:bg-surface-50 transition-all flex items-center justify-center gap-2">
+<i class="fas fa-save"></i>
+保存修改
+</button>
+<button class="w-full h-11 rounded-xl text-sm font-bold text-white bg-primary hover:bg-primaryHover shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all flex items-center justify-center gap-2">
+生成标书
+</button>
+</div>
+</div>
+</aside>
+</main>
+<!-- END: MainWorkspace -->
+<!-- BEGIN: BottomStickyFooter -->
+
+<!-- END: BottomStickyFooter -->
+
+
+
+
+<script src="./static-links.js"></script>
+</body></html>
+
+====================================================================================================
+文件：generate.html
+====================================================================================================
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AI投标系统 - 生成标书</title>
+<!-- BEGIN: External Resources -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<!-- END: External Resources -->
+<script data-purpose="tailwind-config">
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#2563eb',
+            primaryHover: '#1d4ed8',
+            surface: {
+              50: '#f8fafc',
+              100: '#f1f5f9',
+              200: '#e2e8f0',
+              300: '#cbd5e1',
+              400: '#94a3b8',
+              500: '#64748b',
+              600: '#475569',
+              700: '#334155',
+              800: '#1e293b',
+              900: '#0f172a',
+            }
+          }
+        }
+      }
+    }
+  </script>
+<style data-purpose="global-styles">
+    * {
+      font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    body {
+      min-width: 1220px;
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+  </style>
+<style data-purpose="component-styles">
+    .doc-page {
+      box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.1);
+      aspect-ratio: 1 / 1.414;
+    }
+    .tooltip {
+      position: relative;
+    }
+    .tooltip::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 4px 8px;
+      background: #1e293b;
+      color: white;
+      font-size: 11px;
+      border-radius: 4px;
+      white-space: nowrap;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.2s ease;
+      margin-bottom: 6px;
+      z-index: 50;
+    }
+    .tooltip:hover::after {
+      opacity: 1;
+      visibility: visible;
+    }
+  </style>
+</head>
+<body class="bg-surface-100 h-screen flex flex-col text-surface-700 antialiased overflow-hidden">
+<!-- BEGIN: TopNavigation -->
+<header class="h-14 bg-white border-b border-surface-200 flex items-center justify-between px-6 shrink-0 z-30">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+<i class="fas fa-file-signature text-white text-sm"></i>
+</div>
+<span class="font-bold text-surface-800 text-lg tracking-tight">AI投标系统</span>
+</div>
+<div class="absolute left-1/2 -translate-x-1/2 flex items-center gap-4">
+<div class="flex items-center gap-2">
+<div class="w-7 h-7 rounded-full bg-green-500 text-white flex items-center justify-center text-xs">
+<i class="fas fa-check"></i>
+</div>
+<div>
+<p class="text-xs font-bold text-surface-700">1 生成目录</p>
+<p class="text-[10px] text-surface-400">规划标书大纲结构</p>
+</div>
+</div>
+<div class="w-12 h-px bg-surface-200"></div>
+<div class="flex items-center gap-2">
+<div class="w-7 h-7 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold ring-4 ring-primary/15">2</div>
+<div>
+<p class="text-xs font-bold text-primary">2 生成标书</p>
+<p class="text-[10px] text-surface-400">AI自动填充内容</p>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="w-9 h-9 rounded-lg hover:bg-surface-100 flex items-center justify-center text-surface-500 transition-colors">
+<i class="fas fa-bell"></i>
+</button>
+<button class="w-9 h-9 rounded-lg hover:bg-surface-100 flex items-center justify-center text-surface-500 transition-colors">
+<i class="fas fa-question-circle"></i>
+</button>
+<div class="h-6 w-px bg-surface-200 mx-2"></div>
+<div class="flex items-center gap-3">
+<div class="text-right">
+<p class="text-xs font-medium text-surface-800">张工</p>
+<p class="text-[10px] text-surface-400">高级商务经理</p>
+</div>
+<div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
+<i class="fas fa-user text-primary text-xs"></i>
+</div>
+</div>
+</div>
+</header>
+<!-- END: TopNavigation -->
+<!-- BEGIN: MainWorkspace -->
+<main class="flex-1 flex overflow-hidden">
+<!-- BEGIN: DocumentOutline -->
+<aside class="w-72 bg-white border-r border-surface-200 shrink-0 flex flex-col overflow-hidden">
+<div class="h-16 px-5 flex items-center justify-between border-b border-surface-100">
+<h2 class="text-lg font-bold text-surface-800">目录</h2>
+<div class="flex items-center gap-2">
+<button class="w-8 h-8 rounded-lg border border-surface-200 hover:bg-surface-50 flex items-center justify-center text-surface-600 transition-colors">
+<i class="fas fa-search text-sm"></i>
+</button>
+<button class="w-8 h-8 rounded-lg border border-surface-200 hover:bg-surface-50 flex items-center justify-center text-surface-600 transition-colors">
+<i class="fas fa-chevron-down text-xs"></i>
+</button>
+<button class="w-8 h-8 rounded-lg border border-surface-200 hover:bg-surface-50 flex items-center justify-center text-surface-600 transition-colors">
+<i class="fas fa-chevron-up text-xs"></i>
+</button>
+<button class="w-8 h-8 rounded-lg border border-surface-200 hover:bg-surface-50 flex items-center justify-center text-surface-600 transition-colors">
+<i class="fas fa-bars text-xs"></i>
+</button>
+</div>
+</div>
+<nav class="flex-1 overflow-y-auto px-5 py-4 text-sm">
+<div class="space-y-3">
+<div>
+<div class="flex items-center gap-2 text-primary font-bold">
+<i class="fas fa-caret-down text-surface-400 w-3"></i>
+<span class="truncate">第一章 产品方案介绍</span>
+</div>
+<div class="mt-3 ml-6 space-y-3 text-surface-700">
+<div class="flex items-center gap-2">
+<i class="fas fa-caret-right text-surface-400 w-3"></i>
+<span class="truncate">第一节 系统产品定位与设计理念</span>
+</div>
+<div class="flex items-center gap-2">
+<i class="fas fa-caret-right text-surface-400 w-3"></i>
+<span class="truncate">第二节 系统功能模块架构</span>
+</div>
+<div class="flex items-center gap-2">
+<i class="fas fa-caret-right text-surface-400 w-3"></i>
+<span class="truncate">第三节 AI质控引擎技术方案</span>
+</div>
+<div class="flex items-center gap-2">
+<i class="fas fa-caret-right text-surface-400 w-3"></i>
+<span class="truncate">第四节 质检规则体系设计</span>
+</div>
+</div>
+</div>
+<div>
+<div class="flex items-center gap-2 font-medium text-surface-800">
+<i class="fas fa-caret-down text-surface-400 w-3"></i>
+<span class="truncate">第二章 初步实施计划与服务方案</span>
+</div>
+<div class="mt-3 ml-6 space-y-3 text-surface-700">
+<div class="flex items-center gap-2">
+<i class="fas fa-caret-right text-surface-400 w-3"></i>
+<span class="truncate">第一节 项目实施总体计划</span>
+</div>
+<div class="flex items-center gap-2">
+<i class="fas fa-caret-right text-surface-400 w-3"></i>
+<span class="truncate">第二节 系统部署与集成方案</span>
+</div>
+<div class="flex items-center gap-2">
+<i class="fas fa-caret-right text-surface-400 w-3"></i>
+<span class="truncate">第三节 病历AI质控系统试运行方案</span>
+</div>
+<div class="flex items-center gap-2">
+<i class="fas fa-caret-right text-surface-400 w-3"></i>
+<span class="truncate">第四节 系统正式上线与切换方案</span>
+</div>
+<div class="flex items-center gap-2">
+<i class="fas fa-caret-right text-surface-400 w-3"></i>
+<span class="truncate">第五节 病历AI质控服务体系架构</span>
+</div>
+<div class="flex items-center gap-2">
+<i class="fas fa-caret-right text-surface-400 w-3"></i>
+<span class="truncate">第六节 实时质控服务流程</span>
+</div>
+<div class="flex items-center gap-2">
+<i class="fas fa-caret-right text-surface-400 w-3"></i>
+<span class="truncate">第七节 事后分析与指标统计服务</span>
+</div>
+<div class="flex items-center gap-2">
+<i class="fas fa-caret-right text-surface-400 w-3"></i>
+<span class="truncate">第八节 服务响应与问题解决机制</span>
+</div>
+<div class="flex items-center gap-2">
+<i class="fas fa-caret-right text-surface-400 w-3"></i>
+<span class="truncate">第九节 系统运维与规则更新服务</span>
+</div>
+</div>
+</div>
+<div>
+<div class="flex items-center gap-2 font-medium text-surface-800">
+<i class="fas fa-caret-down text-surface-400 w-3"></i>
+<span class="truncate">第三章 其他服务响应</span>
+</div>
+<div class="mt-3 ml-6 space-y-3 text-surface-700">
+<div class="flex items-center gap-2">
+<i class="fas fa-caret-right text-surface-400 w-3"></i>
+<span class="truncate">第一节 病历统计报表导出服务</span>
+</div>
+<div class="flex items-center gap-2">
+<i class="fas fa-caret-right text-surface-400 w-3"></i>
+<span class="truncate">第二节 年度质控概况与质检报告</span>
+</div>
+<div class="flex items-center gap-2">
+<i class="fas fa-caret-right text-surface-400 w-3"></i>
+<span class="truncate">第三节 重大缺陷文书保存卡控</span>
+</div>
+<div class="flex items-center gap-2">
+<i class="fas fa-caret-right text-surface-400 w-3"></i>
+<span class="truncate">第四节 归档病历质检问题明细</span>
+</div>
+</div>
+</div>
+</div>
+</nav>
+</aside>
+<!-- END: DocumentOutline -->
+<!-- BEGIN: DocumentContentArea -->
+<div class="flex-1 flex flex-col items-center py-6 px-8 overflow-hidden bg-surface-100">
+<div class="w-full max-w-4xl flex-1 flex flex-col bg-white rounded-xl shadow-lg border border-surface-200 overflow-hidden">
+<!-- BEGIN: DocumentPreview -->
+<div class="flex-1 overflow-y-auto p-12 bg-surface-200/50 flex justify-center">
+<div class="doc-page w-full max-w-2xl bg-white p-16 flex flex-col">
+<h1 class="text-3xl font-bold text-center text-black mb-12 tracking-widest">投 标 函</h1>
+<div class="space-y-6 text-sm text-surface-800 leading-relaxed text-justify">
+<p class="font-bold">致：XX市政府采购中心</p>
+<p>我方已仔细研究了 <span class="border-b border-surface-800 px-1">XX市政府采购信息化建设项目</span> 招标文件的全部内容，愿意以人民币（大写） <span class="border-b border-surface-800 px-1">壹仟贰佰万元整</span> （¥12,000,000.00）的投标总报价，按招标文件规定的各项要求完成该项目。</p>
+<p>1. 我方承诺在招标文件规定的投标有效期内（90天）撤销投标文件的，投标保证金将不予退还。</p>
+<p>2. 随本投标函提交投标保证金一份，金额为人民币 <span class="border-b border-surface-800 px-1">拾万元整</span>。</p>
+<p>3. 我方在此声明，所递交的投标文件及有关资料内容完整、真实和准确。且我方在参加本次政府采购活动前三年内，在经营活动中没有重大违法记录。</p>
+<p>4. 我方承诺，如我方中标：</p>
+<ul class="list-disc pl-6 space-y-2">
+<li>将在收到中标通知书后 <span class="border-b border-surface-800 px-1">30</span> 日内与采购人签订合同。</li>
+<li>将按招标文件的规定履行合同责任和义务。</li>
+<li>将在合同约定的工期内完成全部建设任务。</li>
+</ul>
+<p>5. 技术方案概要：本方案采用微服务架构，基于Spring Cloud框架构建，确保系统具备高可用性、可扩展性。前端采用Vue 3.0技术栈，保障用户交互体验流畅。安全防护方面，我们将部署多层次防火墙及数据加密机制，确保政务数据万无一失...</p>
+</div>
+<div class="mt-20 self-end text-right space-y-4">
+<p>投标人：<span class="font-bold">XXXX科技有限公司（盖章）</span></p>
+<p>法定代表人或其委托代理人：<span class="font-bold text-surface-400">（签字）</span></p>
+<p>日期：2023年 10月 24日</p>
+</div>
+</div>
+</div>
+<!-- END: DocumentPreview -->
+</div>
+</div>
+<!-- END: DocumentContentArea -->
+<!-- BEGIN: RightSidebar -->
+<aside class="w-80 bg-white border-l border-surface-200 flex flex-col shrink-0 overflow-y-auto z-20">
+<!-- Sidebar Body: Project Metadata -->
+<div class="p-6 space-y-6">
+<div>
+<h3 class="text-xs font-bold text-surface-400 uppercase tracking-widest mb-4">项目信息</h3>
+<div class="bg-surface-50 rounded-xl p-4 border border-surface-100 space-y-4">
+<div>
+<p class="text-[10px] text-surface-400 mb-1">项目名称</p>
+<p class="text-xs font-bold text-surface-800 leading-relaxed">XX市政府采购信息化建设项目</p>
+</div>
+<div class="flex justify-between">
+<div>
+<p class="text-[10px] text-surface-400 mb-1">最后保存</p>
+<p class="text-xs font-medium text-surface-600">14:55:12</p>
+</div>
+<div>
+<p class="text-[10px] text-surface-400 mb-1">文档状态</p>
+<span class="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium">生成完成</span>
+</div>
+</div>
+</div>
+</div>
+<div>
+<h3 class="text-xs font-bold text-surface-400 uppercase tracking-widest mb-4">生成状态</h3>
+<!-- BEGIN: GenerationStatus -->
+<div class="bg-green-50/70 rounded-xl p-4 border border-green-100 space-y-4">
+<div class="flex items-center gap-3">
+<div class="w-9 h-9 rounded-full bg-green-500 text-white flex items-center justify-center shrink-0">
+<i class="fas fa-check text-sm"></i>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center justify-between mb-1.5">
+<span class="text-xs font-bold text-surface-800">标书内容生成已完成</span>
+<span class="text-xs font-medium text-green-700">100%</span>
+</div>
+<div class="w-full bg-white h-2 rounded-full overflow-hidden">
+<div class="bg-green-500 h-full w-full"></div>
+</div>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-3 pt-3 border-t border-green-100">
+<div>
+<p class="text-[10px] text-surface-400 mb-1">总页数</p>
+<p class="text-sm font-bold text-surface-800">42</p>
+</div>
+<div>
+<p class="text-[10px] text-surface-400 mb-1">预计阅读</p>
+<p class="text-sm font-bold text-surface-800">15 min</p>
+</div>
+</div>
+</div>
+<!-- END: GenerationStatus -->
+</div>
+</div>
+<!-- Sidebar Footer: Actions -->
+<div class="mt-auto p-6 border-t border-surface-100 bg-white">
+<div class="flex flex-col gap-3">
+<button class="w-full h-11 rounded-lg text-sm font-bold bg-white border border-surface-200 text-surface-600 hover:bg-surface-50 transition-all flex items-center justify-center gap-2">
+<i class="fas fa-redo-alt"></i>
+            重新生成
+          </button>
+<button class="w-full h-11 rounded-xl text-sm font-bold text-white bg-primary hover:bg-primaryHover shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all flex items-center justify-center gap-2">
+<i class="fas fa-file-download"></i>
+            下载标书
+          </button>
+</div>
+</div>
+</aside>
+<!-- END: RightSidebar -->
+</main>
+<!-- END: MainWorkspace -->
+<script src="./static-links.js"></script>
+</body></html>
+
+====================================================================================================
+文件：verification.html
+====================================================================================================
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>AI投标系统 - 标书核验</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          primary: '#2563eb',
+          primaryHover: '#1d4ed8',
+          surface: {
+            50: '#f8fafc',
+            100: '#f1f5f9',
+            200: '#e2e8f0',
+            300: '#cbd5e1',
+            400: '#94a3b8',
+            500: '#64748b',
+            600: '#475569',
+            700: '#334155',
+            800: '#1e293b',
+            900: '#0f172a'
+          }
+        }
+      }
+    }
+  }
+</script>
+<style>
+  * { font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  body { min-width: 1220px; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: #f1f5f9; }
+  ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+  .doc-page { box-shadow: 0 4px 20px -2px rgba(0,0,0,.1); aspect-ratio: 1 / 1.414; }
+</style>
+</head>
+<body class="bg-surface-100 h-screen flex flex-col text-surface-700 antialiased overflow-hidden">
+<header class="h-14 bg-white border-b border-surface-200 flex items-center justify-between px-6 shrink-0 z-30">
+  <div class="flex items-center gap-3 cursor-pointer" id="goHome">
+    <div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+      <i class="fas fa-file-signature text-white text-sm"></i>
+    </div>
+    <span class="font-bold text-surface-800 text-lg tracking-tight">AI投标系统</span>
+  </div>
+  <div class="absolute left-1/2 -translate-x-1/2 text-sm font-bold text-primary">标书核验</div>
+  <div class="flex items-center gap-4">
+    <button class="w-9 h-9 rounded-lg hover:bg-surface-100 flex items-center justify-center text-surface-500 transition-colors">
+      <i class="fas fa-bell"></i>
+    </button>
+    <button class="w-9 h-9 rounded-lg hover:bg-surface-100 flex items-center justify-center text-surface-500 transition-colors">
+      <i class="fas fa-question-circle"></i>
+    </button>
+    <div class="h-6 w-px bg-surface-200 mx-2"></div>
+    <div class="flex items-center gap-3">
+      <div class="text-right">
+        <p class="text-xs font-medium text-surface-800">张工</p>
+        <p class="text-[10px] text-surface-400">高级商务经理</p>
+      </div>
+      <div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
+        <i class="fas fa-user text-primary text-xs"></i>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="flex-1 flex overflow-hidden">
+  <aside class="w-80 bg-white border-r border-surface-200 shrink-0 flex flex-col overflow-hidden">
+    <div class="p-6 border-b border-surface-100">
+      <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-50 text-green-700 text-xs font-bold mb-3">
+        <i class="fas fa-check-circle"></i>项目已解析
+      </span>
+      <h1 class="text-lg font-bold text-surface-900 leading-snug mb-3">2024年城市轨道交通信号系统升级改造工程</h1>
+      <div class="flex items-center gap-2 text-xs text-surface-500">
+        <span>招标编号：CT-2024-0614</span>
+        <span class="w-1 h-1 rounded-full bg-surface-300"></span>
+        <span>截止：06-28 17:30</span>
+      </div>
+    </div>
+    <div class="p-6 border-b border-surface-100 space-y-3">
+      <div class="flex items-center gap-3 p-3 rounded-xl border border-surface-200">
+        <i class="far fa-file-pdf text-primary text-xl"></i>
+        <div>
+          <p class="text-sm font-bold text-surface-800">招标文件.pdf</p>
+          <p class="text-xs text-surface-500">28.3 MB，已解析</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3 p-3 rounded-xl border border-surface-200" id="bidFile">
+        <i class="far fa-file-word text-primary text-xl"></i>
+        <div>
+          <p class="text-sm font-bold text-surface-800">投标文件.docx</p>
+          <p class="text-xs text-surface-500">96 页，待核验</p>
+        </div>
+      </div>
+      <div class="rounded-xl border border-dashed border-blue-200 bg-blue-50/40 p-4">
+        <p class="text-xs text-surface-600 leading-relaxed mb-3">上传最终版标书后，系统会对照招标文件重新核验格式、响应、材料和报价。</p>
+        <button id="uploadBid" class="w-full h-10 rounded-lg bg-white border border-surface-200 text-sm font-bold text-surface-700 hover:bg-surface-50 transition-colors">
+          <i class="fas fa-upload mr-1"></i>上传标书
+        </button>
+      </div>
+    </div>
+    <div class="p-6 space-y-4">
+      <div class="flex items-start gap-3">
+        <div class="w-8 h-8 rounded-full bg-green-500 text-white flex items-center justify-center"><i class="fas fa-check text-xs"></i></div>
+        <div><p class="text-sm font-bold text-surface-800">招标文件解析</p><p class="text-xs text-surface-500">已抽取 52 条核验规则</p></div>
+      </div>
+      <div class="flex items-start gap-3">
+        <div class="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center"><i class="fas fa-shield-alt text-xs"></i></div>
+        <div><p class="text-sm font-bold text-surface-800">标书核验</p><p class="text-xs text-surface-500">独立核验投标文件</p></div>
+      </div>
+      <div class="flex items-start gap-3">
+        <div class="w-8 h-8 rounded-full bg-green-500 text-white flex items-center justify-center"><i class="fas fa-file-export text-xs"></i></div>
+        <div><p class="text-sm font-bold text-surface-800">核验报告</p><p class="text-xs text-surface-500">导出问题清单和修订建议</p></div>
+      </div>
+    </div>
+    <div class="mt-auto p-6 border-t border-surface-100 bg-white space-y-3">
+      <button id="runVerify" class="w-full h-11 rounded-xl text-sm font-bold text-white bg-primary hover:bg-primaryHover shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all">
+        <i class="fas fa-shield-alt mr-1"></i>开始核验
+      </button>
+      <button id="exportReport" class="w-full h-11 rounded-lg text-sm font-bold bg-white border border-surface-200 text-surface-600 hover:bg-surface-50 transition-all">
+        <i class="fas fa-file-export mr-1"></i>导出核验报告
+      </button>
+    </div>
+  </aside>
+
+  <section class="flex-1 min-w-0 overflow-y-auto p-6">
+    <div class="flex items-start justify-between mb-5">
+      <div>
+        <h2 class="text-2xl font-bold text-surface-900 mb-1">标书核验</h2>
+        <p class="text-sm text-surface-500">对照招标文件自动检查硬性条款、材料完整性、格式规范和报价一致性。</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <button id="locateFirst" class="h-10 px-4 rounded-lg border border-surface-200 bg-white text-sm font-bold text-surface-700 hover:bg-surface-50">
+          <i class="fas fa-crosshairs mr-1"></i>定位首个问题
+        </button>
+        <button id="rerunVerify" class="h-10 px-4 rounded-lg bg-primary text-white text-sm font-bold hover:bg-primaryHover">
+          <i class="fas fa-wand-magic-sparkles mr-1"></i>重新核验
+        </button>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-5 gap-4 mb-5">
+      <div class="bg-white rounded-xl border border-surface-200 p-5"><strong id="score" class="block text-3xl text-primary font-bold">86</strong><span class="text-xs text-surface-500">综合通过分</span></div>
+      <div class="bg-white rounded-xl border border-surface-200 p-5"><strong class="block text-3xl text-red-600 font-bold">3</strong><span class="text-xs text-surface-500">必须修复</span></div>
+      <div class="bg-white rounded-xl border border-surface-200 p-5"><strong class="block text-3xl text-amber-600 font-bold">5</strong><span class="text-xs text-surface-500">建议确认</span></div>
+      <div class="bg-white rounded-xl border border-surface-200 p-5"><strong class="block text-3xl text-green-600 font-bold">42</strong><span class="text-xs text-surface-500">已通过规则</span></div>
+      <div class="bg-white rounded-xl border border-surface-200 p-5"><strong class="block text-3xl text-surface-900 font-bold">52</strong><span class="text-xs text-surface-500">核验规则总数</span></div>
+    </div>
+
+    <div class="grid grid-cols-[0.78fr_1fr] gap-5">
+      <section class="bg-white rounded-xl border border-surface-200 overflow-hidden">
+        <div class="h-14 px-5 border-b border-surface-100 flex items-center justify-between">
+          <h3 class="text-base font-bold text-surface-900">核验维度</h3>
+          <div class="flex gap-2"><span class="text-xs font-bold text-primary bg-blue-50 border border-blue-200 px-3 py-1 rounded-full">规则</span><span class="text-xs font-bold text-surface-500 bg-white border border-surface-200 px-3 py-1 rounded-full">比对</span></div>
+        </div>
+        <div class="p-5 space-y-3">
+          <div class="grid grid-cols-[36px_1fr_auto] items-center gap-3 p-3 rounded-xl border border-surface-200">
+            <span class="w-9 h-9 rounded-lg bg-red-50 text-red-600 flex items-center justify-center"><i class="fas fa-triangle-exclamation"></i></span>
+            <div><p class="text-sm font-bold text-surface-800">资格材料完整性</p><p class="text-xs text-surface-500">营业执照、资质证书、授权书、承诺函</p></div>
+            <span class="text-xs font-bold text-red-600 bg-red-50 px-2.5 py-1 rounded-full">2 项缺失</span>
+          </div>
+          <div class="grid grid-cols-[36px_1fr_auto] items-center gap-3 p-3 rounded-xl border border-surface-200">
+            <span class="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center"><i class="fas fa-circle-exclamation"></i></span>
+            <div><p class="text-sm font-bold text-surface-800">实质性条款响应</p><p class="text-xs text-surface-500">工期、质保、付款、违约责任</p></div>
+            <span class="text-xs font-bold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full">3 项待确认</span>
+          </div>
+          <div class="grid grid-cols-[36px_1fr_auto] items-center gap-3 p-3 rounded-xl border border-surface-200">
+            <span class="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center"><i class="fas fa-table-list"></i></span>
+            <div><p class="text-sm font-bold text-surface-800">报价一致性</p><p class="text-xs text-surface-500">报价表、投标函、分项清单金额比对</p></div>
+            <span class="text-xs font-bold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full">1 处差异</span>
+          </div>
+          <div class="grid grid-cols-[36px_1fr_auto] items-center gap-3 p-3 rounded-xl border border-surface-200">
+            <span class="w-9 h-9 rounded-lg bg-green-50 text-green-600 flex items-center justify-center"><i class="fas fa-circle-check"></i></span>
+            <div><p class="text-sm font-bold text-surface-800">格式与签章要求</p><p class="text-xs text-surface-500">封面、页码、目录、签字盖章位置</p></div>
+            <span class="text-xs font-bold text-green-600 bg-green-50 px-2.5 py-1 rounded-full">已通过</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="bg-surface-200/70 rounded-xl border border-surface-200 overflow-hidden">
+        <div class="h-14 px-5 bg-white border-b border-surface-200 flex items-center justify-between">
+          <div class="text-sm font-bold text-surface-700">投标文件.docx <span class="text-surface-300 mx-1">•</span> 第 18 页，投标函</div>
+          <div class="flex gap-2 text-surface-500"><i class="fas fa-minus"></i><i class="fas fa-plus"></i><i class="fas fa-expand"></i></div>
+        </div>
+        <div class="p-8 flex justify-center overflow-auto max-h-[690px]">
+          <article class="doc-page w-[620px] min-w-[620px] bg-white p-16">
+            <h2 class="text-3xl font-bold text-center text-black mb-12 tracking-widest">投 标 函</h2>
+            <div class="space-y-6 text-sm text-surface-800 leading-relaxed text-justify">
+              <p class="font-bold">致：XX市政府采购中心</p>
+              <p>我方已仔细研究了《城市轨道交通信号系统升级改造工程》招标文件的全部内容，愿意以人民币（大写）壹仟贰佰万元整（<mark class="bg-red-100 rounded px-1">¥12,000,000.00</mark>）的投标总报价完成本项目。</p>
+              <p>一、我方承诺投标有效期为 <mark class="bg-blue-100 rounded px-1">90 天</mark>，在投标有效期内遵守招标文件约定。</p>
+              <p>二、我方承诺项目实施周期为 <mark class="bg-amber-100 rounded px-1">210 日历天</mark>，具体实施计划详见第二章。</p>
+              <p>三、我方承诺所递交的投标文件及有关资料内容完整、真实和准确。随本投标文件提交投标保证金，金额为人民币拾万元整。</p>
+            </div>
+          </article>
+        </div>
+      </section>
+    </div>
+  </section>
+
+  <aside class="w-[380px] bg-white border-l border-surface-200 shrink-0 flex flex-col overflow-hidden">
+    <div class="p-5 border-b border-surface-100">
+      <h3 class="text-base font-bold text-surface-900 mb-4">问题清单</h3>
+      <div class="flex gap-2"><span class="text-xs font-bold text-primary bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-full">全部 8</span><span class="text-xs font-bold text-surface-600 bg-white border border-surface-200 px-3 py-1.5 rounded-full">必须修复 3</span><span class="text-xs font-bold text-surface-600 bg-white border border-surface-200 px-3 py-1.5 rounded-full">建议确认 5</span></div>
+    </div>
+    <div class="flex-1 overflow-y-auto p-4 space-y-3">
+      <button class="w-full text-left rounded-xl border border-blue-300 bg-blue-50/30 p-4 shadow-sm">
+        <div class="flex justify-between mb-2"><span class="text-xs font-bold text-red-600 bg-red-50 px-2 py-1 rounded-full"><i class="fas fa-triangle-exclamation mr-1"></i>必须修复</span><span class="text-xs text-surface-500">P18</span></div>
+        <p class="text-sm font-bold text-surface-900 mb-2">投标函总价与报价汇总表不一致</p>
+        <p class="text-xs text-surface-500">投标函写明 ¥12,000,000.00，报价汇总表识别为 ¥12,060,000.00。</p>
+      </button>
+      <button class="w-full text-left rounded-xl border border-surface-200 bg-white p-4">
+        <div class="flex justify-between mb-2"><span class="text-xs font-bold text-red-600 bg-red-50 px-2 py-1 rounded-full"><i class="fas fa-triangle-exclamation mr-1"></i>必须修复</span><span class="text-xs text-surface-500">P41</span></div>
+        <p class="text-sm font-bold text-surface-900 mb-2">资格材料缺少安全生产许可证</p>
+        <p class="text-xs text-surface-500">系统未在资格证明章节中检测到有效证书附件。</p>
+      </button>
+      <button class="w-full text-left rounded-xl border border-surface-200 bg-white p-4">
+        <div class="flex justify-between mb-2"><span class="text-xs font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-full"><i class="fas fa-circle-exclamation mr-1"></i>建议确认</span><span class="text-xs text-surface-500">P18</span></div>
+        <p class="text-sm font-bold text-surface-900 mb-2">项目工期与招标要求存在差异</p>
+        <p class="text-xs text-surface-500">实施计划章节和投标函均出现 210 日历天。</p>
+      </button>
+    </div>
+    <div class="p-4 border-t border-surface-100 bg-white grid grid-cols-2 gap-3">
+      <button class="h-10 rounded-lg border border-surface-200 bg-white text-sm font-bold text-surface-700">标记已处理</button>
+      <button id="locateOriginal" class="h-10 rounded-lg bg-primary text-white text-sm font-bold">定位原文</button>
+    </div>
+  </aside>
+</main>
+
+<script>
+  const flash = (message) => {
+    const node = document.createElement('div');
+    node.textContent = message;
+    node.className = 'fixed right-6 bottom-6 z-50 px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm font-bold shadow-lg';
+    document.body.appendChild(node);
+    setTimeout(() => node.remove(), 1800);
+  };
+  document.getElementById('goHome').addEventListener('click', () => window.location.href = './home.html');
+  document.getElementById('uploadBid').addEventListener('click', () => {
+    document.getElementById('bidFile').classList.add('bg-blue-50', 'border-blue-200');
+    flash('标书已上传，可以开始核验');
+  });
+  document.getElementById('runVerify').addEventListener('click', () => {
+    document.getElementById('score').textContent = '88';
+    flash('核验完成，综合通过分更新为 88');
+  });
+  document.getElementById('rerunVerify').addEventListener('click', () => {
+    document.getElementById('score').textContent = '88';
+    flash('重新核验完成');
+  });
+  document.getElementById('exportReport').addEventListener('click', () => flash('已生成核验报告'));
+  document.getElementById('locateFirst').addEventListener('click', () => flash('已定位到投标函报价位置'));
+  document.getElementById('locateOriginal').addEventListener('click', () => flash('已定位到原文高亮'));
+</script>
+<script src="./static-links.js"></script>
+</body>
+</html>

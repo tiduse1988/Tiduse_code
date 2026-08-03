@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AI投标系统 - 生成标书</title>
+<!-- BEGIN: External Resources -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<!-- END: External Resources -->
+<script data-purpose="tailwind-config">
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#2563eb',
+            primaryHover: '#1d4ed8',
+            surface: {
+              50: '#f8fafc',
+              100: '#f1f5f9',
+              200: '#e2e8f0',
+              300: '#cbd5e1',
+              400: '#94a3b8',
+              500: '#64748b',
+              600: '#475569',
+              700: '#334155',
+              800: '#1e293b',
+              900: '#0f172a',
+            }
+          }
+        }
+      }
+    }
+  </script>
+<style data-purpose="global-styles">
+    * {
+      font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    body {
+      min-width: 1220px;
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+  </style>
+<style data-purpose="component-styles">
+    .doc-page {
+      box-shadow: 0 10px 28px -16px rgba(15, 23, 42, 0.45);
+      align-self: flex-start;
+      display: block !important;
+      width: 794px;
+      min-height: 1123px;
+      height: max-content;
+      position: relative;
+      padding: 72px 84px 76px;
+    }
+    .doc-page-footer {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 28px;
+      text-align: center;
+      color: #64748b;
+      font-size: 12px;
+    }
+    .doc-pages {
+      width: 100%;
+    }
+    .generation-bar {
+      position: relative;
+      overflow: hidden;
+    }
+    .generation-bar.is-running::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      width: 42%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, transparent, rgba(37, 99, 235, 0.8), transparent);
+      animation: generation-running 1.2s ease-in-out infinite;
+    }
+    @keyframes generation-running {
+      from {
+        transform: translateX(-110%);
+      }
+      to {
+        transform: translateX(260%);
+      }
+    }
+    .tooltip {
+      position: relative;
+    }
+    .tooltip::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 4px 8px;
+      background: #1e293b;
+      color: white;
+      font-size: 11px;
+      border-radius: 4px;
+      white-space: nowrap;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.2s ease;
+      margin-bottom: 6px;
+      z-index: 50;
+    }
+    .tooltip:hover::after {
+      opacity: 1;
+      visibility: visible;
+    }
+  </style>
+</head>
+<body class="bg-surface-100 h-screen flex flex-col text-surface-700 antialiased overflow-hidden">
+<!-- BEGIN: TopNavigation -->
+<header class="h-14 bg-white border-b border-surface-200 flex items-center justify-between px-6 shrink-0 z-30">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+<i class="fas fa-file-signature text-white text-sm"></i>
+</div>
+<span class="font-bold text-surface-800 text-lg tracking-tight">AI投标系统</span>
+</div>
+<div class="absolute left-1/2 -translate-x-1/2 flex items-center gap-4">
+<div class="flex items-center gap-2">
+<div class="w-7 h-7 rounded-full bg-green-500 text-white flex items-center justify-center text-xs">
+<i class="fas fa-check"></i>
+</div>
+<div>
+<p class="text-xs font-bold text-surface-700">1 生成目录</p>
+<p class="text-[10px] text-surface-400">规划标书大纲结构</p>
+</div>
+</div>
+<div class="w-12 h-px bg-surface-200"></div>
+<div class="flex items-center gap-2">
+<div class="w-7 h-7 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold ring-4 ring-primary/15">2</div>
+<div>
+<p class="text-xs font-bold text-primary">2 生成标书</p>
+<p class="text-[10px] text-surface-400">AI自动填充内容</p>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="w-9 h-9 rounded-lg hover:bg-surface-100 flex items-center justify-center text-surface-500 transition-colors">
+<i class="fas fa-bell"></i>
+</button>
+<button class="w-9 h-9 rounded-lg hover:bg-surface-100 flex items-center justify-center text-surface-500 transition-colors">
+<i class="fas fa-question-circle"></i>
+</button>
+<div class="h-6 w-px bg-surface-200 mx-2"></div>
+<div class="flex items-center gap-3 py-2 cursor-default" data-user-menu aria-label="当前用户">
+<div class="text-right">
+<p class="text-xs font-medium text-surface-800">张工</p>
+<p class="text-[10px] text-surface-400">高级商务经理</p>
+</div>
+<div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
+<i class="fas fa-user text-primary text-xs"></i>
+</div>
+</div>
+</div>
+</header>
+<!-- END: TopNavigation -->
+<!-- BEGIN: MainWorkspace -->
+<main class="flex-1 flex overflow-hidden">
+<!-- BEGIN: DocumentOutline -->
+<aside class="w-72 bg-white border-r border-surface-200 shrink-0 flex flex-col overflow-hidden">
+<div class="h-16 px-5 flex items-center justify-between border-b border-surface-100">
+<h2 class="text-lg font-bold text-surface-800">目录</h2>
+<div class="flex items-center gap-2">
+<button class="w-8 h-8 rounded-lg border border-surface-200 hover:bg-surface-50 flex items-center justify-center text-surface-600 transition-colors">
+<i class="fas fa-search text-sm"></i>
+</button>
+<button class="w-8 h-8 rounded-lg border border-surface-200 hover:bg-surface-50 flex items-center justify-center text-surface-600 transition-colors">
+<i class="fas fa-chevron-down text-xs"></i>
+</button>
+<button class="w-8 h-8 rounded-lg border border-surface-200 hover:bg-surface-50 flex items-center justify-center text-surface-600 transition-colors">
+<i class="fas fa-chevron-up text-xs"></i>
+</button>
+<button class="w-8 h-8 rounded-lg border border-surface-200 hover:bg-surface-50 flex items-center justify-center text-surface-600 transition-colors">
+<i class="fas fa-bars text-xs"></i>
+</button>
+</div>
+</div>
+<nav class="flex-1 overflow-y-auto px-5 py-4 text-sm">
+<div class="space-y-3">
+<div class="rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-700">
+正在读取上一步生成的目录...
+</div>
+</div>
+</nav>
+</aside>
+<!-- END: DocumentOutline -->
+<!-- BEGIN: DocumentContentArea -->
+<div class="flex-1 flex flex-col items-center py-6 px-8 overflow-hidden bg-surface-100">
+<div class="w-full max-w-4xl flex-1 flex flex-col bg-white rounded-xl shadow-lg border border-surface-200 overflow-hidden">
+<!-- BEGIN: DocumentPreview -->
+<div class="flex-1 overflow-y-auto p-12 bg-surface-200/50 flex justify-center" data-document-preview>
+<div class="doc-page bg-white">
+<div class="min-h-[720px] flex flex-col items-center justify-center text-center">
+<div class="w-16 h-16 rounded-2xl bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/20 mb-5">
+<i class="fas fa-wand-magic-sparkles text-2xl"></i>
+</div>
+<h1 class="text-2xl font-bold text-surface-900 mb-3">投标文件正在生成中</h1>
+<p class="max-w-xl text-sm leading-7 text-surface-500">系统将读取上一步已确认的目录，并调用 DeepSeek 撰写技术部分正文。</p>
+<p class="mt-2 max-w-xl text-sm leading-7 text-surface-400">商务资质、证照、业绩等材料不会编造，只保留目录等待投标人补充。</p>
+<div class="mt-8 w-72 h-2 rounded-full bg-surface-100 overflow-hidden generation-bar is-running"></div>
+</div>
+</div>
+</div>
+<!-- END: DocumentPreview -->
+</div>
+</div>
+<!-- END: DocumentContentArea -->
+<!-- BEGIN: RightSidebar -->
+<aside class="w-80 bg-white border-l border-surface-200 flex flex-col shrink-0 overflow-y-auto z-20">
+<!-- Sidebar Body: Project Metadata -->
+<div class="p-6 space-y-6">
+<div>
+<h3 class="text-xs font-bold text-surface-400 uppercase tracking-widest mb-4">项目信息</h3>
+<div class="bg-surface-50 rounded-xl p-4 border border-surface-100 space-y-4">
+<div>
+<p class="text-[10px] text-surface-400 mb-1">项目名称</p>
+<p class="text-xs font-bold text-surface-800 leading-relaxed">正在读取项目信息</p>
+</div>
+<div class="flex justify-between">
+<div>
+<p class="text-[10px] text-surface-400 mb-1">最后保存</p>
+<p class="text-xs font-medium text-surface-600">14:55:12</p>
+</div>
+<div>
+<p class="text-[10px] text-surface-400 mb-1">文档状态</p>
+<span class="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium">生成完成</span>
+</div>
+</div>
+</div>
+</div>
+<div>
+<h3 class="text-xs font-bold text-surface-400 uppercase tracking-widest mb-4">生成状态</h3>
+<!-- BEGIN: GenerationStatus -->
+<div class="bg-surface-50 rounded-xl p-4 border border-surface-100 space-y-4" data-purpose="generation-status">
+<div class="flex items-center gap-3">
+<div class="w-9 h-9 rounded-full bg-surface-300 text-white flex items-center justify-center shrink-0">
+<i class="fas fa-clock text-sm"></i>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center justify-between mb-1.5">
+<span class="text-xs font-bold text-surface-800">标书内容待生成</span>
+<span class="text-xs font-medium text-surface-500">未开始</span>
+</div>
+<div class="w-full bg-white h-2 rounded-full overflow-hidden">
+<div class="bg-surface-300 h-full w-0"></div>
+</div>
+<p class="mt-2 text-[10px] text-surface-400">等待生成</p>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-3 pt-3 border-t border-surface-100">
+<div>
+<p class="text-[10px] text-surface-400 mb-1">章节数</p>
+<p class="text-sm font-bold text-surface-800">-</p>
+</div>
+<div>
+<p class="text-[10px] text-surface-400 mb-1">文件页数</p>
+<p class="text-sm font-bold text-surface-800">-</p>
+</div>
+</div>
+</div>
+<!-- END: GenerationStatus -->
+</div>
+</div>
+<!-- Sidebar Footer: Actions -->
+<div class="mt-auto p-6 border-t border-surface-100 bg-white">
+<div class="flex flex-col gap-3">
+<button class="w-full h-11 rounded-lg text-sm font-bold bg-white border border-surface-200 text-primary hover:bg-blue-50 transition-all flex items-center justify-center gap-2" data-purpose="regenerate-outline">
+<i class="fas fa-list-check"></i>
+            重新生成目录
+          </button>
+<button class="w-full h-11 rounded-lg text-sm font-bold bg-white border border-surface-200 text-surface-600 hover:bg-surface-50 transition-all flex items-center justify-center gap-2" data-purpose="regenerate-bid">
+<i class="fas fa-redo-alt"></i>
+            重新生成标书
+          </button>
+<button class="w-full h-11 rounded-xl text-sm font-bold text-white bg-primary hover:bg-primaryHover shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all flex items-center justify-center gap-2" data-purpose="download-bid">
+<i class="fas fa-file-download"></i>
+            下载标书
+          </button>
+</div>
+</div>
+</aside>
+<!-- END: RightSidebar -->
+</main>
+<!-- END: MainWorkspace -->
+<script src="./business-logic.js"></script>
+<script src="./static-links.js"></script>
+</body></html>

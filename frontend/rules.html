@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能投标系统 - 核验规则设置</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Noto Sans SC', sans-serif; background: #f8f9fa; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .modal-backdrop { background: rgba(15, 23, 42, .42); }
+        .table-wrap { max-height: calc(100vh - 330px); min-height: 420px; overflow: auto; }
+        .rule-table th { position: sticky; top: 0; z-index: 1; background: #f8fafc; }
+    </style>
+</head>
+<body class="min-w-[1180px] text-slate-800">
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-40">
+        <div class="w-[1220px] mx-auto px-6 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <a href="./home.html" class="flex items-center gap-3 text-slate-900">
+                    <span class="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center"><i class="fas fa-file-contract text-white text-sm"></i></span>
+                    <span class="text-lg font-bold">智能投标系统</span>
+                </a>
+                <span class="text-xs text-slate-400 bg-slate-100 rounded-full px-2 py-1">核验规则设置</span>
+            </div>
+            <div class="flex items-center gap-4">
+                <a href="./home.html" class="px-3 py-2 text-sm text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg"><i class="fas fa-arrow-left mr-1"></i>返回项目列表</a>
+                <div class="flex items-center gap-3 pl-4 border-l border-slate-200">
+                    <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center"><span class="text-blue-700 font-semibold text-sm">张</span></div>
+                    <div class="text-sm"><p class="font-medium text-slate-900">张工</p><p class="text-xs text-slate-400">高级标书专员</p></div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="w-[1220px] mx-auto px-6 py-7">
+        <div class="flex items-start justify-between mb-6">
+            <div><h1 class="text-2xl font-bold text-slate-900">核验规则设置</h1><p class="text-sm text-slate-500 mt-2">配置标书核验时使用的检查标准。这里编辑的是易读规则，系统会自动转换为 AI 使用的结构化数据。</p></div>
+            <button id="addRule" class="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg"><i class="fas fa-plus mr-2"></i>新增规则</button>
+        </div>
+        <div class="mb-6 bg-white border border-slate-200 rounded-xl px-5 py-4 text-sm leading-6 text-slate-600">
+            <span class="font-semibold text-slate-800">处理结果分级：</span>
+            <span class="text-red-600">废标风险</span>表示可能直接导致投标无效；
+            <span class="text-rose-600">必须修复</span>表示提交前必须补齐或改正；
+            <span class="text-blue-600">影响评分</span>表示可能导致评分扣分；
+            <span class="text-amber-600">建议确认</span>表示需要人工结合原件或上下文判断；
+            <span class="text-slate-500">提示</span>表示规范性提醒。项目编号、项目名称等关键身份信息不一致，统一按废标风险处理。
+        </div>
+
+        <section class="grid grid-cols-4 gap-4 mb-6">
+            <div class="bg-white border border-slate-200 rounded-xl p-5"><p class="text-sm text-slate-500">规则总数</p><p id="totalCount" class="text-2xl font-bold mt-2">0</p></div>
+            <div class="bg-white border border-slate-200 rounded-xl p-5"><p class="text-sm text-slate-500">启用中</p><p id="enabledCount" class="text-2xl font-bold text-emerald-600 mt-2">0</p></div>
+            <div class="bg-white border border-slate-200 rounded-xl p-5"><p class="text-sm text-slate-500">影响评分</p><p id="scoreCount" class="text-2xl font-bold text-blue-600 mt-2">0</p></div>
+            <div class="bg-white border border-slate-200 rounded-xl p-5"><p class="text-sm text-slate-500">高风险规则</p><p id="highRiskCount" class="text-2xl font-bold text-red-600 mt-2">0</p></div>
+        </section>
+
+        <section class="bg-white border border-slate-200 rounded-xl shadow-sm">
+            <div class="p-4 border-b border-slate-200 flex items-center gap-3">
+                <div class="relative flex-1 max-w-sm"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i><input id="search" class="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-blue-500" placeholder="搜索规则名称或说明"></div>
+                <select id="categoryFilter" class="px-3 py-2 border border-slate-200 rounded-lg text-sm"><option value="">全部分类</option><option>招标文件关键内容检查</option><option>文件格式检查</option><option>盖章信息完整性核查</option><option>废标项审核</option><option>标书文件完整性检查</option></select>
+                <select id="resultFilter" class="px-3 py-2 border border-slate-200 rounded-lg text-sm"><option value="">全部处理结果</option><option>必须修复</option><option>影响评分</option><option>建议确认</option><option>提示</option><option>废标风险</option></select>
+                <select id="statusFilter" class="px-3 py-2 border border-slate-200 rounded-lg text-sm"><option value="">全部状态</option><option value="enabled">启用中</option><option value="disabled">已停用</option></select>
+            </div>
+            <div class="table-wrap"><table class="w-full text-sm rule-table"><thead><tr class="text-left text-slate-500"><th class="px-5 py-3 w-44">规则名称</th><th class="px-4 py-3 w-40">分类</th><th class="px-4 py-3 min-w-[320px]">判定标准</th><th class="px-4 py-3 min-w-[260px]">特殊要求 / 注意事项</th><th class="px-4 py-3 w-28">处理结果</th><th class="px-4 py-3 w-24">状态</th><th class="px-4 py-3 w-36">操作</th></tr></thead><tbody id="ruleRows"></tbody></table></div>
+        </section>
+        <p id="notice" class="fixed bottom-6 right-8 hidden px-4 py-3 bg-slate-900 text-white text-sm rounded-lg shadow-lg"></p>
+    </main>
+
+    <div id="modal" class="hidden fixed inset-0 z-50 modal-backdrop items-center justify-center p-6">
+        <div class="bg-white rounded-xl shadow-2xl w-[720px] max-h-[90vh] overflow-auto">
+            <div class="px-6 py-4 border-b border-slate-200 flex justify-between items-center"><div><h2 id="modalTitle" class="text-lg font-bold">新增核验规则</h2><p class="text-xs text-slate-400 mt-1">填写用户可读的规则内容，系统自动生成 AI 规则数据。</p></div><button id="closeModal" class="text-slate-400 hover:text-slate-700"><i class="fas fa-times text-lg"></i></button></div>
+            <form id="ruleForm" class="p-6 grid grid-cols-2 gap-4">
+                <input type="hidden" id="ruleId">
+                <label class="text-sm font-medium">规则名称<input id="name" required class="field" placeholder="例如：投标函完整性"></label>
+                <label class="text-sm font-medium">规则分类<select id="category" class="field"><option>招标文件关键内容检查</option><option>文件格式检查</option><option>盖章信息完整性核查</option><option>废标项审核</option><option>标书文件完整性检查</option></select></label>
+                <label class="text-sm font-medium">处理结果<select id="resultType" class="field"><option>必须修复</option><option>影响评分</option><option>建议确认</option><option>提示</option><option>废标风险</option></select></label>
+                <label class="text-sm font-medium">风险等级<select id="risk" class="field"><option>高</option><option>中</option><option>低</option></select></label>
+                <label class="text-sm font-medium">规则状态<select id="status" class="field"><option value="enabled">启用中</option><option value="disabled">已停用</option></select></label>
+                <label class="col-span-2 text-sm font-medium">规则说明<textarea id="description" required class="field min-h-[72px]" placeholder="说明这条规则要检查什么"></textarea></label>
+                <label class="col-span-2 text-sm font-medium">判定标准<textarea id="criteria" required class="field min-h-[88px]" placeholder="满足什么条件算通过，什么情况需要提示"></textarea></label>
+                <label class="col-span-2 text-sm font-medium">特殊要求 / 注意事项<textarea id="notes" class="field min-h-[72px]" placeholder="填写该规则的识别边界、特殊处理或注意事项"></textarea></label>
+                <label class="col-span-2 text-sm font-medium">修改建议<textarea id="suggestion" class="field min-h-[72px]" placeholder="发现问题后给投标人的建议"></textarea></label>
+                <div id="scoreFields" class="col-span-2 grid grid-cols-3 gap-3 p-4 bg-blue-50 rounded-lg hidden"><label class="text-sm font-medium">评分项名称<input id="scoreName" class="field" placeholder="例如：技术方案"></label><label class="text-sm font-medium">满分值<input id="maxScore" type="number" min="0" step="0.5" class="field" placeholder="10"></label><label class="text-sm font-medium">最高扣分值<input id="maxDeduction" type="number" min="0" step="0.5" class="field" placeholder="5"></label></div>
+                <div class="col-span-2 pt-3 border-t border-slate-200 flex justify-end gap-3"><button type="button" id="cancelModal" class="px-4 py-2 border border-slate-200 rounded-lg text-sm">取消</button><button class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">保存规则</button></div>
+            </form>
+        </div>
+    </div>
+    <style>.field{display:block;width:100%;margin-top:7px;padding:9px 11px;border:1px solid #cbd5e1;border-radius:8px;font-weight:400;outline:none}.field:focus{border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,.12)}</style>
+    <script src="./verification-rules-data.js"></script>
+    <script>
+        const storageKey = 'ai_bid_verification_rules_v3';
+        const seedRules = (window.AI_BID_IMPORTED_RULES || []).map(r => ({
+            ...r,
+            description: r.notes || '按照招标文件与投标文件进行对照核验。',
+            suggestion: r.suggestion || '根据核验结果补充或修正相关内容。',
+            scoreName: r.scoreImpact ? '对应评分项' : '',
+            maxScore: r.scoreImpact ? 10 : '',
+            maxDeduction: r.scoreImpact ? 10 : ''
+        }));
+        let rules = JSON.parse(localStorage.getItem(storageKey) || 'null') || seedRules;
+        let editingId = null;
+        const $ = id => document.getElementById(id);
+        const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+        const buildAiRule = rule => ({ ruleId:rule.id, name:rule.name, category:rule.category, description:rule.description, passCriteria:rule.criteria, specialNotes:rule.notes || '', resultType:rule.resultType, riskLevel:rule.risk, scoreImpact:rule.scoreImpact, scoreItem:rule.scoreName || null, maxScore:rule.maxScore || null, maxDeduction:rule.maxDeduction || null, suggestion:rule.suggestion, enabled:rule.status === 'enabled' });
+        function save(){ localStorage.setItem(storageKey, JSON.stringify(rules)); }
+        function render(){
+            const q=$('search').value.trim().toLowerCase(), c=$('categoryFilter').value, t=$('resultFilter').value, s=$('statusFilter').value;
+            const visible=rules.filter(r=>(!q || [r.name,r.description,r.criteria].join(' ').toLowerCase().includes(q))&&(!c||r.category===c)&&(!t||r.resultType===t)&&(!s||r.status===s));
+            $('ruleRows').innerHTML=visible.map(r=>`<tr class="border-t border-slate-100 align-top"><td class="px-5 py-4 font-medium text-slate-900">${escapeHtml(r.name)}<p class="text-xs text-slate-400 mt-1">${escapeHtml(r.id)}</p></td><td class="px-4 py-4 text-slate-600">${escapeHtml(r.category)}</td><td class="px-4 py-4 text-slate-600 leading-6"><p>${escapeHtml(r.criteria)}</p><p class="text-xs text-slate-400 mt-1">${escapeHtml(r.description)}</p></td><td class="px-4 py-4 text-slate-600 leading-6">${escapeHtml(r.notes || '未设置')}</td><td class="px-4 py-4"><span class="px-2 py-1 rounded-full text-xs ${r.resultType==='废标风险'?'bg-red-50 text-red-600':r.resultType==='影响评分'?'bg-blue-50 text-blue-600':'bg-amber-50 text-amber-600'}">${escapeHtml(r.resultType)}</span></td><td class="px-4 py-4"><button data-toggle="${r.id}" class="text-xs ${r.status==='enabled'?'text-emerald-600':'text-slate-400'}">${r.status==='enabled'?'启用中':'已停用'}</button></td><td class="px-4 py-4 whitespace-nowrap"><button data-edit="${r.id}" class="text-blue-600 hover:underline mr-3">编辑</button><button data-toggle="${r.id}" class="text-slate-500 hover:underline">${r.status==='enabled'?'停用':'启用'}</button></td></tr>`).join('') || `<tr><td colspan="7" class="px-5 py-16 text-center text-slate-400">暂无匹配规则</td></tr>`;
+            $('totalCount').textContent=rules.length; $('enabledCount').textContent=rules.filter(r=>r.status==='enabled').length; $('scoreCount').textContent=rules.filter(r=>r.scoreImpact).length; $('highRiskCount').textContent=rules.filter(r=>r.risk==='高').length;
+        }
+        function openModal(rule){ editingId=rule?.id || null; $('modalTitle').textContent=rule?'编辑核验规则':'新增核验规则'; const r=rule||{name:'',category:'招标文件关键内容检查',resultType:'必须修复',risk:'中',status:'enabled',description:'',criteria:'',notes:'',suggestion:'',scoreName:'',maxScore:'',maxDeduction:''}; Object.keys(r).forEach(k=>$(k)&&($(k).value=r[k] ?? '')); $('ruleId').value=editingId||''; updateScoreFields(); $('modal').classList.remove('hidden'); $('modal').classList.add('flex'); }
+        function closeModal(){ $('modal').classList.add('hidden'); $('modal').classList.remove('flex'); }
+        function updateScoreFields(){ $('scoreFields').classList.toggle('hidden',$('resultType').value!=='影响评分'); }
+        function notice(text){ $('notice').textContent=text; $('notice').classList.remove('hidden'); setTimeout(()=>$('notice').classList.add('hidden'),2200); }
+        document.querySelectorAll('#search,#categoryFilter,#resultFilter,#statusFilter').forEach(el=>el.addEventListener('input',render));
+        $('addRule').onclick=()=>openModal(); $('closeModal').onclick=closeModal; $('cancelModal').onclick=closeModal; $('resultType').onchange=updateScoreFields;
+        $('ruleRows').addEventListener('click', e=>{ const edit=e.target.closest('[data-edit]'), toggle=e.target.closest('[data-toggle]'); if(edit) openModal(rules.find(r=>r.id===edit.dataset.edit)); if(toggle){const r=rules.find(x=>x.id===toggle.dataset.toggle); r.status=r.status==='enabled'?'disabled':'enabled'; save(); render(); notice(r.status==='enabled'?'规则已启用':'规则已停用');} });
+        $('ruleForm').onsubmit=e=>{ e.preventDefault(); const data={id:editingId||'R-'+Date.now(),name:$('name').value.trim(),category:$('category').value,resultType:$('resultType').value,risk:$('risk').value,status:$('status').value,description:$('description').value.trim(),criteria:$('criteria').value.trim(),notes:$('notes').value.trim(),suggestion:$('suggestion').value.trim(),scoreImpact:$('resultType').value==='影响评分',scoreName:$('scoreName').value.trim(),maxScore:$('maxScore').value,maxDeduction:$('maxDeduction').value}; if(editingId) rules=rules.map(r=>r.id===editingId?data:r); else rules.unshift(data); save(); render(); closeModal(); notice('规则已保存'); void buildAiRule(data); };
+        render();
+    </script>
+    <script src="./static-links.js"></script>
+</body>
+</html>

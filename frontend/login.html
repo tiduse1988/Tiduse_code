@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>登录</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+      color: #182033;
+      background:
+        radial-gradient(circle at 15% 20%, rgba(41, 116, 255, 0.18), transparent 28%),
+        radial-gradient(circle at 86% 12%, rgba(21, 184, 166, 0.16), transparent 26%),
+        linear-gradient(135deg, #f7f9ff 0%, #eef4ff 46%, #f8fbff 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 28px;
+    }
+
+    .page {
+      width: min(1040px, 100%);
+      min-height: 620px;
+      display: grid;
+      grid-template-columns: 1fr 430px;
+      background: rgba(255, 255, 255, 0.86);
+      border: 1px solid rgba(171, 186, 213, 0.7);
+      box-shadow: 0 24px 80px rgba(38, 61, 102, 0.16);
+      overflow: hidden;
+      border-radius: 22px;
+      backdrop-filter: blur(18px);
+    }
+
+    .brand {
+      padding: 54px;
+      background:
+        linear-gradient(145deg, rgba(18, 42, 86, 0.92), rgba(22, 83, 164, 0.78)),
+        url("https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1200&q=80");
+      background-size: cover;
+      background-position: center;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 20px;
+      font-weight: 800;
+    }
+
+    .logo-mark {
+      width: 40px;
+      height: 40px;
+      display: grid;
+      place-items: center;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.18);
+      border: 1px solid rgba(255, 255, 255, 0.26);
+    }
+
+    .brand h1 {
+      margin: 0 0 16px;
+      max-width: 440px;
+      font-size: 42px;
+      line-height: 1.12;
+      letter-spacing: 0;
+    }
+
+    .brand p {
+      margin: 0;
+      max-width: 420px;
+      color: rgba(255, 255, 255, 0.82);
+      font-size: 16px;
+      line-height: 1.7;
+    }
+
+    .panel {
+      position: relative;
+      padding: 58px 48px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      background:
+        linear-gradient(180deg, rgba(247, 250, 255, 0.98), rgba(255, 255, 255, 0.96));
+    }
+
+    .panel::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 5px;
+      background: linear-gradient(90deg, #1356d8, #14b8a6);
+    }
+
+    .auth-form {
+      width: 100%;
+      max-width: 360px;
+      margin: 0 auto;
+    }
+
+    .title {
+      margin-bottom: 30px;
+    }
+
+    .title h2 {
+      margin: 0 0 8px;
+      font-size: 32px;
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+
+    .title p {
+      margin: 0;
+      color: #637086;
+      font-size: 14px;
+    }
+
+    .field {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      color: #344159;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    input {
+      width: 100%;
+      height: 48px;
+      padding: 0 14px;
+      border: 1px solid #cfd8e8;
+      border-radius: 12px;
+      outline: none;
+      color: #182033;
+      background: #fbfdff;
+      font-size: 15px;
+      transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+    }
+
+    input::placeholder {
+      color: #6f7d93;
+    }
+
+    input:focus {
+      border-color: #2563eb;
+      background: #ffffff;
+      box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.14);
+    }
+
+    .password-wrap {
+      position: relative;
+    }
+
+    .password-wrap input {
+      padding-right: 72px;
+    }
+
+    .show-password {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      border: 0;
+      background: transparent;
+      color: #1356d8;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin: 4px 0 22px;
+      color: #637086;
+      font-size: 14px;
+    }
+
+    .remember {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .remember input {
+      width: 16px;
+      height: 16px;
+    }
+
+    a {
+      color: #1356d8;
+      text-decoration: none;
+      font-weight: 700;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .submit {
+      width: 100%;
+      height: 52px;
+      border: 0;
+      border-radius: 13px;
+      color: #ffffff;
+      background: linear-gradient(135deg, #1356d8, #0f7abf);
+      box-shadow: 0 14px 28px rgba(19, 86, 216, 0.24);
+      font-size: 16px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .submit:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 18px 32px rgba(19, 86, 216, 0.28);
+    }
+
+    .message {
+      min-height: 22px;
+      margin-top: 14px;
+      color: #0a7a48;
+      font-size: 14px;
+      text-align: center;
+    }
+
+    .support {
+      margin-top: 22px;
+      color: #637086;
+      font-size: 14px;
+      text-align: center;
+    }
+
+    .icp-footer {
+      position: fixed;
+      left: 50%;
+      bottom: 18px;
+      transform: translateX(-50%);
+      color: #637086;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0;
+      white-space: nowrap;
+    }
+
+    @media (max-width: 820px) {
+      body {
+        padding: 16px 16px 48px;
+      }
+
+      .page {
+        grid-template-columns: 1fr;
+        min-height: auto;
+      }
+
+      .brand {
+        min-height: 260px;
+        padding: 34px;
+      }
+
+      .brand h1 {
+        font-size: 32px;
+      }
+
+      .panel {
+        padding: 40px 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="brand">
+      <div class="logo">
+        <div class="logo-mark">AI</div>
+        <span>TenderSense AI</span>
+      </div>
+      <div>
+        <h1>智能投标系统入口</h1>
+        <p>登录后进入工作台，管理招标文件、风险识别、项目分析与团队协作。</p>
+      </div>
+    </section>
+
+    <section class="panel">
+      <form class="auth-form" id="login">
+        <div class="title">
+          <h2>欢迎回来</h2>
+          <p>请输入账号信息，继续进入智能投标工作台。</p>
+        </div>
+
+        <div class="field">
+          <label for="loginAccount">邮箱或用户名</label>
+          <input id="loginAccount" type="text" placeholder="name@company.com" required />
+        </div>
+
+        <div class="field">
+          <label for="loginPassword">密码</label>
+          <div class="password-wrap">
+            <input id="loginPassword" type="password" placeholder="请输入密码" required />
+            <button class="show-password" type="button">显示</button>
+          </div>
+        </div>
+
+        <div class="row">
+          <label class="remember"><input type="checkbox" />记住我</label>
+          <a href="#">忘记密码？</a>
+        </div>
+
+        <button class="submit" type="submit">登录</button>
+        <div class="message"></div>
+        <div class="support">个人测试用网站</div>
+      </form>
+    </section>
+  </main>
+  <div class="icp-footer">黔ICP备2026008773号-2</div>
+
+  <script>
+    document.querySelectorAll(".show-password").forEach((button) => {
+      button.addEventListener("click", () => {
+        const input = button.parentElement.querySelector("input");
+        const showing = input.type === "text";
+        input.type = showing ? "password" : "text";
+        button.textContent = showing ? "显示" : "隐藏";
+      });
+    });
+  </script>
+<script src="./business-logic.js"></script>
+<script src="./static-links.js"></script>
+</body>
+</html>

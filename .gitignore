@@ -1,35 +1,9 @@
-# Dependencies
-node_modules/
-vendor/
-
-# Build outputs
-dist/
-build/
-.next/
-out/
-coverage/
-
-# Python
-.venv/
-venv/
-__pycache__/
-*.pyc
-.pytest_cache/
-
-# Environment and secrets
 .env
-.env.*
-!.env.example
-
-# Editors and OS files
+node_modules/
+.venv/
 .DS_Store
-Thumbs.db
-.idea/
-.vscode/
-
-# Logs and caches
-*.log
-.cache/
-tmp/
-temp/
+.playwright-cli/
 output/
+outputs/
+data/db.json
+data/uploads/

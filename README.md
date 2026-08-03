@@ -1,33 +1,59 @@
-# AI投标
+# AI投标系统
 
-This project is prepared for syncing between Mac and Windows with Git.
+这是 AI 投标系统的前后端一体演示版本，包含：
 
-Repository name: `Tiduse_code`
+- 前台项目上传、招标文件解析、投标文件生成、标书核验
+- 后台首页、项目管理、账号管理
+- DeepSeek API 调用
+- Render 免费演示部署配置
 
-GitHub URL:
+## 本地启动
+
+```bash
+npm install
+npm start
+```
+
+前台：
 
 ```text
-https://github.com/tiduse1988/Tiduse_code.git
+http://localhost:8091/ai-bid/
 ```
 
-Windows clone command:
+后台：
 
-```powershell
-git clone https://github.com/tiduse1988/Tiduse_code.git
+```text
+http://localhost:8091/ai-bid/admin.html
 ```
 
-## Basic workflow
+后台默认账号：
 
-Before switching computers:
-
-```bash
-git add .
-git commit -m "Save work"
-git push
+```text
+admin / admin123
 ```
 
-After switching computers:
+## 环境变量
 
-```bash
-git pull
+参考 `.env.example`。
+
+Render 部署时需要在平台环境变量中填写：
+
+```text
+DEEPSEEK_API_KEY=你的 DeepSeek Key
+```
+
+## 免费部署
+
+Render 免费部署说明见：
+
+```text
+RENDER_DEPLOY.md
+```
+
+## 正式试用
+
+正式试用建议接 Supabase 免费数据库和文件存储，方案见：
+
+```text
+SUPABASE_PLAN.md
 ```

@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能投标系统 - 项目列表</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: #f8f9fa;
+        }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 3px;
+        }
+        
+        /* Progress bar animations */
+        @keyframes progress-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        .progress-animate {
+            animation: progress-pulse 2s ease-in-out infinite;
+        }
+        
+        /* Card hover effect */
+        .project-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .project-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+        }
+        
+        /* Upload area dashed border animation */
+        .upload-area {
+            background-image: url("data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='100%25' height='100%25' fill='none' rx='16' ry='16' stroke='%233B82F6FF' stroke-width='2' stroke-dasharray='12%2c 8' stroke-dashoffset='0' stroke-linecap='square'/%3e%3c/svg%3e");
+        }
+        
+        /* Button styles */
+        .btn-primary {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        }
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+        }
+        
+        .btn-secondary {
+            background: #f3f4f6;
+            color: #374151;
+        }
+        .btn-secondary:hover {
+            background: #e5e7eb;
+        }
+        
+        /* Progress bar colors */
+        .progress-pending { background: #e5e7eb; }
+        .progress-parsing { background: #f59e0b; }
+        .progress-complete { background: #10b981; }
+        .progress-failed { background: #ef4444; }
+    </style>
+</head>
+<body class="min-h-screen bg-gray-50">
+
+    <!-- Header -->
+    <header class="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-6 sticky top-0 z-50 relative">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                <i class="fas fa-file-signature text-white text-sm"></i>
+            </div>
+            <span class="font-bold text-gray-800 text-lg tracking-tight">AI投标系统</span>
+        </div>
+        <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-sm font-bold text-blue-700">
+            项目列表
+        </div>
+        <div class="flex items-center gap-4">
+            <a href="./rules.html" class="px-3 py-2 text-sm font-medium text-gray-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors">核验规则</a>
+            <button class="relative w-9 h-9 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-500 transition-colors" aria-label="通知">
+                <i class="fas fa-bell"></i>
+                <span class="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full"></span>
+            </button>
+            <button class="w-9 h-9 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-500 transition-colors" aria-label="帮助">
+                <i class="fas fa-question-circle"></i>
+            </button>
+            <div class="h-6 w-px bg-gray-200 mx-2"></div>
+            <div class="flex items-center gap-3 py-2 cursor-default" data-user-menu aria-label="当前用户">
+                <div class="text-right">
+                    <p class="text-xs font-medium text-gray-800">张工</p>
+                    <p class="text-[10px] text-gray-400">高级标书专员</p>
+                </div>
+                <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center border border-blue-200">
+                    <i class="fas fa-user text-blue-600 text-xs"></i>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="w-[1220px] mx-auto px-6 py-8">
+        
+        <!-- Upload Area -->
+        <div class="upload-area rounded-2xl bg-blue-50/50 py-12 mb-8 cursor-pointer hover:bg-blue-50 transition-colors group">
+            <div class="text-center">
+                <div class="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mx-auto mb-4 group-hover:shadow-md transition-shadow">
+                    <i class="fas fa-cloud-upload-alt text-3xl text-blue-500"></i>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">上传招标文件</h3>
+                <p class="text-sm text-gray-500">支持 PDF/DOCX/DOC 格式，单文件最大 50MB</p>
+            </div>
+        </div>
+
+        <!-- Project List Header -->
+        <div class="flex items-center justify-between mb-6">
+            <div>
+                <h2 class="text-xl font-bold text-gray-900">项目列表</h2>
+                <p class="text-sm text-gray-500 mt-1">正在读取项目</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <div class="relative">
+                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+                    <input type="text" placeholder="搜索项目名称..." 
+                           class="w-64 pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all">
+                </div>
+                <select class="px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer">
+                    <option>上传时间 降序</option>
+                    <option>上传时间 升序</option>
+                    <option>项目名称 A-Z</option>
+                </select>
+                <button class="p-2.5 bg-white border border-gray-200 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-colors">
+                    <i class="fas fa-list"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Project Cards Grid -->
+        <div class="grid grid-cols-3 gap-5">
+            <div class="col-span-3 rounded-xl border border-gray-100 bg-white p-8 text-center text-sm text-gray-500" data-project-loading>
+                正在读取当前账号的项目列表...
+            </div>
+        </div>
+
+    </main>
+
+<script src="./business-logic.js"></script>
+<script src="./static-links.js"></script>
+</body>
+</html>

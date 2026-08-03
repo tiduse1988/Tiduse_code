@@ -1,0 +1,981 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>后台管理 - 智能投标系统</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-width: 1180px;
+      background: #f5f7fb;
+      color: #172033;
+      font-family: "Noto Sans SC", "Microsoft YaHei", Arial, sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .topbar {
+      height: 72px;
+      background: #ffffff;
+      border-bottom: 1px solid #e5eaf3;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 32px;
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-weight: 800;
+      font-size: 20px;
+    }
+
+    .brand-mark {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      background: #2563eb;
+      color: #fff;
+      font-weight: 800;
+    }
+
+    .userbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: #64748b;
+    }
+
+    .button,
+    .download-link {
+      height: 36px;
+      padding: 0 14px;
+      border: 1px solid #d8e0ec;
+      border-radius: 8px;
+      background: #fff;
+      color: #334155;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      white-space: nowrap;
+    }
+
+    .button.primary {
+      border-color: #2563eb;
+      background: #2563eb;
+      color: #fff;
+    }
+
+    .button.danger {
+      border-color: #fecaca;
+      background: #fef2f2;
+      color: #dc2626;
+    }
+
+    .button.success {
+      border-color: #bbf7d0;
+      background: #f0fdf4;
+      color: #16a34a;
+    }
+
+    .download-link {
+      height: 32px;
+      font-size: 13px;
+    }
+
+    .download-link.available {
+      border-color: #bfdbfe;
+      color: #2563eb;
+      background: #eff6ff;
+    }
+
+    .download-link.disabled {
+      color: #94a3b8;
+      background: #f1f5f9;
+      border-color: #e2e8f0;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 220px minmax(0, 1fr);
+      min-height: calc(100vh - 72px);
+    }
+
+    .sidebar {
+      background: #ffffff;
+      border-right: 1px solid #e5eaf3;
+      padding: 18px 12px;
+      position: sticky;
+      top: 72px;
+      height: calc(100vh - 72px);
+    }
+
+    .nav-title {
+      padding: 8px 12px 12px;
+      color: #94a3b8;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .nav-button {
+      width: 100%;
+      height: 46px;
+      border: 0;
+      border-radius: 10px;
+      background: transparent;
+      color: #475569;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 12px;
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .nav-button + .nav-button {
+      margin-top: 6px;
+    }
+
+    .nav-button.active {
+      background: #eaf1ff;
+      color: #2563eb;
+    }
+
+    .nav-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      background: #f1f5f9;
+      color: inherit;
+      font-size: 13px;
+    }
+
+    .main {
+      padding: 30px 40px 48px;
+      overflow: hidden;
+    }
+
+    .shell {
+      max-width: 1320px;
+      margin: 0 auto;
+    }
+
+    .hero {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 28px;
+      line-height: 36px;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 26px;
+    }
+
+    .muted {
+      color: #64748b;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .stat-card,
+    .panel {
+      background: #fff;
+      border: 1px solid #e5eaf3;
+      border-radius: 12px;
+      box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
+    }
+
+    .stat-card {
+      padding: 18px 20px;
+    }
+
+    .stat-card strong {
+      display: block;
+      font-size: 28px;
+      line-height: 34px;
+      color: #0f172a;
+    }
+
+    .panel {
+      margin-top: 18px;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 18px 20px;
+      border-bottom: 1px solid #edf1f7;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th,
+    td {
+      padding: 13px 20px;
+      border-bottom: 1px solid #edf1f7;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: #f8fafc;
+      color: #64748b;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      height: 24px;
+      padding: 0 9px;
+      border-radius: 999px;
+      background: #eff6ff;
+      color: #2563eb;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .tag.ok {
+      background: #ecfdf5;
+      color: #059669;
+    }
+
+    .tag.warn {
+      background: #fffbeb;
+      color: #d97706;
+    }
+
+    .tag.bad {
+      background: #fef2f2;
+      color: #dc2626;
+    }
+
+    .tag.info {
+      background: #eef2ff;
+      color: #4f46e5;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .form-panel {
+      padding: 18px 20px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px 16px;
+      align-items: end;
+    }
+
+    .form-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      justify-content: flex-end;
+    }
+
+    .form-note {
+      margin: 12px 0 0;
+      color: #64748b;
+    }
+
+    .page {
+      display: none;
+    }
+
+    .page.active {
+      display: block;
+    }
+
+    .login-panel {
+      width: 420px;
+      margin: 88px auto;
+      padding: 28px;
+    }
+
+    .field {
+      margin-top: 14px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      color: #475569;
+      font-weight: 700;
+    }
+
+    input,
+    select {
+      width: 100%;
+      height: 42px;
+      border: 1px solid #d8e0ec;
+      border-radius: 8px;
+      padding: 0 12px;
+      font: inherit;
+      background: #fff;
+    }
+
+    .error {
+      margin-top: 12px;
+      color: #dc2626;
+      font-weight: 700;
+      min-height: 22px;
+    }
+
+    .modal-mask {
+      position: fixed;
+      inset: 0;
+      z-index: 60;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: rgba(15, 23, 42, 0.42);
+    }
+
+    .modal-card {
+      width: 420px;
+      background: #fff;
+      border: 1px solid #e5eaf3;
+      border-radius: 14px;
+      box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18);
+      overflow: hidden;
+    }
+
+    .modal-header {
+      padding: 18px 20px;
+      border-bottom: 1px solid #edf1f7;
+    }
+
+    .modal-body {
+      padding: 18px 20px;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      padding: 14px 20px 18px;
+      background: #f8fafc;
+      border-top: 1px solid #edf1f7;
+    }
+
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">AI</div>
+      <div>
+        <div>智能投标系统后台</div>
+        <div class="muted" style="font-size:13px;font-weight:500;">账号、项目、解析结果</div>
+      </div>
+    </div>
+    <div class="userbar">
+      <span id="adminName">未登录</span>
+      <button class="button" id="goFront">返回前台</button>
+      <button class="button" id="logout">退出</button>
+    </div>
+  </header>
+
+  <main id="loginShell">
+    <section id="loginBox" class="panel login-panel">
+      <h1>管理员登录</h1>
+      <p class="muted">仅管理员可查看全部账号、项目和后台数据。</p>
+      <div class="field">
+        <label for="account">账号</label>
+        <input id="account" value="admin" autocomplete="username" />
+      </div>
+      <div class="field">
+        <label for="password">密码</label>
+        <input id="password" value="admin123" type="password" autocomplete="current-password" />
+      </div>
+      <div class="error" id="error"></div>
+      <button class="button primary" id="login" style="width:100%;margin-top:8px;">登录后台</button>
+    </section>
+  </main>
+
+  <section id="adminApp" class="layout hidden">
+    <aside class="sidebar">
+      <div class="nav-title">后台目录</div>
+      <button class="nav-button active" data-page="homePage">
+        <span class="nav-icon">首</span>
+        <span>首页</span>
+      </button>
+      <button class="nav-button" data-page="projectsPage">
+        <span class="nav-icon">项</span>
+        <span>项目管理</span>
+      </button>
+      <button class="nav-button" data-page="accountsPage">
+        <span class="nav-icon">账</span>
+        <span>账号管理</span>
+      </button>
+    </aside>
+
+    <div class="main">
+      <div class="shell">
+        <section id="homePage" class="page active">
+          <div class="hero">
+            <div>
+              <h1>首页</h1>
+              <p class="muted">展示当前系统内账号、项目、解析、标书与核验数据。</p>
+            </div>
+            <button class="button" id="refresh">刷新数据</button>
+          </div>
+
+          <div class="cards">
+            <div class="stat-card">
+              <span class="muted">总账号</span>
+              <strong id="userCount">0</strong>
+            </div>
+            <div class="stat-card">
+              <span class="muted">项目总数</span>
+              <strong id="projectCount">0</strong>
+            </div>
+            <div class="stat-card">
+              <span class="muted">解析结果</span>
+              <strong id="resultCount">0</strong>
+            </div>
+            <div class="stat-card">
+              <span class="muted">已生成标书</span>
+              <strong id="bidCount">0</strong>
+            </div>
+          </div>
+
+          <section class="panel">
+            <div class="panel-header">
+              <h2>最近项目</h2>
+              <span class="muted">按上传时间展示</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>项目名称</th>
+                    <th>创建账号</th>
+                    <th>状态</th>
+                    <th>上传时间</th>
+                  </tr>
+                </thead>
+                <tbody id="recentProjectsBody"></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+
+        <section id="projectsPage" class="page">
+          <div class="hero">
+            <div>
+              <h1>项目管理</h1>
+              <p class="muted">后台管理员可查看全部账号创建的项目，并下载已生成的业务文件。</p>
+            </div>
+            <button class="button" data-refresh>刷新数据</button>
+          </div>
+
+          <section class="panel">
+            <div class="panel-header">
+              <h2>所有项目</h2>
+              <span class="muted">未生成的文件下载按钮会自动置灰</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th style="min-width:260px;">项目名称</th>
+                    <th>创建账号</th>
+                    <th>创建时间</th>
+                    <th>状态</th>
+                    <th style="min-width:260px;">文件下载</th>
+                  </tr>
+                </thead>
+                <tbody id="projectsBody"></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+
+        <section id="accountsPage" class="page">
+          <div class="hero">
+            <div>
+              <h1>账号管理</h1>
+              <p class="muted">区分后台管理员账号与前台普通账号，前台用户不进入后台。</p>
+            </div>
+            <div class="actions">
+              <button class="button primary" id="showAddUser">新增账号</button>
+              <button class="button" data-refresh>刷新数据</button>
+            </div>
+          </div>
+
+          <section id="addUserPanel" class="panel hidden">
+            <div class="panel-header">
+              <h2>新增账号</h2>
+              <span class="muted">新增后默认启用，可在列表中停用</span>
+            </div>
+            <div class="form-panel">
+              <div class="form-grid">
+                <div class="field" style="margin-top:0;">
+                  <label for="newAccount">账号</label>
+                  <input id="newAccount" placeholder="例如 ligong" autocomplete="off" />
+                </div>
+                <div class="field" style="margin-top:0;">
+                  <label for="newPassword">初始密码</label>
+                  <input id="newPassword" type="password" placeholder="至少 6 位" autocomplete="new-password" />
+                </div>
+                <div class="field" style="margin-top:0;">
+                  <label for="newRole">账号类型</label>
+                  <select id="newRole">
+                    <option value="user">前台普通账号</option>
+                    <option value="admin">后台管理员</option>
+                  </select>
+                </div>
+                <div class="field" style="margin-top:0;">
+                  <label for="newName">姓名</label>
+                  <input id="newName" placeholder="例如 李工" autocomplete="off" />
+                </div>
+                <div class="field" style="margin-top:0;">
+                  <label for="newTitle">职位</label>
+                  <input id="newTitle" placeholder="例如 标书专员" autocomplete="off" />
+                </div>
+                <div class="form-actions">
+                  <button class="button" id="cancelAddUser">取消</button>
+                  <button class="button primary" id="createUser">保存账号</button>
+                </div>
+              </div>
+              <p class="form-note" id="addUserMessage">账号创建后不能删除，只能停用或重新启用。</p>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <h2>账号列表</h2>
+              <span class="muted">账号不能删除，停用后无法登录</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>账号</th>
+                    <th>姓名</th>
+                    <th>账号类型</th>
+                    <th>状态</th>
+                    <th>职位</th>
+                    <th>项目数</th>
+                    <th>创建时间</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody id="usersBody"></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    if (location.protocol === "file:") {
+      location.replace("http://localhost:8091/ai-bid/admin.html");
+    }
+
+    const tokenKey = "latoumiao-token";
+    const legacyAdminTokenKey = "latoumiao-admin-token";
+    const decodedPathname = decodeURIComponent(location.pathname);
+    const firstSegment = decodedPathname.split("/").filter(Boolean)[0] || "";
+    const projectBase = firstSegment && !firstSegment.includes(".") ? `/${firstSegment}` : "";
+    const apiPath = (url) => `${projectBase}${url}`;
+    const token = () => localStorage.getItem(tokenKey) || localStorage.getItem(legacyAdminTokenKey) || "";
+    const setText = (id, value) => document.getElementById(id).textContent = value;
+    const fmtDate = (value) => value ? new Date(value).toLocaleString("zh-CN", { hour12: false }) : "-";
+    const statusText = {
+      queued: ["队列中", "warn"],
+      parsing: ["解析中", "warn"],
+      completed: ["已解析", "ok"],
+      failed: ["解析失败", "bad"]
+    };
+    const bidStatusText = {
+      not_started: "未生成标书",
+      outlining: "目录生成中",
+      generating: "标书生成中",
+      generated: "标书已生成",
+      failed: "标书生成失败"
+    };
+    const verificationStatusText = {
+      not_started: "未核验",
+      verifying: "核验中",
+      verified: "已核验",
+      failed: "核验失败"
+    };
+
+    let cached = { users: [], projects: [], results: [] };
+    let currentAdminId = "";
+
+    const request = async (url, options = {}) => {
+      const res = await fetch(url, {
+        ...options,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: token() ? `Bearer ${token()}` : "",
+          ...(options.headers || {})
+        }
+      });
+      const raw = await res.text();
+      let data = {};
+      if (raw) {
+        try {
+          data = JSON.parse(raw);
+        } catch {
+          throw new Error(res.ok ? "服务器返回格式异常，请刷新后重试" : raw.slice(0, 120) || "请求失败");
+        }
+      }
+      if (!res.ok) throw new Error(data.error || "请求失败");
+      return data;
+    };
+
+    const showDashboard = (visible) => {
+      document.getElementById("loginShell").classList.toggle("hidden", visible);
+      document.getElementById("adminApp").classList.toggle("hidden", !visible);
+    };
+
+    const row = (cells) => `<tr>${cells.map((cell) => `<td>${cell}</td>`).join("")}</tr>`;
+    const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
+    const downloadHref = (projectId, kind) => `${projectBase}/api/projects/${projectId}/download/${kind}?token=${encodeURIComponent(token())}`;
+    const downloadButton = (project, kind, label, enabled) =>
+      enabled
+        ? `<a class="download-link available" href="${downloadHref(project.id, kind)}">${label}</a>`
+        : `<span class="download-link disabled">${label}</span>`;
+
+    const renderUsers = () => {
+      document.getElementById("usersBody").innerHTML = cached.users.map((user) => row([
+        esc(user.account),
+        esc(user.name),
+        `<span class="tag ${user.role === "admin" ? "warn" : "ok"}">${user.role === "admin" ? "后台管理员" : "前台普通账号"}</span>`,
+        `<span class="tag ${user.enabled === false ? "bad" : "ok"}">${user.enabled === false ? "已停用" : "启用中"}</span>`,
+        esc(user.title),
+        esc(user.projectCount),
+        esc(fmtDate(user.createdAt)),
+        user.id === currentAdminId
+          ? `<div class="actions"><button class="button" data-change-password="${esc(user.id)}" data-user-account="${esc(user.account)}">修改密码</button><span class="muted">当前账号</span></div>`
+          : `<div class="actions"><button class="button" data-change-password="${esc(user.id)}" data-user-account="${esc(user.account)}">修改密码</button><button class="button ${user.enabled === false ? "success" : "danger"}" data-toggle-user="${esc(user.id)}" data-enabled="${user.enabled === false ? "true" : "false"}">${user.enabled === false ? "启用" : "停用"}</button></div>`
+      ])).join("");
+    };
+
+    const renderProjects = () => {
+      document.getElementById("projectsBody").innerHTML = cached.projects.map((project) => {
+        const [label, tone] = statusText[project.status] || ["未知", ""];
+        const analysisReady = project.status === "completed" && Number(project.result?.extractedItems || 0) > 0;
+        const bidReady = project.bidStatus === "generated" && !!project.bidDocument;
+        const verificationReady = project.verificationStatus === "verified" && !!project.verificationDocument;
+        const bidLabel = bidReady ? "标书已生成" : bidStatusText[project.bidStatus] === "标书已生成" ? "未生成标书文件" : (bidStatusText[project.bidStatus] || "");
+        const verificationLabel = verificationReady ? "已核验" : verificationStatusText[project.verificationStatus] === "已核验" ? "未生成核验报告" : (verificationStatusText[project.verificationStatus] || "");
+        return row([
+          `<strong>${esc(project.name)}</strong><br><span class="muted">${esc(project.fileName || "")} · ${esc(project.fileSizeText || "")}</span>`,
+          `${esc(project.owner?.name || "-")}<br><span class="muted">${esc(project.owner?.account || "")}</span>`,
+          esc(fmtDate(project.uploadTime || project.createdAt)),
+          `<span class="tag ${tone}">${label}</span><br><span class="muted">${esc(bidLabel)} / ${esc(verificationLabel)}</span>`,
+          `<div class="actions">
+            ${downloadButton(project, "analysis-pdf", "解析报告下载", analysisReady)}
+            ${downloadButton(project, "bid", "投标文件下载", bidReady)}
+            ${downloadButton(project, "verification", "核验报告下载", verificationReady)}
+          </div>`
+        ]);
+      }).join("");
+    };
+
+    const renderHome = () => {
+      const parsedCount = cached.projects.filter((project) => project.status === "completed").length;
+      const bidCount = cached.projects.filter((project) => project.bidStatus === "generated" && project.bidDocument).length;
+      setText("userCount", cached.users.length);
+      setText("projectCount", cached.projects.length);
+      setText("resultCount", parsedCount);
+      setText("bidCount", bidCount);
+
+      document.getElementById("recentProjectsBody").innerHTML = cached.projects.slice(0, 8).map((project) => {
+        const [label, tone] = statusText[project.status] || ["未知", ""];
+        return row([
+          `<strong>${esc(project.name)}</strong><br><span class="muted">${esc(project.fileName || "")}</span>`,
+          `${esc(project.owner?.name || "-")}<br><span class="muted">${esc(project.owner?.account || "")}</span>`,
+          `<span class="tag ${tone}">${label}</span>`,
+          esc(fmtDate(project.uploadTime || project.createdAt))
+        ]);
+      }).join("");
+    };
+
+    const renderAll = () => {
+      renderHome();
+      renderProjects();
+      renderUsers();
+    };
+
+    const loadDashboard = async () => {
+      const [session, usersData, projectsData, resultsData] = await Promise.all([
+        request(apiPath("/api/session")),
+        request(apiPath("/api/admin/users")),
+        request(apiPath("/api/admin/projects")),
+        request(apiPath("/api/admin/results"))
+      ]);
+      setText("adminName", `${session.user.name}（${session.user.account}）`);
+      currentAdminId = session.user.id;
+      cached = {
+        users: usersData.users || [],
+        projects: (projectsData.projects || []).sort((a, b) => new Date(b.uploadTime || b.createdAt || 0) - new Date(a.uploadTime || a.createdAt || 0)),
+        results: resultsData.results || []
+      };
+      renderAll();
+      showDashboard(true);
+    };
+
+    const switchPage = (pageId) => {
+      document.querySelectorAll(".nav-button").forEach((button) => button.classList.toggle("active", button.dataset.page === pageId));
+      document.querySelectorAll(".page").forEach((page) => page.classList.toggle("active", page.id === pageId));
+    };
+
+    document.querySelectorAll(".nav-button").forEach((button) => {
+      button.addEventListener("click", () => switchPage(button.dataset.page));
+    });
+
+    const setAddMessage = (message, tone = "muted") => {
+      const node = document.getElementById("addUserMessage");
+      node.textContent = message;
+      node.style.color = tone === "error" ? "#dc2626" : tone === "success" ? "#059669" : "#64748b";
+      node.style.fontWeight = tone === "muted" ? "400" : "800";
+    };
+
+    const clearAddForm = () => {
+      ["newAccount", "newPassword", "newName", "newTitle"].forEach((id) => {
+        document.getElementById(id).value = "";
+      });
+      document.getElementById("newRole").value = "user";
+      setAddMessage("账号创建后不能删除，只能停用或重新启用。");
+    };
+
+    document.getElementById("showAddUser").addEventListener("click", () => {
+      document.getElementById("addUserPanel").classList.remove("hidden");
+      document.getElementById("newAccount").focus();
+    });
+
+    document.getElementById("cancelAddUser").addEventListener("click", () => {
+      document.getElementById("addUserPanel").classList.add("hidden");
+      clearAddForm();
+    });
+
+    document.getElementById("createUser").addEventListener("click", async () => {
+      setAddMessage("正在保存账号...");
+      try {
+        await request(apiPath("/api/admin/users"), {
+          method: "POST",
+          body: JSON.stringify({
+            account: document.getElementById("newAccount").value.trim().toLowerCase(),
+            password: document.getElementById("newPassword").value.trim(),
+            role: document.getElementById("newRole").value,
+            name: document.getElementById("newName").value.trim(),
+            title: document.getElementById("newTitle").value.trim()
+          })
+        });
+        setAddMessage("账号已新增。", "success");
+        clearAddForm();
+        document.getElementById("addUserPanel").classList.add("hidden");
+        await loadDashboard();
+        switchPage("accountsPage");
+      } catch (error) {
+        setAddMessage(error.message, "error");
+      }
+    });
+
+    document.getElementById("usersBody").addEventListener("click", async (event) => {
+      const passwordButton = event.target.closest("[data-change-password]");
+      if (passwordButton) {
+        openPasswordModal(passwordButton.dataset.changePassword, passwordButton.dataset.userAccount || "");
+        return;
+      }
+
+      const button = event.target.closest("[data-toggle-user]");
+      if (!button) return;
+      button.disabled = true;
+      button.textContent = "处理中";
+      try {
+        await request(apiPath(`/api/admin/users/${button.dataset.toggleUser}/status`), {
+          method: "POST",
+          body: JSON.stringify({ enabled: button.dataset.enabled === "true" })
+        });
+        await loadDashboard();
+        switchPage("accountsPage");
+      } catch (error) {
+        setAddMessage(error.message, "error");
+        await loadDashboard().catch(() => {});
+        switchPage("accountsPage");
+      }
+    });
+
+    const openPasswordModal = (userId, account) => {
+      document.querySelector("[data-password-modal]")?.remove();
+      const modal = document.createElement("div");
+      modal.className = "modal-mask";
+      modal.dataset.passwordModal = "true";
+      modal.innerHTML = `
+        <div class="modal-card" role="dialog" aria-modal="true" aria-label="修改密码">
+          <div class="modal-header">
+            <h2>修改密码</h2>
+            <p class="muted" style="margin:6px 0 0;">账号：${esc(account)}</p>
+          </div>
+          <div class="modal-body">
+            <div class="field" style="margin-top:0;">
+              <label for="passwordModalValue">新密码</label>
+              <input id="passwordModalValue" type="password" placeholder="至少 6 位" autocomplete="new-password" />
+            </div>
+            <div class="field">
+              <label for="passwordModalConfirm">再次输入新密码</label>
+              <input id="passwordModalConfirm" type="password" placeholder="请再次输入新密码" autocomplete="new-password" />
+            </div>
+            <div class="error" id="passwordModalError"></div>
+          </div>
+          <div class="modal-actions">
+            <button class="button" data-password-cancel>取消</button>
+            <button class="button primary" data-password-save>保存密码</button>
+          </div>
+        </div>`;
+      document.body.appendChild(modal);
+      const password = modal.querySelector("#passwordModalValue");
+      const confirmPassword = modal.querySelector("#passwordModalConfirm");
+      const error = modal.querySelector("#passwordModalError");
+      const save = modal.querySelector("[data-password-save]");
+      const close = () => modal.remove();
+      const setError = (message) => {
+        error.textContent = message;
+      };
+      const submit = async () => {
+        if (save.disabled) return;
+        const value = password.value.trim();
+        const confirm = confirmPassword.value.trim();
+        if (value.length < 6) {
+          setError("密码至少 6 位");
+          password.focus();
+          return;
+        }
+        if (value !== confirm) {
+          setError("两次输入的密码不一致");
+          confirmPassword.focus();
+          return;
+        }
+        save.disabled = true;
+        save.textContent = "保存中";
+        try {
+          await request(apiPath(`/api/admin/users/${userId}/password`), {
+            method: "POST",
+            body: JSON.stringify({ password: value, confirmPassword: confirm })
+          });
+          close();
+          await loadDashboard();
+          switchPage("accountsPage");
+        } catch (err) {
+          setError(err.message);
+          save.disabled = false;
+          save.textContent = "保存密码";
+        }
+      };
+      modal.addEventListener("click", (event) => {
+        if (event.target === modal || event.target.closest("[data-password-cancel]")) close();
+        if (event.target.closest("[data-password-save]")) submit();
+      });
+      modal.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") close();
+        if (event.key === "Enter") submit();
+      });
+      password.focus();
+    };
+
+    document.getElementById("login").addEventListener("click", async () => {
+      setText("error", "");
+      try {
+        const data = await request(apiPath("/api/login"), {
+          method: "POST",
+          body: JSON.stringify({
+            account: document.getElementById("account").value.trim().toLowerCase(),
+            password: document.getElementById("password").value.trim()
+          })
+        });
+        if (data.user.role !== "admin") throw new Error("该账号不是管理员");
+        localStorage.setItem(tokenKey, data.token);
+        localStorage.removeItem(legacyAdminTokenKey);
+        await loadDashboard();
+      } catch (error) {
+        setText("error", error.message);
+      }
+    });
+
+    document.getElementById("refresh").addEventListener("click", () => loadDashboard().catch((error) => setText("error", error.message)));
+    document.querySelectorAll("[data-refresh]").forEach((button) => {
+      button.addEventListener("click", () => loadDashboard().catch((error) => setText("error", error.message)));
+    });
+    document.getElementById("goFront").addEventListener("click", () => location.href = "./home.html");
+    document.getElementById("logout").addEventListener("click", () => {
+      localStorage.removeItem(tokenKey);
+      localStorage.removeItem(legacyAdminTokenKey);
+      setText("adminName", "未登录");
+      showDashboard(false);
+    });
+
+    if (token()) {
+      loadDashboard().catch(() => showDashboard(false));
+    }
+  </script>
+</body>
+</html>

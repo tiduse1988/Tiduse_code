@@ -1613,6 +1613,17 @@ const TIME_REFERENCE_ONLY_PATTERN = /^(?:同上|同前|见上(?:文|述)?|与(?:
 const ABSOLUTE_DATE_PATTERN = /(?:20\d{2}\s*[年./-]\s*\d{1,2}\s*[月./-]\s*\d{1,2}\s*(?:日|号)?|20\d{2}\s*年\s*\d{1,2}\s*月\s*\d{1,2}\s*(?:日|号)?)/;
 const CLOCK_PATTERN = /(?:\d{1,2}\s*[:：时]\s*\d{1,2}\s*(?:分)?|上午\s*\d{1,2}\s*点(?:\s*\d{1,2}\s*分)?|下午\s*\d{1,2}\s*点(?:\s*\d{1,2}\s*分)?)/;
 const ABSOLUTE_TIME_NODE_PATTERN = /投标截止|递交(?:投标|响应)?文件截止|响应截止|磋商截止|报价截止|开标时间|开标日期|开标地点与时间|保证金递交截止/;
+const DATE_TIME_TOKEN_PATTERN = /20\d{2}\s*[年./-]\s*\d{1,2}\s*[月./-]\s*\d{1,2}\s*(?:日|号)?\s*[，,、;；至到]?\s*\d{1,2}\s*[:：时]\s*\d{1,2}\s*(?:[:：]\s*\d{1,2})?\s*(?:分)?/g;
+
+const timeLabelPatternForNode = (node) => {
+  const text = String(node || "");
+  if (/保证金/.test(text)) return /投标保证金(?:交纳|缴纳|递交)(?:时间|截止时间)?/;
+  if (/开标/.test(text)) return /开标(?:时间|日期)/;
+  if (/投标截止|响应截止|磋商截止|报价截止/.test(text)) {
+    return /(?:投标截止(?:时间)?|递交(?:投标|响应)?文件的截止时间|响应截止(?:时间)?|磋商截止(?:时间)?|报价截止(?:时间)?)/;
+  }
+  return null;
+};
 
 const normalizeTimeText = (value) => String(value || "")
   .replace(/[０-９]/g, (char) => String.fromCharCode(char.charCodeAt(0) - 0xfee0))
@@ -1624,6 +1635,32 @@ const normalizeTimeText = (value) => String(value || "")
 const hasConcreteDateTime = (value) => {
   const text = String(value || "").trim();
   return Boolean(text && !TIME_REFERENCE_ONLY_PATTERN.test(text) && ABSOLUTE_DATE_PATTERN.test(text) && CLOCK_PATTERN.test(text));
+};
+
+// The model may miss a date or return a reference such as “与开标时间一致”.
+// Recover the authoritative value from the original text before marking it for review.
+const extractConcreteTimeFromSource = (node, extraction) => {
+  const labelPattern = timeLabelPatternForNode(node);
+  if (!labelPattern) return "";
+  const pages = Array.isArray(extraction?.pages) ? extraction.pages : [];
+  const candidates = [];
+  for (const page of pages) {
+    const pageText = String(page?.text || "");
+    if (!pageText) continue;
+    let labelMatch;
+    labelPattern.lastIndex = 0;
+    while ((labelMatch = labelPattern.exec(pageText))) {
+      const context = pageText.slice(labelMatch.index, labelMatch.index + 180);
+      const matches = [...context.matchAll(DATE_TIME_TOKEN_PATTERN)].map((match) => match[0].trim());
+      if (!matches.length) continue;
+      const value = /保证金/.test(String(node || "")) && matches.length > 1
+        ? `${matches[0]}至${matches[1]}`
+        : matches[0];
+      candidates.push({ value, page: page?.page });
+    }
+  }
+  if (candidates.length) return candidates[0].value;
+  return "";
 };
 
 const locateTimeSourcePage = (time, node, extraction) => {
@@ -1647,8 +1684,10 @@ const validateKeyDatesAgainstSource = (keyDates, extraction) => {
     const mustBeAbsolute = ABSOLUTE_TIME_NODE_PATTERN.test(node);
     const invalidReference = TIME_REFERENCE_ONLY_PATTERN.test(time) || /^(?:未明确|待核实|不适用|[-—–])$/.test(time);
     const hasExactTime = hasConcreteDateTime(time);
-    const sourcePage = hasExactTime ? locateTimeSourcePage(time, node, extraction) : "未定位";
-    const shouldInvalidate = mustBeAbsolute && (!hasExactTime || sourcePage === "未定位");
+    const sourceTime = mustBeAbsolute ? extractConcreteTimeFromSource(node, extraction) : "";
+    const verifiedTime = sourceTime || (hasExactTime ? time : "");
+    const sourcePage = verifiedTime ? locateTimeSourcePage(verifiedTime, node, extraction) : "未定位";
+    const shouldInvalidate = mustBeAbsolute && (!verifiedTime || sourcePage === "未定位");
 
     if (shouldInvalidate) {
       const reason = invalidReference
@@ -1664,7 +1703,18 @@ const validateKeyDatesAgainstSource = (keyDates, extraction) => {
         reminder: [current.reminder, reason].filter(Boolean).join("；")
       };
     }
-    return { ...current, node, time: time || "未明确，需人工核实", sourcePage: current.sourcePage || sourcePage };
+    const cleanedReminder = sourceTime
+      ? String(current.reminder || "")
+        .replace(/招标文件[^；。]*(?:具体日期|具体时间)[^；。]*[；。]?/g, "")
+        .trim()
+      : current.reminder;
+    return {
+      ...current,
+      node,
+      time: verifiedTime || "未明确，需人工核实",
+      sourcePage: sourcePage !== "未定位" ? sourcePage : (current.sourcePage || sourcePage),
+      ...(cleanedReminder ? { reminder: cleanedReminder } : {})
+    };
   });
 };
 

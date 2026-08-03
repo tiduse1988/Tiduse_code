@@ -1651,7 +1651,8 @@ const extractConcreteTimeFromSource = (node, extraction) => {
     labelPattern.lastIndex = 0;
     while ((labelMatch = labelPattern.exec(pageText))) {
       const context = pageText.slice(labelMatch.index, labelMatch.index + 180);
-      const matches = [...context.matchAll(DATE_TIME_TOKEN_PATTERN)].map((match) => match[0].trim());
+      const matches = [...context.matchAll(DATE_TIME_TOKEN_PATTERN)]
+        .map((match) => match[0].replace(/\s+/g, " ").trim());
       if (!matches.length) continue;
       const value = /保证金/.test(String(node || "")) && matches.length > 1
         ? `${matches[0]}至${matches[1]}`

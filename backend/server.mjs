@@ -376,7 +376,11 @@ const lotNumberText = (value = "") => {
 };
 
 const normalizeLotAmount = (value = "") => {
-  const text = String(value || "").replace(/\s+/g, "").replace(/[,，]/g, "");
+  const text = String(value || "")
+    .replace(/\s+/g, "")
+    .replace(/[,，]/g, "")
+    // OCR sometimes inserts a stray character between "万" and "元".
+    .replace(/万[^\d元]{0,3}元/g, "万元");
   if (!text) return "";
   return /元|万/.test(text) ? text : `${text}元`;
 };
@@ -438,20 +442,36 @@ const extractLotOptions = (resultOrRaw = {}, project = {}) => {
 
   for (const row of rows) {
     const labelText = String(row.item || row.content || row.info || "");
-    const label = labelText.match(/标(?:包|段|项)\s*[一二三四五六七八九十\d]+/)?.[0];
+    const label = labelText.match(/(?:标(?:包|段|项)|品目)\s*[一二三四五六七八九十\d]+/)?.[0];
     const amountText = String(row.info || row.content || row.requirement || "");
-    const amount = amountText.match(/[0-9][0-9,，]*(?:\.\d+)?\s*(?:万元|元)/)?.[0];
+    const amount = amountText.match(/[0-9][0-9,，]*(?:\.\d+)?\s*(?:万[^\d元]{0,3}元|元)/)?.[0];
     if (label && amount) addLot({ sourceLabel: label, amount, name: row.note || row.remark || "" });
   }
 
   for (const text of sourceParts) {
     const normalized = String(text || "");
+    const compact = normalized.replace(/\s+/g, " ");
     const itemPattern = /标项\s*([一二三四五六七八九十\d]+)[\s\S]{0,360}?标项名称\s*[：:]\s*(?:包\s*[一二三四五六七八九十\d]+\s*[：:])?\s*([^\n\r]{2,90})[\s\S]{0,260}?预算金[^\n\r：:]{0,10}额(?:（元）)?\s*[：:]\s*([0-9][0-9,，]*(?:\.\d+)?)/g;
     let itemMatch;
     while ((itemMatch = itemPattern.exec(normalized))) {
       addLot({ sourceLabel: `标包${lotNumberText(itemMatch[1])}`, name: itemMatch[2], amount: itemMatch[3] });
     }
-    const pattern = /(标(?:包|段|项)\s*[一二三四五六七八九十\d]+)\s*[：:]\s*([0-9][0-9,，]*(?:\.\d+)?\s*(?:万元|元)?)/g;
+    // Government procurement documents often use 品目一/品目二 instead of 标段/标包.
+    // Keep the source label but expose a consistent 标段1/标段2 choice to the UI.
+    const itemLotPattern = /(品目\s*[一二三四五六七八九十\d]+)\s*[：:]\s*([^：:;；\n]{2,100}?)\s*[：:]\s*([0-9][0-9,，]*(?:\.\d+)?\s*(?:万[^\d元]{0,3}元|元))/g;
+    let itemLotMatch;
+    while ((itemLotMatch = itemLotPattern.exec(compact))) {
+      addLot({ sourceLabel: itemLotMatch[1], name: itemLotMatch[2], amount: itemLotMatch[3] });
+    }
+    // Fallback for line/table extraction where the item name and amount are separated.
+    const itemAmountPattern = /(品目\s*[一二三四五六七八九十\d]+)[\s\S]{0,180}?([0-9][0-9,，]*(?:\.\d+)?\s*(?:万[^\d元]{0,3}元|元))/g;
+    let itemAmountMatch;
+    while ((itemAmountMatch = itemAmountPattern.exec(normalized))) {
+      const between = normalized.slice(itemAmountMatch.index + itemAmountMatch[0].indexOf(itemAmountMatch[1]) + itemAmountMatch[1].length, itemAmountMatch.index + itemAmountMatch[0].length - itemAmountMatch[2].length);
+      const name = between.replace(/[：:，,。；;\s]+/g, " ").trim().slice(0, 100);
+      addLot({ sourceLabel: itemAmountMatch[1], name, amount: itemAmountMatch[2] });
+    }
+    const pattern = /(标(?:包|段|项)\s*[一二三四五六七八九十\d]+)\s*[：:]\s*([0-9][0-9,，]*(?:\.\d+)?\s*(?:万[^\d元]{0,3}元|元)?)/g;
     let match;
     while ((match = pattern.exec(normalized))) {
       addLot({ sourceLabel: match[1], amount: match[2] });

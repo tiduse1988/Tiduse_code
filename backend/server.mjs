@@ -5,7 +5,6 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFile } from "node:child_process";
 import PDFDocument from "pdfkit";
-import { jsonrepair } from "jsonrepair";
 import Busboy from "busboy";
 import { AlignmentType, Document, Footer, HeadingLevel, Packer, PageNumber, Paragraph, TextRun } from "docx";
 
@@ -416,6 +415,7 @@ const extractLotOptions = (resultOrRaw = {}, project = {}) => {
     ...(rows.flatMap((row) => [row.item, row.content, row.info, row.requirement, row.note, row.remark, row.responsePoint]).filter(Boolean))
   ].filter(Boolean);
   const found = new Map();
+  const lotIndexPattern = "(?:[一二三四五六七八九十]+|\\d+)";
 
   const addLot = ({ sourceLabel, amount, name = "" }) => {
     const index = lotNumberText(sourceLabel);
@@ -442,7 +442,7 @@ const extractLotOptions = (resultOrRaw = {}, project = {}) => {
 
   for (const row of rows) {
     const labelText = String(row.item || row.content || row.info || "");
-    const label = labelText.match(/(?:标(?:包|段|项)|品目)\s*[一二三四五六七八九十\d]+/)?.[0];
+    const label = labelText.match(new RegExp(`(?:标(?:包|段|项)|品目)\\s*${lotIndexPattern}`))?.[0];
     const amountText = String(row.info || row.content || row.requirement || "");
     const amount = amountText.match(/[0-9][0-9,，]*(?:\.\d+)?\s*(?:万[^\d元]{0,3}元|元)/)?.[0];
     if (label && amount) addLot({ sourceLabel: label, amount, name: row.note || row.remark || "" });
@@ -451,27 +451,33 @@ const extractLotOptions = (resultOrRaw = {}, project = {}) => {
   for (const text of sourceParts) {
     const normalized = String(text || "");
     const compact = normalized.replace(/\s+/g, " ");
-    const itemPattern = /标项\s*([一二三四五六七八九十\d]+)[\s\S]{0,360}?标项名称\s*[：:]\s*(?:包\s*[一二三四五六七八九十\d]+\s*[：:])?\s*([^\n\r]{2,90})[\s\S]{0,260}?预算金[^\n\r：:]{0,10}额(?:（元）)?\s*[：:]\s*([0-9][0-9,，]*(?:\.\d+)?)/g;
+    const itemPattern = new RegExp(`标项\\s*(${lotIndexPattern})[\\s\\S]{0,360}?标项名称\\s*[：:]\\s*(?:包\\s*${lotIndexPattern}\\s*[：:])?\\s*([^\\n\\r]{2,90})[\\s\\S]{0,260}?预算金[^\\n\\r：:]{0,10}额(?:（元）)?\\s*[：:]\\s*([0-9][0-9,，]*(?:\\.\\d+)?)`, "g");
     let itemMatch;
     while ((itemMatch = itemPattern.exec(normalized))) {
       addLot({ sourceLabel: `标包${lotNumberText(itemMatch[1])}`, name: itemMatch[2], amount: itemMatch[3] });
     }
     // Government procurement documents often use 品目一/品目二 instead of 标段/标包.
     // Keep the source label but expose a consistent 标段1/标段2 choice to the UI.
-    const itemLotPattern = /(品目\s*[一二三四五六七八九十\d]+)\s*[：:]\s*([^：:;；\n]{2,100}?)\s*[：:]\s*([0-9][0-9,，]*(?:\.\d+)?\s*(?:万[^\d元]{0,3}元|元))/g;
+    const itemLotPattern = new RegExp(`(品目\\s*${lotIndexPattern})\\s*[：:]\\s*([^：:;；\\n]{2,100}?)\\s*[：:]\\s*([0-9][0-9,，]*(?:\\.\\d+)?\\s*(?:万[^\\d元]{0,3}元|元))`, "g");
     let itemLotMatch;
     while ((itemLotMatch = itemLotPattern.exec(compact))) {
       addLot({ sourceLabel: itemLotMatch[1], name: itemLotMatch[2], amount: itemLotMatch[3] });
     }
     // Fallback for line/table extraction where the item name and amount are separated.
-    const itemAmountPattern = /(品目\s*[一二三四五六七八九十\d]+)[\s\S]{0,180}?([0-9][0-9,，]*(?:\.\d+)?\s*(?:万[^\d元]{0,3}元|元))/g;
+    const itemAmountPattern = new RegExp(`(品目\\s*${lotIndexPattern})[\\s\\S]{0,180}?([0-9][0-9,，]*(?:\\.\\d+)?\\s*(?:万[^\\d元]{0,3}元|元))`, "g");
     let itemAmountMatch;
     while ((itemAmountMatch = itemAmountPattern.exec(normalized))) {
+      const label = itemAmountMatch[1];
+      const index = lotNumberText(label);
+      const tail = itemAmountMatch[0].slice(label.length);
+      // Do not let a broad fallback cross into the next 品目, and do not
+      // replace a precise name/amount pair already extracted above.
+      if (/品目\s*(?:[一二三四五六七八九十]+|\d+)/.test(tail) || found.has(`lot_${index}`)) continue;
       const between = normalized.slice(itemAmountMatch.index + itemAmountMatch[0].indexOf(itemAmountMatch[1]) + itemAmountMatch[1].length, itemAmountMatch.index + itemAmountMatch[0].length - itemAmountMatch[2].length);
       const name = between.replace(/[：:，,。；;\s]+/g, " ").trim().slice(0, 100);
-      addLot({ sourceLabel: itemAmountMatch[1], name, amount: itemAmountMatch[2] });
+      addLot({ sourceLabel: label, name, amount: itemAmountMatch[2] });
     }
-    const pattern = /(标(?:包|段|项)\s*[一二三四五六七八九十\d]+)\s*[：:]\s*([0-9][0-9,，]*(?:\.\d+)?\s*(?:万[^\d元]{0,3}元|元)?)/g;
+    const pattern = new RegExp(`(标(?:包|段|项)\\s*${lotIndexPattern})\\s*[：:]\\s*([0-9][0-9,，]*(?:\\.\\d+)?\\s*(?:万[^\\d元]{0,3}元|元)?)`, "g");
     let match;
     while ((match = pattern.exec(normalized))) {
       addLot({ sourceLabel: match[1], amount: match[2] });
@@ -509,7 +515,7 @@ const lotProjectNameFromParsed = (project, selectedLot, parsedName = "") => {
 const textMentionsOtherLot = (text = "", selectedLot = {}) => {
   const selected = String(selectedLot.index || lotNumberText(selectedLot.label || selectedLot.sourceLabel || ""));
   if (!selected) return false;
-  const matches = String(text || "").match(/标(?:包|段|项)\s*[一二三四五六七八九十\d]+/g) || [];
+  const matches = String(text || "").match(/(?:标(?:包|段|项)|品目)\s*[一二三四五六七八九十\d]+/g) || [];
   return matches.some((match) => {
     const no = lotNumberText(match);
     return no && no !== selected;
@@ -518,7 +524,13 @@ const textMentionsOtherLot = (text = "", selectedLot = {}) => {
 
 const filterRowsBySelectedLot = (rows = [], selectedLot = null) => {
   if (!selectedLot || !Array.isArray(rows)) return rows;
-  return rows.filter((row) => !textMentionsOtherLot(JSON.stringify(row), selectedLot));
+  const selected = String(selectedLot.index || lotNumberText(selectedLot.label || selectedLot.sourceLabel || ""));
+  return rows.filter((row) => {
+    const context = String(row?.lotContext || row?.sourceLot || "");
+    const contextNumber = context && context !== "shared" ? lotNumberText(context) || context : "";
+    if (contextNumber && contextNumber !== selected) return false;
+    return !textMentionsOtherLot(JSON.stringify(row), selectedLot);
+  });
 };
 
 const uploadedBidDto = (project, { includePreview = false } = {}) => {
@@ -772,15 +784,22 @@ const extractUploadedBidDocument = async (filePath, fileName = "") => {
 };
 
 const extractJson = (content) => {
+  const source = String(content || "");
+  if (source.length > 400000) {
+    throw new Error("DeepSeek 返回内容过大，无法安全解析");
+  }
   try {
-    return JSON.parse(content);
+    return JSON.parse(source);
   } catch {
-    const match = content.match(/\{[\s\S]*\}/);
+    const match = source.match(/\{[\s\S]*\}/);
     if (!match) throw new Error("DeepSeek 未返回 JSON 结构");
     try {
       return JSON.parse(match[0]);
-    } catch {
-      return JSON.parse(jsonrepair(match[0]));
+    } catch (error) {
+      // Do not run jsonrepair on model output here. Its backtracking parser can
+      // create a large memory spike on malformed long Chinese JSON. The caller
+      // sends a bounded repair request to DeepSeek instead.
+      throw new Error(`DeepSeek JSON 结构需要修复：${error.message}`);
     }
   }
 };
@@ -789,7 +808,7 @@ const stripParsedTenderBlocks = (content) => {
   let output = String(content || "");
   const blocks = [
     /【解析报告结构化内容包】[\s\S]*?(?=\n【|\n输出 JSON：|$)/g,
-    /【解析出的响应文件格式目录】[\s\S]*?(?=\n【|\n输出 JSON：|$)/g,
+    /【解析出的(?:响应文件格式目录|目录依据)】[\s\S]*?(?=\n【|\n输出 JSON：|$)/g,
     /【评分标准，必须保留对应响应目录】[\s\S]*?(?=\n【|\n输出 JSON：|$)/g,
     /【技术\/服务要求，必须保留对应响应目录】[\s\S]*?(?=\n【|\n输出 JSON：|$)/g,
     /【商务要求，仅用于商务目录，不要扩写为技术内容】[\s\S]*?(?=\n【|\n输出 JSON：|$)/g,
@@ -816,27 +835,41 @@ const requestDeepSeek = async ({ apiKey, messages, maxTokens = 6000, temperature
     if (message?.role !== "user" || typeof message.content !== "string") return message;
     return { ...message, content: stripParsedTenderBlocks(message.content) };
   });
-  const response = await fetch(`${deepSeekBaseUrl}/chat/completions`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      model: deepSeekModel,
-      temperature,
-      response_format: { type: "json_object" },
-      thinking: { type: "disabled" },
-      max_tokens: maxTokens,
-      messages: sourceMessages
-    }),
-    signal
-  });
+  const payload = {
+    model: deepSeekModel,
+    temperature,
+    response_format: { type: "json_object" },
+    thinking: { type: "disabled" },
+    max_tokens: maxTokens,
+    messages: sourceMessages
+  };
+  const serializedPayload = JSON.stringify(payload);
+  const startedAt = Date.now();
+  console.log(`[DeepSeek] start model=${deepSeekModel} promptChars=${serializedPayload.length} maxTokens=${maxTokens}`);
+  let response;
+  try {
+    response = await fetch(`${deepSeekBaseUrl}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`
+      },
+      body: serializedPayload,
+      signal
+    });
+  } catch (error) {
+    console.error(`[DeepSeek] request failed after ${Math.round((Date.now() - startedAt) / 1000)}s: ${error.name || "Error"} ${error.message || ""}`);
+    if (error.name === "AbortError") throw new Error("DeepSeek 请求超时，已停止本次解析，请点击重新解析");
+    throw new Error(`DeepSeek 网络请求失败：${error.message || "请检查网络或服务配置"}`);
+  }
 
-  const data = await response.json().catch(() => ({}));
+  const responseText = await response.text().catch(() => "");
+  console.log(`[DeepSeek] responseChars=${responseText.length}`);
+  const data = responseText ? JSON.parse(responseText) : {};
   if (!response.ok) {
     throw new Error(data.error?.message || `DeepSeek 请求失败：HTTP ${response.status}`);
   }
+  console.log(`[DeepSeek] completed in ${Math.round((Date.now() - startedAt) / 1000)}s status=${response.status}`);
   return data;
 };
 
@@ -844,10 +877,11 @@ const parseDeepSeekJson = async ({ apiKey, content, signal }) => {
   try {
     return extractJson(content);
   } catch (error) {
+    console.warn(`[DeepSeek] local JSON parse failed, using bounded repair: ${error.message}`);
     const repair = await requestDeepSeek({
       apiKey,
       signal,
-      maxTokens: 12000,
+      maxTokens: 5000,
       temperature: 0,
       messages: [
         {
@@ -1118,10 +1152,6 @@ const expandTechnicalOutline = (raw, technicalItems, rangeValue) => {
   const scoringText = JSON.stringify(raw?.scoringReview || []);
   const technicalText = JSON.stringify(raw?.technicalReview || []);
   const allText = `${scoringText}\n${technicalText}`;
-  (raw?.scoringReview || [])
-    .map((item) => item.category || item.item || "")
-    .filter((item) => /技术|方案|服务|质量|人员|团队|项目|实施|培训|运维|售后|响应|安全|保密|进度|业绩|能力/.test(item))
-    .forEach((item) => pushUniqueOutline(expanded, `${compactOutlineLabel(item)}专项响应`));
 
   [
     "项目理解与需求分析",
@@ -1327,22 +1357,274 @@ const normalizeDirectoryList = (items, fallback = []) => {
   return output;
 };
 
+const scoringSourceText = (raw = {}) => JSON.stringify({
+  submissionFormat: raw.submissionFormat || [],
+  bidOutline: raw.bidOutline || {},
+  businessReview: raw.businessReview || [],
+  qualificationCompliance: raw.qualificationCompliance || {}
+});
+
+const scoreRowSection = (row = {}, raw = {}) => {
+  const explicit = [row.category, row.step, row.section, row.part, row.item].filter(Boolean).join("；");
+  if (/商务部分|商务分|商务评分|资格审查|资格条件|报价部分|报价分|价格分/.test(explicit)) return "business";
+  if (/技术部分|技术分|技术评分|技术服务分/.test(explicit)) return "technical";
+  const text = [row.item, row.category, row.criteria, row.responseStrategy, row.responsePoint].filter(Boolean).join("；");
+  const businessSource = JSON.stringify({
+    businessPart: raw.bidOutline?.businessPart || [],
+    submissionFormat: raw.submissionFormat || [],
+    businessReview: raw.businessReview || [],
+    qualification: raw.qualificationCompliance?.qualificationReview || []
+  });
+  const technicalSource = JSON.stringify({ technicalPart: raw.bidOutline?.technicalPart || [], technicalReview: raw.technicalReview || [] });
+  const rowItem = String(row.item || "").trim();
+  const rowCategory = String(row.category || "").trim();
+  if ((rowItem && businessSource.includes(rowItem)) || (rowCategory && businessSource.includes(rowCategory))) return "business";
+  if ((rowItem && technicalSource.includes(rowItem)) || (rowCategory && technicalSource.includes(rowCategory))) return "technical";
+  if (/履约经验|业绩|企业认证|经营许可|报价|价格|财务|纳税|社保|信用|中小企业|节能|残疾人|优惠政策/.test(text)) return "business";
+  if (/技术|服务|方案|实施|运维|应急|安全|项目理解|质量|人员|团队|负责人|响应|进度|组织|保密/.test(text)) return "technical";
+  return "unknown";
+};
+
+const scoringSubtopics = (row = {}) => {
+  const text = [row.criteria, row.responsePoint, row.responseStrategy, row.requirement].filter(Boolean).join("；");
+  const output = [];
+  [/(?:包含|包括|内容包括|要求包括|重点包括)[：:]([^。；;]+)/g, /(?:分别为|包括以下内容)[：:]([^。；;]+)/g].forEach((pattern) => {
+    let match;
+    while ((match = pattern.exec(text))) {
+      String(match[1]).split(/[、，,；;]/).map((item) => item.replace(/（[^）]*）|\([^)]*\)/g, "").trim())
+        .filter((item) => item.length >= 2 && item.length <= 32 && !/^(等|以及|相关内容)$/.test(item))
+        .forEach((item) => { if (!output.some((existing) => existing.replace(/\s+/g, "") === item.replace(/\s+/g, ""))) output.push(item); });
+    }
+  });
+  return output.slice(0, 12);
+};
+
+const deriveBusinessScoringOutline = (raw) => {
+  const output = [];
+  (Array.isArray(raw?.scoringReview) ? raw.scoringReview : []).forEach((row) => {
+    if (scoreRowSection(row, raw) !== "business") return;
+    const candidate = String(row.item || row.category || row.step || "")
+      .replace(/^(?:商务部分|商务分资料|商务分|商务评分|评分项|评分标准)[：:、，,；;\-\s]*/i, "")
+      .replace(/(?:（满分[^）]*）|\(满分[^)]*\))$/g, "").trim();
+    if (!candidate || candidate.length > 60 || /^(?:商务部分|评分|综合评分)$/.test(candidate)) return;
+    const value = scoringSubtopics(row).length ? `${candidate}（${scoringSubtopics(row).join("、")}）` : candidate;
+    if (!output.some((existing) => normalizeOutlineKey(existing) === normalizeOutlineKey(value))) output.push(value);
+  });
+  return output;
+};
+
+// Scoring rows are the source of truth for the response outline.
+// DeepSeek may group several rows into one descriptive item, so derive stable
+// response headings before accepting the model output. This keeps every score
+// point addressable without hard-coding any project's name.
+const technicalScoringParentPatterns = [
+  "项目负责人", "技术负责人", "网络安全负责人", "数据安全负责人", "团队其他成员",
+  "项目理解与实施计划", "项目理解与实施方案", "项目理解", "实施计划",
+  "运维服务方案", "运维服务", "应急保障方案", "应急保障", "项目管理方案",
+  "质量控制方案", "风险保障方案", "项目经理", "安全负责人", "质量负责人", "运维负责人"
+];
+
+const technicalScoringParent = (row, clean) => {
+  const explicitSource = [row?.category, row?.item, row?.step, row?.section, row?.part].filter(Boolean).map(clean).join("；");
+  // “技术分资料”等只是招标文件的容器标题，不能从其评分细则猜出多个二级目录。
+  // 真正的二级目录必须来自明确的评分项，细则只负责生成该评分项下的三级目录。
+  if (/(?:^|；)(?:技术分资料|技术资料|技术部分资料|技术响应资料|技术方案资料|技术评分资料)(?:$|；)/.test(explicitSource.trim())) return "";
+  const source = [explicitSource, row?.criteria].filter(Boolean).map(clean).join("；");
+  if (/项目理解/.test(explicitSource) && /实施计划|实施方案/.test(explicitSource)) return "项目理解与实施计划";
+  if (/运维服务/.test(explicitSource)) return "运维服务方案";
+  if (/应急保障/.test(explicitSource)) return "应急保障方案";
+  if (/项目理解/.test(source) && /实施计划|实施方案/.test(source)) return "项目理解与实施计划";
+  if (/运维服务/.test(source)) return "运维服务方案";
+  if (/应急保障/.test(source)) return "应急保障方案";
+  return technicalScoringParentPatterns.find((pattern) => source.includes(pattern)) || "";
+};
+
+const technicalScoringChildren = (row, parent, clean) => {
+  const children = [];
+  const add = (value) => {
+    const label = clean(value);
+    if (!label || label === parent || label.length < 2 || label.length > 48) return;
+    if (!children.some((item) => normalizeOutlineKey(item) === normalizeOutlineKey(label))) children.push(label);
+  };
+  const explicit = [row?.item, row?.step].filter(Boolean).map(clean);
+  explicit.forEach((value) => {
+    if (parent && value.includes(parent) && normalizeOutlineKey(value) !== normalizeOutlineKey(parent)) add(value);
+  });
+  scoringSubtopics(row).forEach(add);
+  const text = [row?.criteria, row?.responsePoint, row?.responseStrategy, row?.requirement].filter(Boolean).join("；");
+  const detailPatterns = /项目负责人简历及证明材料|项目负责人证书|项目负责人社保证明|技术负责人简历及证明材料|技术负责人证书|技术负责人社保证明|网络安全负责人简历及证明材料|网络安全负责人证书|网络安全负责人社保证明|数据安全负责人简历及证明材料|数据安全负责人证书|数据安全负责人社保证明|团队成员证明材料|运维服务方式|运维服务交付物|服务响应时限|应急响应流程/g;
+  for (const match of text.matchAll(detailPatterns)) add(match[0]);
+  return children.slice(0, 12);
+};
+
+const deriveTechnicalScoringOutline = (raw) => {
+  const groups = new Map();
+  const clean = (value) => compactOutlineLabel(value)
+    .replace(/^(?:商务部分|商务分资料|商务分|商务评分|技术部分|技术分资料|技术分|技术评分|评分项|评分标准)[：:、，,；;\-\s]*/i, "")
+    .replace(/^(?:拟派|拟任|派驻|拟配备)[\s\-]*/, "")
+    .replace(/(?:（满分[^）]*）|\(满分[^)]*\))$/g, "")
+    .replace(/^[\s\-:：]+|[\s\-:：]+$/g, "")
+    .trim();
+  (Array.isArray(raw?.scoringReview) ? raw.scoringReview : []).forEach((row) => {
+    if (scoreRowSection(row, raw) !== "technical") return;
+    const parent = technicalScoringParent(row, clean);
+    if (!parent || /^(?:技术分资料|技术资料|技术部分资料|技术响应资料|技术方案资料|技术评分资料)$/.test(parent)) return;
+    if (!groups.has(parent)) groups.set(parent, []);
+    const bucket = groups.get(parent);
+    technicalScoringChildren(row, parent, clean).forEach((child) => {
+      if (!bucket.some((item) => normalizeOutlineKey(item) === normalizeOutlineKey(child))) bucket.push(child);
+    });
+  });
+  return [...groups.entries()].map(([parent, children]) => children.length ? `${parent}（${children.join("、")}）` : parent);
+};
+
+const outlineNumberAndTitle = (item, fallbackNumber = "") => {
+  if (item && typeof item === "object") {
+    const explicitNumber = String(item.number || item.no || item.serial || "").trim();
+    const rawTitle = String(item.title || item.label || item.name || item.item || item.requirement || "").trim();
+    const embedded = rawTitle.match(/^\s*(\d+(?:\.\d+)*|[一二三四五六七八九十]+)[、.．]?\s*(.*)$/);
+    return {
+      number: explicitNumber || embedded?.[1] || fallbackNumber,
+      title: (embedded ? embedded[2] : rawTitle).trim()
+    };
+  }
+  const text = String(item ?? "").trim();
+  const match = text.match(/^\s*(\d+(?:\.\d+)*|[一二三四五六七八九十]+)[、.．]?\s*(.*)$/);
+  return { number: match ? match[1] : fallbackNumber, title: (match ? match[2] : text).trim() };
+};
+
+const outlineNode = (number, title, children = []) => ({ number: String(number || "").trim(), title: String(title || "").trim(), children: Array.isArray(children) ? children : [] });
+const outlineNodeKey = (value) => normalizeOutlineKey(String(value || "").replace(/^\d+(?:\.\d+)*\s*/, ""));
+const splitOutlineHintChildren = (value) => String(value || "").match(/[（(]([^（）()]+)[）)]/)?.[1]?.split(/[、，,；;]/).map((item) => item.trim()).filter((item) => item.length > 1) || [];
+const classifyResponseFormatTitle = (title) => {
+  if (/技术分资料|技术资料|技术评分资料|技术响应资料|技术方案资料/.test(title)) return "technical";
+  if (/商务分资料|商务资料|商务评分资料|商务响应资料/.test(title)) return "business";
+  if (/资格|符合性|报价|响应文件封面|响应文件格式/.test(title)) return "business";
+  return "attachment";
+};
+
+// Response-format numbering is the outline spine. Scoring rows are attached
+// under the existing technical/business roots instead of creating duplicates.
+const buildResponseFormatOutline = (raw = {}) => {
+  const rows = Array.isArray(raw.submissionFormat) ? raw.submissionFormat : [];
+  const hasResponseFormat = rows.some((row) => {
+    const parsed = outlineNumberAndTitle(row);
+    return Boolean(parsed.title);
+  });
+  const roots = [];
+  let implicit = 1;
+  rows.forEach((row) => {
+    const fallback = String(implicit);
+    const hasExplicitNumber = Boolean(
+      row && typeof row === "object"
+        ? row.number || row.no || row.serial || /^\s*\d+(?:\.\d+)*[、.．]?\s*/.test(String(row.item || row.title || ""))
+        : /^\s*(?:\d+(?:\.\d+)*|[一二三四五六七八九十]+)[、.．]/.test(String(row))
+    );
+    const parsed = outlineNumberAndTitle(row, fallback);
+    if (!parsed.title) return;
+    if (parsed.number.split(".").length <= 1) {
+      roots.push(outlineNode(hasExplicitNumber ? parsed.number : fallback, parsed.title));
+      implicit += 1;
+      return;
+    }
+    const parent = roots.find((root) => parsed.number.startsWith(`${root.number}.`));
+    if (parent) parent.children.push(outlineNode(parsed.number, parsed.title));
+    else roots.push(outlineNode(parsed.number, parsed.title));
+  });
+  const attachScoring = (kind, scoring) => {
+    let root = roots.find((item) => classifyResponseFormatTitle(item.title) === kind && (kind === "technical" ? /技术/.test(item.title) : /商务/.test(item.title)));
+    if (!root && scoring.length) {
+      // Without an explicit response-format section, do not invent the
+      // tender's numbering (for example, hard-coding 5/6). Use neutral roots
+      // and let the scoring table and tender requirements define their scope.
+      root = outlineNode(
+        hasResponseFormat ? (kind === "technical" ? "5" : "6") : (kind === "technical" ? "1" : "2"),
+        kind === "technical" ? "技术部分" : "商务部分"
+      );
+      roots.push(root);
+    }
+    if (!root) return;
+    scoring.forEach((item, index) => {
+      const parsed = outlineNumberAndTitle(item);
+      const number = `${root.number}.${index + 1}`;
+      const title = parsed.title.replace(/[（(][^（）()]+[）)]\s*$/, "").trim();
+      const children = splitOutlineHintChildren(parsed.title).map((child, childIndex) => outlineNode(`${number}.${childIndex + 1}`, child));
+      const existing = root.children.find((child) => outlineNodeKey(child.title) === outlineNodeKey(title));
+      if (existing) { if (!existing.children.length) existing.children = children; return; }
+      root.children.push(outlineNode(number, title, children));
+    });
+  };
+  attachScoring("technical", deriveTechnicalScoringOutline(raw));
+  attachScoring("business", deriveBusinessScoringOutline(raw));
+  return roots;
+};
+
 const normalizeGeneratedOutline = (parsed, raw, bidPageRange) => {
   const outline = raw.bidOutline || {};
   const rangeMeta = bidPageRangeMeta(bidPageRange);
-  const businessPart = normalizeDirectoryList(parsed.businessPart, outline.businessPart);
+  const scoringBusiness = deriveBusinessScoringOutline(raw);
+  const businessPart = normalizeDirectoryList([...scoringBusiness, ...(parsed.businessPart || [])], outline.businessPart);
   const attachmentsPart = normalizeDirectoryList(parsed.attachmentsPart, outline.attachmentsPart);
   const deepSeekTechnical = normalizeDirectoryList(parsed.technicalPart, []);
-  const requiredTechnical = normalizeDirectoryList(outline.technicalPart, []);
+  const scoringTechnical = deriveTechnicalScoringOutline(raw);
+  const businessKeys = new Set(scoringBusiness.map((item) => normalizeOutlineKey(compactOutlineLabel(item))));
+  const withoutBusinessScoring = (items) => (Array.isArray(items) ? items : []).filter((item) => {
+    const key = normalizeOutlineKey(compactOutlineLabel(item));
+    return !businessKeys.has(key);
+  });
+  const dedupeTechnical = (items) => {
+    const result = [];
+    (Array.isArray(items) ? items : []).forEach((item) => {
+      const label = compactOutlineLabel(item);
+      if (!label) return;
+      const canonical = label
+        .replace(/^(?:技术部分|技术分资料|技术分|技术评分|评分项|评分标准)[：:、，,；;\-\s]*/i, "")
+        .replace(/^(?:拟派|拟任|派驻|拟配备)[\s\-]*/, "")
+        .replace(/^[\s\-:：]+|[\s\-:：]+$/g, "")
+        .replace(/\s+/g, "");
+      const duplicate = result.some((existing) => {
+        const existingCanonical = compactOutlineLabel(existing)
+          .replace(/^(?:技术部分|技术分资料|技术分|技术评分|评分项|评分标准)[：:、，,；;\-\s]*/i, "")
+          .replace(/^(?:拟派|拟任|派驻|拟配备)[\s\-]*/, "")
+          .replace(/^[\s\-:：]+|[\s\-:：]+$/g, "")
+          .replace(/\s+/g, "");
+        return existingCanonical === canonical;
+      });
+      if (!duplicate) result.push(label);
+    });
+    return result;
+  };
+  // 评分项是技术目录的唯一二级来源。旧目录或模型结果中的“技术分资料”以及
+  // “项目负责人证书”等评分细目只能作为对应二级项的三级内容，不能再次成为二级项。
+  const scoringParents = scoringTechnical.map((item) => compactOutlineLabel(item).replace(/（.*$/, "").replace(/\(.*$/, "").trim());
+  const isScoringChildOrParent = (item) => {
+    const label = compactOutlineLabel(item).replace(/\s+/g, "");
+    if (!label || /^(?:技术分资料|技术资料|技术部分资料|技术响应资料|技术方案资料|技术评分资料)$/.test(label)) return true;
+    return scoringParents.some((parent) => {
+      const key = parent.replace(/\s+/g, "");
+      return key && (label === key || label.includes(key) || key.includes(label));
+    });
+  };
+  const mergeTechnicalScoring = (items) => dedupeTechnical([
+    ...scoringTechnical,
+    ...(Array.isArray(items) ? items : []).filter((item) => !isScoringChildOrParent(item))
+  ]);
+  const requiredTechnical = mergeTechnicalScoring(normalizeDirectoryList(outline.technicalPart || [], []));
+  const genericTechnicalContainers = /^(?:技术分资料|技术资料|技术部分资料|技术响应资料|技术方案资料|技术评分资料)$/;
+  const filteredDeepSeekTechnical = withoutBusinessScoring(deepSeekTechnical).filter((item) => {
+    const model = String(item).match(/^(.*?)[（(]/);
+    return !(scoringTechnical.length && model && genericTechnicalContainers.test(model[1].trim()));
+  });
   const fallbackTechnical = expandTechnicalOutline(raw, requiredTechnical, bidPageRange);
-  const technicalPart = normalizeDirectoryList([...requiredTechnical, ...deepSeekTechnical], fallbackTechnical);
+  const technicalPart = mergeTechnicalScoring(normalizeDirectoryList([...requiredTechnical, ...filteredDeepSeekTechnical], fallbackTechnical));
 
   const technicalDepth = ensureTechnicalOutlineDepth(technicalPart);
 
   return {
     businessPart,
     technicalPart: bidPageRange === "under_100" ? technicalDepth.slice(0, Math.max(technicalDepth.length, requiredTechnical.length)) : technicalDepth.slice(0, Math.max(rangeMeta.target, requiredTechnical.length)),
-    attachmentsPart
+    attachmentsPart,
+    responseFormat: buildResponseFormatOutline(raw)
   };
 };
 
@@ -1355,9 +1637,10 @@ const generateOutlineWithDeepSeek = async (project, result, options = {}) => {
     ? {
         businessPart: project.outlineDocument.businessPart || [],
         technicalPart: project.outlineDocument.technicalPart || [],
-        attachmentsPart: project.outlineDocument.attachmentsPart || []
+        attachmentsPart: project.outlineDocument.attachmentsPart || [],
+        responseFormat: project.outlineDocument.responseFormat || buildResponseFormatOutline(raw)
       }
-    : raw.bidOutline || {};
+    : { ...(raw.bidOutline || {}), responseFormat: buildResponseFormatOutline(raw) };
   const bidPageRange = normalizeBidPageRange(options.bidPageRange || project.bidPageRange || "under_100");
   const rangeMeta = bidPageRangeMeta(bidPageRange);
   const tenderContext = buildBidGenerationContext(project, raw);
@@ -1365,7 +1648,7 @@ const generateOutlineWithDeepSeek = async (project, result, options = {}) => {
   const timeout = setTimeout(() => controller.abort(), 120000);
 
   try {
-    const data = await requestDeepSeek({
+    let data = await requestDeepSeek({
       apiKey,
       signal: controller.signal,
       maxTokens: 5000,
@@ -1374,16 +1657,22 @@ const generateOutlineWithDeepSeek = async (project, result, options = {}) => {
         {
           role: "system",
           content:
-            "你是资深投标文件目录策划专家。只输出合法 JSON。必须基于提供的招标文件原始内容生成技术部分目录。商务部分按原始响应文件格式和资格资料保留目录，不得因页数档位扩写；技术部分可按用户选择的投标文件内容量扩写，目录要扩写到三级目录。不得删除原始招标文件中的评分表和技术要求事项。"
+            "你是资深投标文件目录策划专家。只输出合法 JSON，字段只能是 responseFormat、technicalPart、businessPart、notes，不得输出 attachmentsPart，也不得生成独立的附件大纲。responseFormat 必须从招标文件实际提取；如存在响应文件格式要求，必须原样保留其一级、二级、三级编号和标题，作为后续目录的根层级，不得凭空改成固定章节。技术大纲和商务大纲必须以评分表为唯一分类依据，并结合招标文件要求；不能仅凭标题语义分类。评分表每一个评分项只能对应一个二级目录，评分细则中的证明材料、响应内容和实施维度只能作为该二级目录下的三级目录，禁止为同一评分项重复生成同义二级目录。若响应文件格式中已有技术分资料、商务分资料等根目录，技术和商务二级目录必须分别挂在对应根目录下并沿用其编号，例如技术从 5.1 开始、商务从 6.1 开始，不得硬编码为 2.1 或 2.2。若不存在响应文件格式要求，才以评分表和招标文件要求生成合理根目录。商务、资质、证书、业绩、财务、纳税、社保、授权等只保留招标文件要求的目录，不因页数档位扩写；技术部分可按页数档位扩写，但不得删除、合并或改写评分表已有事项。附件材料如果需要保留，必须作为响应文件格式要求或资料清单中的材料项，不得另建附件大纲。"
         },
         {
           role: "user",
-          content: `请生成投标文件目录。\n\n项目名称：${project.name}\n文件名：${project.fileName}\n投标文件内容量档位：${rangeMeta.label}\n目录策略：${rangeMeta.instruction}\n技术目录建议数量：${bidPageRange === "under_100" ? "保持精简，优先保留招标文件明确技术/评分事项" : `不少于${rangeMeta.target}项技术二级目录或三级目录承载点`}\n\n上下文说明：以下内容来自服务端对原始招标文件的完整提取和解析报告结构化结果。原文过长时，系统会优先保留评分办法、响应文件格式、采购需求、技术参数、资格资料、废标条款及相邻页，不能把未展示的非关键页理解为不存在。\n正文范围：${tenderContext.textMode}\n关键页：${(tenderContext.selectedPages || []).join("、") || "全文"}\n文件提取质量：${JSON.stringify(tenderContext.extractionQuality)}\n\n【解析报告结构化内容包】\n${tenderContext.structuredReportText}\n\n【解析出的响应文件格式目录】\n商务部分：${JSON.stringify(outline.businessPart || [])}\n附件部分：${JSON.stringify(outline.attachmentsPart || [])}\n原始技术部分：${JSON.stringify(outline.technicalPart || [])}\n\n【评分标准，必须保留对应响应目录】\n${JSON.stringify(raw.scoringReview || [])}\n\n【技术/服务要求，必须保留对应响应目录】\n${JSON.stringify(raw.technicalReview || [])}\n\n【商务要求，仅用于商务目录，不要扩写为技术内容】\n${JSON.stringify(raw.businessReview || [])}\n\n【资料清单】\n${JSON.stringify(raw.materialsChecklist || [])}\n\n【招标文件关键表格包】\n${JSON.stringify(tenderContext.tenderTables)}\n\n【招标文件关键章节原文包】\n${tenderContext.tenderText}\n\n输出 JSON：\n{\n  "businessPart": ["商务部分目录，按响应文件格式/资格要求，不因页数档位扩写"],\n  "technicalPart": ["技术部分目录，必须覆盖评分表技术要求，可按档位扩写"],\n  "attachmentsPart": ["附件部分目录，按资料清单和资格证明，不因页数档位扩写"],\n  "notes": ["目录生成说明"]\n}\n要求：\n1. 必须针对本招标文件，不要套用固定通用目录。\n2. 商务、资质、证书、业绩、财务、纳税、社保、授权等只保留目录，不编造成正文方向，也不要因页数档位扩写。\n3. 技术部分要依据评分表和技术/服务要求生成；评分表已有事项必须保留，只能扩写不能删除。\n4. 如果用户选择 100-300页、300-600页或600页以上，必须在技术部分按采购需求、评分维度、服务流程、质量控制、风险保障、项目管理、交付验收等维度扩写目录；商务部分不得扩写。\n5. 如目录项括号内是多个具体材料或具体技术维度，可保留括号提示，前端会拆成三级目录；如只是“如适用/服务类/逐条响应采购需求”等提示，不要强行拆。\n6. 不要 Markdown，不要解释，只输出 JSON。`
+          content: `请生成投标文件目录。\n\n项目名称：${project.name}\n文件名：${project.fileName}\n投标文件内容量档位：${rangeMeta.label}\n目录策略：${rangeMeta.instruction}\n技术目录建议数量：${bidPageRange === "under_100" ? "保持精简，优先保留招标文件明确技术/评分事项" : `不少于${rangeMeta.target}项技术二级目录或三级目录承载点`}\n\n上下文说明：以下内容来自服务端对原始招标文件的完整提取和解析报告结构化结果。原文过长时，系统会优先保留评分办法、响应文件格式、采购需求、技术参数、资格资料、废标条款及相邻页，不能把未展示的非关键页理解为不存在。\n正文范围：${tenderContext.textMode}\n关键页：${(tenderContext.selectedPages || []).join("、") || "全文"}\n文件提取质量：${JSON.stringify(tenderContext.extractionQuality)}\n\n【解析报告结构化内容包】\n${tenderContext.structuredReportText}\n\n【解析出的目录依据】\n响应文件格式要求：${JSON.stringify(outline.responseFormat || [])}\n技术大纲：${JSON.stringify(outline.technicalPart || [])}\n商务大纲：${JSON.stringify(outline.businessPart || [])}\n\n【评分标准，必须保留对应响应目录】\n${JSON.stringify(raw.scoringReview || [])}\n\n【技术/服务要求，必须保留对应响应目录】\n${JSON.stringify(raw.technicalReview || [])}\n\n【商务要求，仅用于商务目录，不要扩写为技术内容】\n${JSON.stringify(raw.businessReview || [])}\n\n【资料清单】\n${JSON.stringify(raw.materialsChecklist || [])}\n\n【招标文件关键表格包】\n${JSON.stringify(tenderContext.tenderTables)}\n\n【招标文件关键章节原文包】\n${tenderContext.tenderText}\n\n输出 JSON：\n{\n  "responseFormat": ["响应文件格式要求，按招标文件原编号和层级输出"],\n  "technicalPart": ["技术大纲，按评分表技术评分项输出"],\n  "businessPart": ["商务大纲，按评分表商务评分项输出"],\n  "notes": ["目录生成说明"]\n}\n要求：\n1. 必须针对本招标文件，不要套用固定通用目录。\n2. 商务、资质、证书、业绩、财务、纳税、社保、授权等只保留目录，不编造成正文方向，也不要因页数档位扩写。\n3. 技术部分要依据评分表和技术/服务要求生成；评分表已有事项必须保留，只能扩写不能删除。\n4. 如果用户选择 100-300页、300-600页或600页以上，必须在技术部分按采购需求、评分维度、服务流程、质量控制、风险保障、项目管理、交付验收等维度扩写目录；商务部分不得扩写。\n5. 如目录项括号内是多个具体材料或具体技术维度，可保留括号提示，前端会拆成三级目录；如只是“如适用/服务类/逐条响应采购需求”等提示，不要强行拆。\n6. 不要 Markdown，不要解释，只输出 JSON。`
         }
       ]
     });
-    const content = data.choices?.[0]?.message?.content || "";
+  let content = data.choices?.[0]?.message?.content || "";
+  console.log(`[DeepSeek] parse response contentChars=${String(content).length}`);
+  // Release the full HTTP response object before the report is normalized and
+  // source-page matching starts. Large table responses otherwise create a
+  // needless second peak on small cloud instances.
+  data.choices = [];
     const parsed = await parseDeepSeekJson({ apiKey, content, signal: controller.signal });
+    content = "";
     const normalized = normalizeGeneratedOutline(parsed, raw, bidPageRange);
     return {
       provider: "DeepSeek",
@@ -1555,21 +1844,158 @@ const mergeProcurementRequirements = (...groups) => {
       item,
       requirement,
       responsePoint: row.responsePoint || row.note || "按招标文件采购/建设/服务范围逐项响应",
-      sourcePage: row.sourcePage || row.source || ""
+      sourcePage: row.sourcePage || row.source || "",
+      sourceEvidence: row.sourceEvidence || row.evidence || "",
+      warning: row.warning || ""
     });
   };
   groups.flat().forEach(add);
   return rows;
 };
 
-const deriveScoringReviewFromExtraction = (extraction = {}) => {
+// PDF/OCR engines often treat a narrow table column as a series of physical
+// lines. Keep the deterministic fallback conservative: join layout whitespace
+// without changing punctuation, figures, units, or the extracted wording.
+const normalizeProcurementDisplayText = (value = "") =>
+  String(value || "")
+    .replace(/\r/g, "")
+    .replace(/[\t ]+/g, " ")
+    .replace(/\s*\n\s*/g, " ")
+    .replace(/([\u4e00-\u9fff])\s+(?=[\u4e00-\u9fff])/g, "$1")
+    .replace(/(\d)\s+(?=\d)/g, "$1")
+    .replace(/\s+([，。；：、）】》])/g, "$1")
+    .replace(/([（【《])\s+/g, "$1")
+    .replace(/ {2,}/g, " ")
+    .trim();
+
+const normalizeProcurementRequirementsWithDeepSeek = async ({
+  apiKey,
+  rows,
+  extraction,
+  selectedLot,
+  signal
+}) => {
+  const sourceRows = (Array.isArray(rows) ? rows : []).slice(0, 12);
+  if (!apiKey || !sourceRows.length) return [];
+
+  const sourcePages = (Array.isArray(extraction?.pages) ? extraction.pages : [])
+    .filter((page) => procurementSectionPattern.test(String(page?.text || "")))
+    .slice(0, 8)
+    .map((page) => ({ page: page.page, text: normalizeProcurementDisplayText(page.text).slice(0, 1800) }));
+  const localController = new AbortController();
+  const abortFromParent = () => localController.abort();
+  const timeout = setTimeout(() => localController.abort(), 45000);
+  if (signal) signal.addEventListener("abort", abortFromParent, { once: true });
+
+  try {
+    const data = await requestDeepSeek({
+      apiKey,
+      signal: localController.signal,
+      maxTokens: 5000,
+      temperature: 0,
+      messages: [
+        {
+          role: "system",
+          content:
+            "你是招标文件采购需求排版整理器。只输出合法 JSON。只允许修复 PDF/OCR 造成的断行、异常空格、页眉页脚和页码噪声；不得总结、扩写、推断、改写、删减或补造采购需求事实。必须保留原文中的编号、数量、金额、技术参数、单位、型号、专有名词和原意。"
+        },
+        {
+          role: "user",
+          content: `请整理下面的采购需求记录后返回 JSON。整理目标是让表格中的“具体采购/建设/服务内容”自然可读：把被列宽拆开的汉字、数字和单位恢复为连续文本；保留原有条目编号；删除明显的页眉、页脚、孤立页码和重复标题。若某处无法判断，不要猜，保留原文并在 warning 中说明。
+
+本次标段：${selectedLot ? JSON.stringify(selectedLot) : "未选择标段"}
+
+【待整理记录】
+${JSON.stringify(sourceRows).slice(0, 42000)}
+
+【采购需求原文片段，仅用于校对断行，不得超出片段补写】
+${JSON.stringify(sourcePages).slice(0, 18000)}
+
+只输出：
+{
+  "rows": [
+    {
+      "item": "原需求项",
+      "requirement": "整理后的完整内容",
+      "responsePoint": "保留原响应要点；没有则为空",
+      "sourcePage": "保留来源页码",
+      "sourceEvidence": "可选，保留关键原文证据",
+      "warning": "无法确定时填写说明，否则为空"
+    }
+  ]
+}`
+        }
+      ]
+    });
+    const parsed = await parseDeepSeekJson({
+      apiKey,
+      content: data.choices?.[0]?.message?.content || "",
+      signal: localController.signal
+    });
+    return mergeProcurementRequirements(parsed.rows || []).map((row) => ({
+      ...row,
+      requirement: normalizeProcurementDisplayText(row.requirement),
+      sourcePage: row.sourcePage || "",
+      sourceEvidence: normalizeProcurementDisplayText(row.sourceEvidence || "")
+    }));
+  } catch (error) {
+    console.warn(`[DeepSeek] procurement cleanup skipped: ${error.message}`);
+    return sourceRows.map((row) => ({
+      ...row,
+      requirement: normalizeProcurementDisplayText(row.requirement),
+      sourceEvidence: normalizeProcurementDisplayText(row.sourceEvidence || "")
+    }));
+  } finally {
+    clearTimeout(timeout);
+    if (signal) signal.removeEventListener("abort", abortFromParent);
+  }
+};
+
+const lotMarkersInText = (value = "") => {
+  const text = String(value || "");
+  const pattern = /(?:第\s*)?(?:标段|标包|标项|品目|包)\s*([一二三四五六七八九十]+|\d+)/g;
+  const markers = [];
+  let match;
+  while ((match = pattern.exec(text))) {
+    const index = lotNumberText(match[1]);
+    if (index && !markers.includes(index)) markers.push(index);
+  }
+  return markers;
+};
+
+const scoringPageLotContexts = (extraction = {}) => {
+  const contexts = new Map();
+  let active = "";
+  const pages = Array.isArray(extraction.pages) ? extraction.pages : [];
+  for (const page of pages) {
+    const pageNo = String(page?.page || "");
+    const markers = lotMarkersInText(page?.text || "");
+    if (markers.length === 1) active = markers[0];
+    else if (markers.length > 1) active = "";
+    contexts.set(pageNo, active);
+  }
+  return contexts;
+};
+
+const deriveScoringReviewFromExtraction = (extraction = {}, selectedLot = null) => {
   const rows = [];
   const normalize = (value) => String(value ?? "").replace(/\r/g, "").trim();
   const headerIndex = (header, keyword) => header.findIndex((cell) => normalize(cell).includes(keyword));
+  const selected = String(selectedLot?.index || lotNumberText(selectedLot?.label || selectedLot?.sourceLabel || ""));
+  const pageContexts = scoringPageLotContexts(extraction);
   let last = null;
 
   for (const tableData of extraction.tables || []) {
     const body = tableData.rows || [];
+    const tableMarkers = lotMarkersInText([
+      tableData.title,
+      tableData.name,
+      tableData.caption,
+      ...(body.slice(0, 4).flat() || [])
+    ].filter(Boolean).join(" "));
+    let currentLot = pageContexts.get(String(tableData.page || "")) || "";
+    if (tableMarkers.length === 1) currentLot = tableMarkers[0];
+    else if (tableMarkers.length > 1) currentLot = "";
     const headerRowIndex = body.findIndex((row) => row.some((cell) => normalize(cell).includes("评审标准")) && row.some((cell) => normalize(cell).includes("分值")));
     if (headerRowIndex < 0) continue;
     const header = body[headerRowIndex];
@@ -1580,11 +2006,22 @@ const deriveScoringReviewFromExtraction = (extraction = {}) => {
     if (criteriaIndex < 0 || scoreIndex < 0) continue;
 
     for (const row of body.slice(headerRowIndex + 1)) {
+      const rowText = row.map(normalize).join(" ");
+      const rowMarkers = lotMarkersInText(rowText);
+      if (rowMarkers.length === 1) currentLot = rowMarkers[0];
+      else if (rowMarkers.length > 1) currentLot = "";
       const step = normalize(row[stepIndex]);
       const factor = normalize(row[factorIndex]);
       const criteria = cleanScoringCriteria(row[criteriaIndex]);
       const score = normalize(row[scoreIndex]);
       if (!criteria || /\/\s*73|共\d+页|项目编号/.test(criteria)) continue;
+      // Scoring tables are often split over several pages and the lot label
+      // appears only at the start of a section. Inherit that label until the
+      // next explicit lot marker, but keep unlabelled tables as shared rules.
+      if (selected && currentLot && currentLot !== selected) {
+        last = null;
+        continue;
+      }
 
       if (score && /\d/.test(score) && criteria.length > 12) {
         last = {
@@ -1593,7 +2030,8 @@ const deriveScoringReviewFromExtraction = (extraction = {}) => {
           score: scoreMax(score),
           criteria,
           responseStrategy: "按评分细则逐项准备证明材料和响应章节",
-          sourcePage: tableData.page ? `第${tableData.page}页` : ""
+          sourcePage: tableData.page ? `第${tableData.page}页` : "",
+          lotContext: currentLot || "shared"
         };
         rows.push(last);
       } else if (!score && last && criteria.length > 20) {
@@ -1603,12 +2041,13 @@ const deriveScoringReviewFromExtraction = (extraction = {}) => {
   }
 
   const seen = new Set();
-  return rows.filter((row) => {
+  const filtered = rows.filter((row) => {
     const key = `${row.category}-${row.score}-${row.criteria.slice(0, 24)}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
   });
+  return selected ? filterRowsBySelectedLot(filtered, selectedLot) : filtered;
 };
 
 const mergeScoringReviewRows = (primary = [], secondary = []) => {
@@ -1657,19 +2096,68 @@ const hasConcreteDateTime = (value) => {
   return Boolean(text && !TIME_REFERENCE_ONLY_PATTERN.test(text) && ABSOLUTE_DATE_PATTERN.test(text) && CLOCK_PATTERN.test(text));
 };
 
+const BID_VALIDITY_NODE_PATTERN = /投标有效期|响应有效期|报价有效期/;
+const BID_VALIDITY_VALUE_PATTERN = /(?:不少于|不低于|不短于)?\d+(?:\.\d+)?\s*(?:个?日历?天|天|日)/;
+
+const locateBidValiditySourcePage = (extraction = {}, value = "") => {
+  const pages = Array.isArray(extraction?.pages) ? extraction.pages : [];
+  const duration = String(value || "").match(BID_VALIDITY_VALUE_PATTERN)?.[0]?.replace(/\s+/g, "");
+  const page = pages.find((item) => {
+    const text = String(item?.text || "");
+    return /投标有效期|响应有效期|报价有效期/.test(text) && (!duration || text.replace(/\s+/g, "").includes(duration));
+  });
+  return page?.page ? `第${page.page}页` : "未定位";
+};
+
+const extractBidValidityFromSource = (extraction = {}) => {
+  const pages = Array.isArray(extraction?.pages) ? extraction.pages : [];
+  for (const page of pages) {
+    const text = String(page?.text || "");
+    const label = text.match(/(?:投标|响应|报价)有效期[\s\S]{0,100}/);
+    const value = label?.[0]?.match(BID_VALIDITY_VALUE_PATTERN)?.[0];
+    if (value) return { value: value.replace(/\s+/g, ""), page: page?.page };
+  }
+  return null;
+};
+
+const normalizeKeyDatesWithBasicInfo = (keyDates, projectBasicInfo, extraction) => {
+  const validity = (Array.isArray(projectBasicInfo) ? projectBasicInfo : []).find((row) =>
+    BID_VALIDITY_NODE_PATTERN.test(String(row?.item || row?.name || ""))
+  );
+  const sourceValidity = extractBidValidityFromSource(extraction);
+  const value = String(validity?.content || validity?.info || validity?.requirement || sourceValidity?.value || "").trim();
+  if (!BID_VALIDITY_VALUE_PATTERN.test(value)) return keyDates;
+  const sourcePage = sourceValidity?.page ? `第${sourceValidity.page}页` : locateBidValiditySourcePage(extraction, value);
+  return (Array.isArray(keyDates) ? keyDates : []).map((row) => {
+    const node = String(row?.node || row?.item || "");
+    if (!BID_VALIDITY_NODE_PATTERN.test(node)) return row;
+    return {
+      ...row,
+      node: node || "投标有效期",
+      time: value,
+      sourcePage: sourcePage !== "未定位" ? sourcePage : (row?.sourcePage || sourcePage),
+      reminder: [row?.reminder, validity?.remark].filter(Boolean).join("；").replace(/未明确[^；。]*需人工核实[；。]?/g, "").trim()
+    };
+  });
+};
+
 // The model may miss a date or return a reference such as “与开标时间一致”.
 // Recover the authoritative value from the original text before marking it for review.
 const extractConcreteTimeFromSource = (node, extraction) => {
   const labelPattern = timeLabelPatternForNode(node);
   if (!labelPattern) return "";
+  // The node-specific patterns are intentionally reusable test patterns and
+  // are not global. Use a global copy for the exec loop so every match advances
+  // instead of repeatedly returning the same match forever.
+  const labelMatcher = new RegExp(labelPattern.source, "g");
   const pages = Array.isArray(extraction?.pages) ? extraction.pages : [];
   const candidates = [];
   for (const page of pages) {
     const pageText = String(page?.text || "");
     if (!pageText) continue;
-    let labelMatch;
-    labelPattern.lastIndex = 0;
-    while ((labelMatch = labelPattern.exec(pageText))) {
+    labelMatcher.lastIndex = 0;
+    const labelMatch = labelMatcher.exec(pageText);
+    if (labelMatch) {
       const context = pageText.slice(labelMatch.index, labelMatch.index + 180);
       const matches = [...context.matchAll(DATE_TIME_TOKEN_PATTERN)]
         .map((match) => match[0].replace(/\s+/g, " ").trim());
@@ -1739,23 +2227,80 @@ const validateKeyDatesAgainstSource = (keyDates, extraction) => {
   });
 };
 
+const normalizeSourceText = (value) => String(value || "")
+  .replace(/\s+/g, "")
+  .replace(/[，。；：、（）()【】\[\]“”‘’"'《》<>\-—_]/g, "")
+  .trim();
+
+const concreteSourcePage = (value, extraction) => {
+  const text = String(value || "").trim();
+  const match = text.match(/(?:第\s*)?(\d+)\s*页?/);
+  if (!match) return "";
+  const page = Number(match[1]);
+  const maxPage = Array.isArray(extraction?.pages) ? extraction.pages.length : 0;
+  if (!Number.isInteger(page) || page < 1 || (maxPage > 0 && page > maxPage)) return "";
+  return `第${page}页`;
+};
+
+const sourceSearchChunks = (value) => {
+  const text = normalizeSourceText(value);
+  if (text.length < 2) return [];
+  const chunks = new Set();
+  for (const run of text.match(/[\u4e00-\u9fff]{2,}/g) || []) {
+    if (run.length < 4) {
+      chunks.add(run);
+      continue;
+    }
+    // Short labels such as “投标函”“承诺函” are common table values. Keep
+    // three-character windows as searchable evidence in addition to the
+    // longer context windows below.
+    for (let index = 0; index <= run.length - 3 && index < 24; index += 1) {
+      chunks.add(run.slice(index, index + 3));
+    }
+    const limit = Math.min(run.length - 3, 24);
+    for (let index = 0; index < limit; index += 1) chunks.add(run.slice(index, index + 4));
+  }
+  for (const token of text.match(/[A-Za-z0-9][A-Za-z0-9._%+/]{2,}/g) || []) chunks.add(token);
+  return [...chunks].slice(0, 36);
+};
+
 const sourcePageForSnippet = (value, extraction) => {
-  const text = String(value || "").replace(/\s+/g, "").trim();
-  if (text.length < 12) return "未定位";
-  const probe = text.slice(0, 80);
+  const text = normalizeSourceText(value);
+  if (text.length < 2) return "未定位";
   const pages = Array.isArray(extraction?.pages) ? extraction.pages : [];
-  const page = pages.find((item) => String(item?.text || "").replace(/\s+/g, "").includes(probe));
-  if (page?.page) return `第${page.page}页`;
-  const fullText = String(extraction?.fullText || "").replace(/\s+/g, "");
-  return fullText.includes(probe) ? "原文已定位，页码未提取" : "未定位";
+  const normalizedPages = pages.map((item) => ({
+    page: item?.page,
+    text: normalizeSourceText(item?.text || "")
+  }));
+  const exact = normalizedPages.find((item) => item.text.length >= text.length && item.text.includes(text));
+  if (exact?.page) return `第${exact.page}页`;
+
+  // AI often paraphrases a requirement and OCR/PDF extraction may split a line.
+  // Match several distinctive four-character chunks at page level instead of requiring
+  // the complete sentence to be contiguous.
+  const chunks = sourceSearchChunks(text);
+  let best = { score: 0, page: "" };
+  for (const item of normalizedPages) {
+    if (!item.text) continue;
+    let score = 0;
+    for (const chunk of chunks) {
+      if (item.text.includes(chunk)) score += chunk.length >= 6 ? 3 : chunk.length === 3 ? 2 : 1;
+    }
+    if (score > best.score) best = { score, page: item.page };
+  }
+  if (best.page && best.score >= (chunks.length >= 3 ? 2 : 1)) return `第${best.page}页`;
+  const fullText = normalizeSourceText(extraction?.fullText || "");
+  return fullText.includes(text.slice(0, Math.min(text.length, 40))) ? "原文已定位，页码未提取" : "未定位";
 };
 
 const annotateRowsWithSource = (rows, extraction, fields = []) => {
   if (!Array.isArray(rows)) return [];
   return rows.map((row) => {
     const current = row && typeof row === "object" ? { ...row } : {};
-    if (current.sourcePage || current.page) {
-      current.sourcePage = current.sourcePage || current.page;
+    const existingPage = concreteSourcePage(current.sourcePage || current.page || current.source, extraction);
+    if (existingPage) {
+      current.sourcePage = existingPage;
+      current.sourceStatus = "已在原文定位";
       return current;
     }
     const content = fields.map((field) => current[field]).filter(Boolean).join("；");
@@ -1768,7 +2313,7 @@ const annotateRowsWithSource = (rows, extraction, fields = []) => {
   });
 };
 
-const deriveRejectionClausesFromExtraction = (extraction = {}) => {
+const deriveRejectionClausesFromExtraction = (extraction = {}, selectedLot = null) => {
   const rows = [];
   const pages = Array.isArray(extraction.pages) ? extraction.pages : [];
   for (const page of pages) {
@@ -1786,7 +2331,7 @@ const deriveRejectionClausesFromExtraction = (extraction = {}) => {
       });
     }
   }
-  return rows.slice(0, 30);
+  return filterRowsBySelectedLot(rows.slice(0, 30), selectedLot);
 };
 
 const auditScoringCompleteness = (rows, extraction) => {
@@ -1812,7 +2357,7 @@ const analyzeWithDeepSeek = async (project) => {
   }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 90000);
+  const timeout = setTimeout(() => controller.abort(), Number(process.env.DEEPSEEK_PARSE_TIMEOUT_MS || 90000));
   const extraction = project.extraction || {};
   const sourceText =
     extraction.fullText ||
@@ -1828,7 +2373,10 @@ const analyzeWithDeepSeek = async (project) => {
     quality: extraction.quality || {}
   };
   const tableSamples = (extraction.tables || []).slice(0, 40);
-  const analysisTextPack = buildKeySectionText(extraction, sourceText, 90000);
+  // Bound one report request. The complete source remains stored in the project;
+  // the model receives the highest-value pages and table samples so large tenders
+  // cannot exhaust the context window and leave the job looking frozen.
+  const analysisTextPack = buildKeySectionText(extraction, sourceText, 72000);
   const sourceSample = analysisTextPack.text;
   const selectedLot = project.selectedLot || null;
   const promptProjectName = selectedLot && isGenericProjectName(project, project.originalName || project.name)
@@ -1839,15 +2387,15 @@ const analyzeWithDeepSeek = async (project) => {
     : "";
 
   try {
-    const data = await requestDeepSeek({
+    let data = await requestDeepSeek({
       apiKey,
       signal: controller.signal,
-      maxTokens: 12000,
+      maxTokens: Number(process.env.DEEPSEEK_PARSE_MAX_TOKENS || 8000),
       messages: [
         {
           role: "system",
           content:
-            "你是专业招投标文件解析助手。请严格输出 JSON，不要输出 Markdown。报告风格参考正式招标文件深度解析报告：分区清晰、以表格字段为主、每项有具体内容/备注/合规判断。必须基于给定正文和表格样本，不得编造确定性事实；缺失内容写“未明确/待核实”。评分标准必须逐条按招标文件原文提取，不得总结、删减、改写；分值字段只填写该项最高分。采购需求必须按客户本次想购买、建设、实施、交付的服务、工程、硬件、软件、系统功能和范围提取，不能用项目摘要、预算金额、保证金、付款方式或评分办法替代。所有资格条件、废标条款、采购需求、商务要求、技术要求、响应文件格式和资料清单条目都必须尽量填写 sourcePage 原文页码；无法定位必须写“未定位，需人工核实”，不能把 AI 概括当作原文事实。\n\n【时间节点硬性规则】凡是投标截止、响应截止、磋商截止、报价截止、开标时间、保证金递交截止等节点，必须从招标文件原文提取完整的具体日期和时间，并同时填写原文页码；禁止填写“同上”“同前”“与开标时间一致”“与投标截止时间相同”“见上文”等替代表述。如果原文确实没有具体日期和时间，必须填写“未明确，需人工核实”，不得猜测或沿用其他节点。"
+            "你是专业招投标文件解析助手。请严格输出 JSON，不要输出 Markdown。报告风格参考正式招标文件深度解析报告：分区清晰、以表格字段为主、每项有具体内容/备注/合规判断。必须基于给定正文和表格样本，不得编造确定性事实；缺失内容写“未明确/待核实”。评分标准必须逐条按招标文件原文提取，不得总结、删减、改写；分值字段只填写该项最高分。采购需求必须按客户本次想购买、建设、实施、交付的服务、工程、硬件、软件、系统功能和范围提取，不能用项目摘要、预算金额、保证金、付款方式或评分办法替代。所有资格条件、废标条款、采购需求、商务要求、技术要求、响应文件格式和资料清单条目都必须尽量填写 sourcePage 原文页码；无法定位必须写“未定位，需人工核实”，不能把 AI 概括当作原文事实。\n\n【时间节点硬性规则】凡是投标截止、响应截止、磋商截止、报价截止、开标时间、保证金递交截止等节点，必须从招标文件原文提取完整的具体日期和时间，并同时填写原文页码；禁止填写“同上”“同前”“与开标时间一致”“与投标截止时间相同”“见上文”等替代表述。如果原文确实没有具体日期和时间，必须填写“未明确，需人工核实”，不得猜测或沿用其他节点。\n\n【多标段评分硬性规则】如果已给出本次标段选择，只能提取该标段/标包/品目的评分表和分值。评分表跨页时，沿用最近一个明确的标段标题，直到出现下一个标段标题；其他标段的评分项、分值、评分细则不得输出。不要把整份文件中所有标段的评分相加；本次标段评分总分必须按该标段原文核对，通常应为100分，无法确认时必须标记“需人工核实”。"
         },
         {
           role: "user",
@@ -1856,20 +2404,41 @@ const analyzeWithDeepSeek = async (project) => {
       ]
     });
 
-    const content = data.choices?.[0]?.message?.content || "";
+    let content = data.choices?.[0]?.message?.content || "";
+    console.log(`[DeepSeek] parse response contentChars=${String(content).length}`);
+    data = null;
     const parsed = await parseDeepSeekJson({ apiKey, content, signal: controller.signal });
+    content = "";
+    console.log(`[DeepSeek] parse json ok heap=${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`);
     parsed.basicReview = parsed.basicReview || {};
-    parsed.basicReview.keyDates = validateKeyDatesAgainstSource(parsed.basicReview.keyDates, {
+    const sourceExtraction = {
       ...extraction,
       fullText: extraction.fullText || project.sourceText || ""
-    });
-    const exactScoringReview = deriveScoringReviewFromExtraction(extraction);
-    parsed.scoringReview = mergeScoringReviewRows(
-      exactScoringReview,
-      Array.isArray(parsed.scoringReview) ? parsed.scoringReview : []
+    };
+    parsed.basicReview.keyDates = validateKeyDatesAgainstSource(parsed.basicReview.keyDates, sourceExtraction);
+    // 投标有效期是“项目基本信息”和“重要时间节点”的同一事实，不能因为
+    // 它不是具体日期时间就被时间校验器误判为未明确。以原文/基本信息中
+    // 的明确天数为权威值，并回填到时间节点表，避免同一字段前后矛盾。
+    parsed.basicReview.keyDates = normalizeKeyDatesWithBasicInfo(
+      parsed.basicReview.keyDates,
+      parsed.basicReview.projectBasicInfo,
+      sourceExtraction
     );
-    parsed.scoringReview = filterRowsBySelectedLot(parsed.scoringReview, selectedLot);
+    console.log(`[DeepSeek] key dates validated heap=${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`);
+    const exactScoringReview = deriveScoringReviewFromExtraction(extraction, selectedLot);
+    const modelScoringReview = filterRowsBySelectedLot(
+      Array.isArray(parsed.scoringReview) ? parsed.scoringReview : [],
+      selectedLot
+    );
+    // For a selected lot, the source scoring tables are authoritative. Do not
+    // append model-only rows from other lot sections, which can push the total
+    // above the lot's actual 100-point scale. The model remains useful when
+    // table extraction produced no usable scoring rows.
+    parsed.scoringReview = exactScoringReview.length
+      ? exactScoringReview
+      : mergeScoringReviewRows([], modelScoringReview);
     parsed.scoringReview = annotateRowsWithSource(parsed.scoringReview, extraction, ["category", "criteria"]);
+    console.log(`[DeepSeek] scoring normalized heap=${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`);
     // The source table is authoritative for score totals. AI rows may paraphrase
     // the same item and must not be counted a second time during the audit.
     const exactScoringRowsForAudit = filterRowsBySelectedLot(exactScoringReview, selectedLot);
@@ -1886,13 +2455,32 @@ const analyzeWithDeepSeek = async (project) => {
       parsed.manualReviewRequired = true;
     }
     const exactProcurementRequirements = deriveProcurementRequirementsFromExtraction(extraction, selectedLot);
-    parsed.procurementRequirements = mergeProcurementRequirements(
-      exactProcurementRequirements,
+    const modelProcurementRequirements = mergeProcurementRequirements(
+      [],
       Array.isArray(parsed.procurementRequirements) ? parsed.procurementRequirements : []
     );
+    const procurementSourceRows = exactProcurementRequirements.length
+      ? exactProcurementRequirements
+      : modelProcurementRequirements;
+    // The source extractor remains authoritative for facts, while this small
+    // AI pass repairs PDF/OCR layout damage before the rows reach the report.
+    // It is intentionally separate from the main analysis prompt so cleanup
+    // cannot silently replace missing procurement content with a summary.
+    const cleanedProcurementRequirements = await normalizeProcurementRequirementsWithDeepSeek({
+      apiKey,
+      rows: procurementSourceRows,
+      extraction,
+      selectedLot,
+      signal: controller.signal
+    });
+    parsed.procurementRequirements = mergeProcurementRequirements(
+      cleanedProcurementRequirements.length ? cleanedProcurementRequirements : procurementSourceRows,
+      exactProcurementRequirements.length ? [] : modelProcurementRequirements
+    );
     parsed.procurementRequirements = annotateRowsWithSource(parsed.procurementRequirements, extraction, ["item", "requirement"]);
+    console.log(`[DeepSeek] procurement normalized heap=${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`);
     const rejectionRows = [];
-    for (const row of [...deriveRejectionClausesFromExtraction(extraction), ...(Array.isArray(parsed.rejectionClauses) ? parsed.rejectionClauses : [])]) {
+    for (const row of [...deriveRejectionClausesFromExtraction(extraction, selectedLot), ...(Array.isArray(parsed.rejectionClauses) ? parsed.rejectionClauses : [])]) {
       const clause = String(row?.clause || row?.item || row?.requirement || "").trim();
       if (!clause || rejectionRows.some((item) => item.clause.replace(/\s+/g, "").slice(0, 70) === clause.replace(/\s+/g, "").slice(0, 70))) continue;
       rejectionRows.push({
@@ -1923,6 +2511,12 @@ const analyzeWithDeepSeek = async (project) => {
       const parsedLotProjectName = lotProjectNameFromParsed(project, selectedLot, findParsedProjectName(parsed));
       parsed.projectHeader = { ...(parsed.projectHeader || {}), projectName: parsedLotProjectName };
       if (parsed.basicReview?.projectBasicInfo) {
+        parsed.basicReview.projectBasicInfo = filterRowsBySelectedLot(parsed.basicReview.projectBasicInfo, selectedLot);
+      }
+      if (parsed.basicReview?.keyDates) {
+        parsed.basicReview.keyDates = filterRowsBySelectedLot(parsed.basicReview.keyDates, selectedLot);
+      }
+      if (parsed.basicReview?.projectBasicInfo) {
         const nameRow = parsed.basicReview.projectBasicInfo.find((row) => /项目名称/.test(row.item || ""));
         if (nameRow) nameRow.content = parsedLotProjectName;
       }
@@ -1933,6 +2527,25 @@ const analyzeWithDeepSeek = async (project) => {
       if (parsed.technicalReview) parsed.technicalReview = filterRowsBySelectedLot(parsed.technicalReview, selectedLot);
       if (parsed.scoringReview) parsed.scoringReview = filterRowsBySelectedLot(parsed.scoringReview, selectedLot);
       if (parsed.materialsChecklist) parsed.materialsChecklist = filterRowsBySelectedLot(parsed.materialsChecklist, selectedLot);
+      if (parsed.rejectionClauses) parsed.rejectionClauses = filterRowsBySelectedLot(parsed.rejectionClauses, selectedLot);
+      if (parsed.qualificationCompliance?.qualificationReview) {
+        parsed.qualificationCompliance.qualificationReview = filterRowsBySelectedLot(
+          parsed.qualificationCompliance.qualificationReview,
+          selectedLot
+        );
+      }
+      if (parsed.qualificationCompliance?.certificateChecklist) {
+        parsed.qualificationCompliance.certificateChecklist = filterRowsBySelectedLot(
+          parsed.qualificationCompliance.certificateChecklist,
+          selectedLot
+        );
+      }
+      if (parsed.submissionFormat) parsed.submissionFormat = filterRowsBySelectedLot(parsed.submissionFormat, selectedLot);
+      if (parsed.bidOutline) {
+        parsed.bidOutline.businessPart = filterRowsBySelectedLot(parsed.bidOutline.businessPart || [], selectedLot);
+        parsed.bidOutline.technicalPart = filterRowsBySelectedLot(parsed.bidOutline.technicalPart || [], selectedLot);
+        parsed.bidOutline.attachmentsPart = filterRowsBySelectedLot(parsed.bidOutline.attachmentsPart || [], selectedLot);
+      }
     }
     const countedItems = countReportItems(parsed);
     const parsedProjectName = findParsedProjectName(parsed);
@@ -2171,8 +2784,10 @@ const bidOutlineEntry = (item) => {
     .map((value) => value.trim())
     .filter(Boolean);
   return {
+    number: model.number || "",
     title: model.label || directoryDisplayLabel(item),
-    children: model.children.length ? model.children : fallbackChildren
+    children: model.children.length ? model.children.map((child) => child.label) : fallbackChildren,
+    childNumbers: model.children.length ? model.children.map((child) => child.number || "") : []
   };
 };
 
@@ -2268,7 +2883,7 @@ const generateBidChapterWithDeepSeek = async ({ apiKey, project, raw, tenderCont
         {
           role: "system",
           content:
-            "你是资深投标文件技术标撰写专家。只输出合法 JSON。必须根据招标文件原始内容撰写投标响应正文，不能复制粘贴招标文件原文，不能把评分细则原文当正文。内容应体现投标人的实施方案、服务方法、组织保障、质量控制、交付验收和风险控制。"
+            "你是资深投标文件技术标撰写专家。只输出合法 JSON。必须根据招标文件原始内容撰写投标响应正文，不能复制粘贴招标文件原文，不能把评分细则原文当正文。内容应体现投标人的实施方案、服务方法、组织保障、质量控制、交付验收和风险控制。服务端传入的二级、三级目录编号是最终编号，必须保持一致，不得自行改号、跳号或重复生成章节。"
         },
         {
           role: "user",
@@ -2292,6 +2907,7 @@ const generateBidChapterWithDeepSeek = async ({ apiKey, project, raw, tenderCont
     });
     const content = generatedSectionPlainText(sections);
     return {
+      number: outlineEntry.number || "",
       title: parsed.title || outlineEntry.title,
       sections,
       content: sanitizeTechnicalContent(content),
@@ -2311,14 +2927,41 @@ const generateBidWithDeepSeek = async (project, result, options = {}) => {
     ? {
         businessPart: project.outlineDocument.businessPart || [],
         technicalPart: project.outlineDocument.technicalPart || [],
-        attachmentsPart: project.outlineDocument.attachmentsPart || []
+        attachmentsPart: project.outlineDocument.attachmentsPart || [],
+        responseFormat: project.outlineDocument.responseFormat || buildResponseFormatOutline(raw)
       }
-    : raw.bidOutline || {};
+    : { ...(raw.bidOutline || {}), responseFormat: buildResponseFormatOutline(raw) };
   const bidPageRange = normalizeBidPageRange(options.bidPageRange || project.bidPageRange || "under_100");
   const rangeMeta = bidPageRangeMeta(bidPageRange);
-  const technicalOutline = project.outlineDocument?.technicalPart?.length
-    ? outline.technicalPart
-    : expandTechnicalOutline(raw, outline.technicalPart || [], bidPageRange);
+  const responseFormat = project.outlineDocument?.responseFormat
+    || raw.outlineDocument?.responseFormat
+    || buildResponseFormatOutline(raw);
+  const responseTechnicalRoot = Array.isArray(responseFormat)
+    ? responseFormat.find((item) => /技术分资料|技术资料|技术部分/.test(String(item?.title || item?.label || "")))
+    : null;
+  const technicalRootNumber = responseTechnicalRoot?.number || "1";
+  const sourceTechnicalOutline = responseTechnicalRoot?.children?.length
+    ? responseTechnicalRoot.children
+    : (project.outlineDocument?.technicalPart?.length ? outline.technicalPart : []);
+  // The response-format roots carry authoritative numbering. Expansion works
+  // on labels only, because its de-duplication rules intentionally operate on
+  // strings; restore the source numbers/children when building the final tree.
+  const sourceTechnicalLabels = sourceTechnicalOutline.map((item) => {
+    const model = outlineItemModel(item);
+    return model.label || directoryDisplayLabel(item);
+  });
+  const expandedTechnicalOutline = bidPageRange === bidPageRanges.under_100
+    ? sourceTechnicalOutline
+    : expandTechnicalOutline(raw, sourceTechnicalLabels, bidPageRange);
+  const technicalOutline = expandedTechnicalOutline.map((item, index) => {
+    const model = outlineItemModel(item);
+    const sourceModel = outlineItemModel(sourceTechnicalOutline[index]);
+    return {
+      number: model.number || sourceModel.number || `${technicalRootNumber}.${index + 1}`,
+      title: model.label || directoryDisplayLabel(item),
+      children: model.children.length ? model.children : (sourceModel.children || [])
+    };
+  });
   const tenderContext = buildBidGenerationContext(project, raw);
   const outlineEntries = technicalOutline.map(bidOutlineEntry).filter((entry) => entry.title);
 
@@ -2355,7 +2998,7 @@ const generateBidWithDeepSeek = async (project, result, options = {}) => {
               project,
               raw,
               tenderContext,
-              outlineEntry: { title: entry.title, children: childChunk },
+              outlineEntry: { number: entry.number || "", title: entry.title, children: childChunk },
               chapterIndex: index,
               chapterTotal: outlineEntries.length,
               rangeMeta
@@ -2367,6 +3010,7 @@ const generateBidWithDeepSeek = async (project, result, options = {}) => {
           notes.push(...(childChapter.notes || []));
         });
         chapter = {
+          number: entry.number || "",
           title: entry.title,
           sections,
           content: generatedSectionPlainText(sections),
@@ -2398,6 +3042,7 @@ const generateBidWithDeepSeek = async (project, result, options = {}) => {
       return { chapter, notes: chapter.notes || [] };
     } catch (error) {
       const fallbackChapter = {
+        number: entry.number || "",
         title: entry.title,
         sections: entry.children.map((child) => ({
           heading: child,
@@ -2427,10 +3072,16 @@ const generateBidWithDeepSeek = async (project, result, options = {}) => {
 
   const normalizedTechnical = normalizeTechnicalChapters(technicalChapters, technicalOutline, project, raw, rangeMeta);
   const normalizedByTitle = new Map(normalizedTechnical.technicalChapters.map((chapter) => [normalizeOutlineKey(chapter.title), chapter]));
-  const finalTechnical = technicalChapters.map((chapter) => {
+  const finalTechnical = technicalChapters.map((chapter, index) => {
     const normalized = normalizedByTitle.get(normalizeOutlineKey(chapter.title));
-    if (!normalized) return chapter;
-    return { ...chapter, content: normalized.content || chapter.content };
+    const entry = outlineEntries[index] || {};
+    const chapterNumber = chapter.number || entry.number || `5.${index + 1}`;
+    const sections = (chapter.sections || []).map((section, sectionIndex) => ({
+      ...section,
+      number: section.number || `${chapterNumber}.${sectionIndex + 1}`
+    }));
+    if (!normalized) return { ...chapter, number: chapterNumber, sections };
+    return { ...chapter, number: chapterNumber, sections, content: normalized.content || chapter.content };
   });
 
   return {
@@ -2445,6 +3096,7 @@ const generateBidWithDeepSeek = async (project, result, options = {}) => {
     contextTableCount: tenderContext.tenderTables.length,
     businessDirectory: outline.businessPart || [],
     attachmentDirectory: outline.attachmentsPart || [],
+    responseFormat,
     technicalChapters: finalTechnical,
     generationNotes: [
       `已按“${rangeMeta.label}”档位并发调用 DeepSeek 生成正文，并发上限 ${deepSeekBidConcurrency} 路，共 ${finalTechnical.length} 个技术章节。`,
@@ -2532,19 +3184,43 @@ const generateVerificationWithDeepSeek = async (project, result) => {
   }
 };
 
+const activeParsingJobs = new Set();
+
+const recoverStaleParsingJobs = async () => {
+  const db = await readDb();
+  const staleBefore = Date.now() - 15 * 60 * 1000;
+  let changed = false;
+  for (const project of db.projects || []) {
+    if (project.status !== "parsing" || Number(project.progress || 0) < 68) continue;
+    const startedAt = Date.parse(project.parsingJobStartedAt || project.updatedAt || "");
+    // Older records may not have a timestamp at all. A parsing record at 68%
+    // without a live in-memory job is stale and must be made retryable.
+    if (Number.isFinite(startedAt) && startedAt > staleBefore) continue;
+    project.status = "failed";
+    project.progress = 15;
+    project.message = "解析任务已中断，请点击重新解析";
+    project.parsingJobStartedAt = null;
+    changed = true;
+  }
+  if (changed) await writeDb(db);
+};
+
 const startParsingJob = async (projectId) => {
+  if (activeParsingJobs.has(projectId)) return;
+  activeParsingJobs.add(projectId);
   setTimeout(() => updateProject(projectId, { status: "parsing", progress: 18, message: "服务端正在提取正文、页码和表格" }), 500);
 
   setTimeout(async () => {
-    const db = await readDb();
-    const project = db.projects.find((item) => item.id === projectId);
-    if (!project) return;
-    project.status = "parsing";
-    project.progress = 42;
-    project.message = "正文提取完成度校验中";
-    await writeDb(db);
-
     try {
+      const db = await readDb();
+      const project = db.projects.find((item) => item.id === projectId);
+      if (!project) return;
+      project.status = "parsing";
+      project.progress = 42;
+      project.message = "正文提取完成度校验中";
+      project.parsingJobStartedAt = nowIso();
+      await writeDb(db);
+
       const extraction = await extractProjectDocument(project);
       const afterExtract = await readDb();
       const extractedProject = afterExtract.projects.find((item) => item.id === projectId);
@@ -2557,11 +3233,13 @@ const startParsingJob = async (projectId) => {
         extractedProject.status = "awaiting_lot_selection";
         extractedProject.progress = 55;
         extractedProject.message = "已识别到多个标段，请先选择本次解析标段";
+        extractedProject.parsingJobStartedAt = null;
         await writeDb(afterExtract);
         return;
       }
       extractedProject.progress = 68;
-      extractedProject.message = "正在调用 DeepSeek 生成表格化解析报告";
+      extractedProject.message = "正在调用 DeepSeek 生成表格化解析报告（超时会自动失败并提示重试）";
+      extractedProject.parsingJobStartedAt = nowIso();
       await writeDb(afterExtract);
 
       const result = await analyzeWithDeepSeek(extractedProject);
@@ -2571,6 +3249,7 @@ const startParsingJob = async (projectId) => {
       latestProject.status = "completed";
       latestProject.progress = 100;
       latestProject.message = result.raw?.manualReviewRequired ? "解析完成，建议人工复核" : "解析完成";
+      latestProject.parsingJobStartedAt = null;
       if (latestProject.selectedLot && result.parsedProjectName) {
         latestProject.originalName = stripLotSuffix(result.parsedProjectName);
         latestProject.name = result.parsedProjectName;
@@ -2590,11 +3269,14 @@ const startParsingJob = async (projectId) => {
       if (latestProject) {
         latestProject.status = "failed";
         latestProject.progress = 15;
+        latestProject.parsingJobStartedAt = null;
         latestProject.message = /JSON|array element|position|Unexpected/i.test(error.message || "")
           ? "DeepSeek返回格式异常，请点击重新解析"
           : error.message || "DeepSeek 解析失败";
       }
       await writeDb(latest);
+    } finally {
+      activeParsingJobs.delete(projectId);
     }
   }, 2200);
 };
@@ -2736,6 +3418,16 @@ const shouldSplitOutlineItem = (base, hint, parts) => {
 };
 
 const outlineItemModel = (item) => {
+  if (item && typeof item === "object") {
+    const number = String(item.number || item.no || item.serial || "").trim();
+    const rawTitle = String(item.title || item.label || item.name || item.item || item.requirement || "").trim();
+    const children = Array.isArray(item.children) ? item.children.map((child) => outlineItemModel(child)) : [];
+    return {
+      number,
+      label: stripLeadingNumber(rawTitle),
+      children
+    };
+  }
   const original = stripLeadingNumber(item);
   const match = original.match(/^(.*?)[（(]([^（）()]+)[）)]\s*$/);
   if (!match) return { label: original, children: [] };
@@ -3018,9 +3710,9 @@ const renderAnalysisReport = (project, result) => {
     <h2>D.文件与大纲</h2>
     ${tableHtml("1.文件格式要求表", ["文件要求", "具体要求", "备注"], raw.submissionFormat)}
     ${tableHtml("2.资料清单表", ["资料名称", "是否必需", "来源", "备注"], raw.materialsChecklist)}
-    ${listHtml("3.投标文件大纲-商务部分", raw.bidOutline?.businessPart)}
-    ${listHtml("4.投标文件大纲-技术部分", raw.bidOutline?.technicalPart)}
-    ${listHtml("5.投标文件大纲-附件部分", raw.bidOutline?.attachmentsPart)}
+    ${listHtml("3.响应文件格式要求（从招标文件提取）", raw.bidOutline?.responseFormat || raw.outlineDocument?.responseFormat || buildResponseFormatOutline(raw))}
+    ${listHtml("4.技术大纲（评分表）", raw.bidOutline?.technicalPart)}
+    ${listHtml("5.商务大纲（评分表）", raw.bidOutline?.businessPart)}
     <h2>E.提取完整性</h2>
     <table style="width:100%;border-collapse:collapse;">
       <tr><td style="border:1px solid #d6dbe3;padding:8px;">页数</td><td style="border:1px solid #d6dbe3;padding:8px;">${escHtml(q.pageCount)}</td></tr>
@@ -3161,9 +3853,9 @@ const renderAnalysisPdf = async (project, result) => {
     table(doc, "废标风险", ["条款", "风险", "处理建议", "原文页码"], raw.rejectionClauses, ["clause", "risk", "action", "sourcePage"]);
     table(doc, "资料清单", ["资料名称", "是否必需", "来源", "备注"], raw.materialsChecklist, ["material", "required", "source", "note"]);
     table(doc, "文件格式要求", ["文件要求", "具体要求", "备注"], raw.submissionFormat, ["item", "requirement", "note"]);
-    list(doc, "投标文件大纲 - 商务部分", raw.bidOutline?.businessPart);
-    list(doc, "投标文件大纲 - 技术部分", raw.bidOutline?.technicalPart);
-    list(doc, "投标文件大纲 - 附件部分", raw.bidOutline?.attachmentsPart);
+    list(doc, "响应文件格式要求（从招标文件提取）", raw.bidOutline?.responseFormat || raw.outlineDocument?.responseFormat || buildResponseFormatOutline(raw));
+    list(doc, "技术大纲（评分表）", raw.bidOutline?.technicalPart);
+    list(doc, "商务大纲（评分表）", raw.bidOutline?.businessPart);
     table(doc, "提取完整性", ["项目", "结果"], [
       { item: "页数", result: q.pageCount || "未明确" },
       { item: "字数", result: q.charCount || "未明确" },
@@ -3219,13 +3911,13 @@ const downloadPayload = async (kind, project, result) => {
     const outline = result.raw?.bidOutline || {};
     const businessPart = project.outlineDocument?.businessPart || outline.businessPart;
     const technicalPart = project.outlineDocument?.technicalPart || expandTechnicalOutline(result.raw || {}, outline.technicalPart || [], project.bidPageRange || "under_100");
-    const attachmentsPart = project.outlineDocument?.attachmentsPart || outline.attachmentsPart;
+    const responseFormat = project.outlineDocument?.responseFormat || outline.responseFormat || result.raw?.outlineDocument?.responseFormat || buildResponseFormatOutline(result.raw || {});
     return {
       filename: "投标文件大纲.doc",
       type: "application/msword; charset=utf-8",
       body: htmlDoc(
         "投标文件大纲",
-        `${listHtml("商务部分", businessPart)}${listHtml("技术部分", technicalPart)}${listHtml("附件部分", attachmentsPart)}`
+        `${listHtml("响应文件格式要求（从招标文件提取）", responseFormat)}${listHtml("技术大纲（评分表）", technicalPart)}${listHtml("商务大纲（评分表）", businessPart)}`
       )
     };
   }
@@ -3755,6 +4447,8 @@ const server = http.createServer(async (req, res) => {
 server.requestTimeout = 15 * 60 * 1000;
 server.headersTimeout = 16 * 60 * 1000;
 server.keepAliveTimeout = 65 * 1000;
+
+recoverStaleParsingJobs().catch((error) => console.error(`[ParseRecovery] ${error.message}`));
 
 server.listen(port, "0.0.0.0", () => {
   console.log(`AI Bid front：http://localhost:${port}${projectBasePath}/`);

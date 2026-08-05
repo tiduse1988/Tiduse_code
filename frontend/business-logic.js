@@ -339,11 +339,11 @@
     Boolean(project?.bidGenerated) ||
     (Array.isArray(project?.bidDocument?.technicalChapters) && project.bidDocument.technicalChapters.length > 0);
 
-  const hasOutlineDocument = (project) => {
-    const outline = project?.outlineDocument || {};
-    return Boolean(project?.outlineGenerated) ||
-      Boolean(outline.businessPart?.length || outline.technicalPart?.length || outline.attachmentsPart?.length);
-  };
+const hasOutlineDocument = (project) => {
+  const outline = project?.outlineDocument || {};
+  return Boolean(project?.outlineGenerated) ||
+    Boolean(outline.responseFormat?.length || outline.businessPart?.length || outline.technicalPart?.length);
+};
 
   const bidGenerationRequest = (project) =>
     JSON.stringify({ bidPageRange: selectedBidPageRange(project) });
@@ -393,8 +393,9 @@
     const list = Array.isArray(rows) ? rows : [];
     if (!list.length) return '<div class="card"><p>招标文件中未明确，建议人工复核原文。</p></div>';
     const excluded = new Set(options.excludeKeys || []);
+    const internalKeys = new Set(["sourceStatus"]);
     const extraKeys = Array.from(new Set(list.flatMap((row) => Object.keys(row || {}))))
-      .filter((key) => !keys.includes(key) && !excluded.has(key) && list.some((row) => row?.[key] !== undefined && row?.[key] !== ""));
+      .filter((key) => !keys.includes(key) && !excluded.has(key) && !internalKeys.has(key) && list.some((row) => row?.[key] !== undefined && row?.[key] !== ""));
     const finalKeys = [...keys, ...extraKeys];
     const finalHeaders = [...headers, ...extraKeys.map(fieldLabel)];
     const scoreKeys = new Set(options.scoreMaxKeys || []);
@@ -426,7 +427,14 @@
   const bullets = (items) => {
     const list = Array.isArray(items) ? items : [];
     if (!list.length) return '<div class="card"><p>招标文件中未明确，建议人工复核原文。</p></div>';
-    return `<div class="card"><ul class="inline-list">${list.map((item) => `<li><span class="dot"></span>${esc(item)}</li>`).join("")}</ul></div>`;
+    const renderBullet = (item, index, parentNumber = "") => {
+      const model = outlineItemModel(item);
+      const number = model.number || (parentNumber ? `${parentNumber}.${index + 1}` : "");
+      const label = number ? `${number} ${model.label}` : model.label;
+      const children = Array.isArray(model.children) ? model.children : [];
+      return `<li><span class="dot"></span>${esc(label)}${children.length ? `<ul class="inline-list nested-list">${children.map((child, childIndex) => renderBullet(child, childIndex, number)).join("")}</ul>` : ""}</li>`;
+    };
+    return `<div class="card"><ul class="inline-list">${list.map((item, index) => renderBullet(item, index)).join("")}</ul></div>`;
   };
 
   const stripLeadingNumber = (value) =>
@@ -457,9 +465,31 @@
   };
 
   const outlineItemModel = (item) => {
+    if (item && typeof item === "object") {
+      const number = String(item.number || item.no || item.serial || "").trim();
+      const rawTitle = String(item.title || item.label || item.name || item.item || item.requirement || "").trim();
+      const parsed = outlineItemModel(rawTitle);
+      const explicitChildren = Array.isArray(item.children)
+        ? item.children.map((child, index) => {
+            const childModel = outlineItemModel(child);
+            return {
+              number: childModel.number || (number ? `${number}.${index + 1}` : ""),
+              label: childModel.label,
+              children: childModel.children
+            };
+          })
+        : [];
+      return {
+        number,
+        label: parsed.label,
+        children: explicitChildren.length
+          ? explicitChildren
+          : parsed.children.map((label, index) => ({ number: number ? `${number}.${index + 1}` : "", label, children: [] }))
+      };
+    }
     const original = stripLeadingNumber(item);
     const match = original.match(/^(.*?)[（(]([^（）()]+)[）)]\s*$/);
-    if (!match) return { label: original, children: [] };
+    if (!match) return { number: "", label: original, children: [] };
 
     const base = match[1].trim().replace(/[：:、，,；;]\s*$/g, "");
     const hint = match[2].trim();
@@ -469,12 +499,16 @@
       .map(cleanOutlineChild)
       .filter((part) => part.length > 1);
 
-    if (!base || !shouldSplitOutlineItem(base, hint, parts)) return { label: original, children: [] };
-    return { label: base, children: parts };
+    if (!base || !shouldSplitOutlineItem(base, hint, parts)) return { number: "", label: original, children: [] };
+    return { number: "", label: base, children: parts.map((label) => ({ number: "", label, children: [] })) };
   };
 
+  const countOutlineNode = (item) => {
+    const model = outlineItemModel(item);
+    return 1 + model.children.reduce((sum, child) => sum + countOutlineNode(child), 0);
+  };
   const countOutlineItems = (groups) =>
-    groups.reduce((total, group) => total + 1 + group.items.reduce((sum, item) => sum + 1 + outlineItemModel(item).children.length, 0), 0);
+    groups.reduce((total, group) => total + 1 + (group.items || []).reduce((sum, item) => sum + countOutlineNode(item), 0), 0);
 
   const nestedDirectoryHtml = (items, emptyText = "待补充目录") => {
     const list = Array.isArray(items) ? items : [];
@@ -482,7 +516,7 @@
     return `<ol class="list-decimal pl-6 space-y-1">${list
       .map((item) => {
         const model = outlineItemModel(item);
-        return `<li>${esc(model.label)}${model.children.length ? `<ol class="list-[lower-alpha] pl-5 mt-1 space-y-1">${model.children.map((child) => `<li>${esc(child)}</li>`).join("")}</ol>` : ""}</li>`;
+        return `<li>${esc(model.label)}${model.children.length ? `<ol class="list-[lower-alpha] pl-5 mt-1 space-y-1">${model.children.map((child) => `<li>${esc(outlineItemModel(child).label)}</li>`).join("")}</ol>` : ""}</li>`;
       })
       .join("")}</ol>`;
   };
@@ -501,6 +535,106 @@
     items.push(label);
   };
 
+  const scoringSourceText = (raw = {}) => JSON.stringify({
+    submissionFormat: raw.submissionFormat || [],
+    bidOutline: raw.bidOutline || {},
+    businessReview: raw.businessReview || [],
+    qualificationCompliance: raw.qualificationCompliance || {}
+  });
+
+  const scoreRowSection = (row = {}, raw = {}) => {
+    const explicit = [row.category, row.step, row.section, row.part, row.item].filter(Boolean).join("；");
+    if (/商务部分|商务分|商务评分|资格审查|资格条件|报价部分|报价分|价格分/.test(explicit)) return "business";
+    if (/技术部分|技术分|技术评分|技术服务分/.test(explicit)) return "technical";
+    const text = [row.item, row.category, row.criteria, row.responseStrategy, row.responsePoint].filter(Boolean).join("；");
+    const businessSource = JSON.stringify({ businessPart: raw.bidOutline?.businessPart || [], submissionFormat: raw.submissionFormat || [], businessReview: raw.businessReview || [], qualification: raw.qualificationCompliance?.qualificationReview || [] });
+    const technicalSource = JSON.stringify({ technicalPart: raw.bidOutline?.technicalPart || [], technicalReview: raw.technicalReview || [] });
+    const rowItem = String(row.item || "").trim();
+    const rowCategory = String(row.category || "").trim();
+    if ((rowItem && businessSource.includes(rowItem)) || (rowCategory && businessSource.includes(rowCategory))) return "business";
+    if ((rowItem && technicalSource.includes(rowItem)) || (rowCategory && technicalSource.includes(rowCategory))) return "technical";
+    if (/履约经验|业绩|企业认证|经营许可|报价|价格|财务|纳税|社保|信用|中小企业|节能|残疾人|优惠政策/.test(text)) return "business";
+    if (/技术|服务|方案|实施|运维|应急|安全|项目理解|质量|人员|团队|负责人|响应|进度|组织|保密/.test(text)) return "technical";
+    return "unknown";
+  };
+
+  const scoringSubtopics = (row = {}) => {
+    const text = [row.criteria, row.responsePoint, row.responseStrategy, row.requirement].filter(Boolean).join("；");
+    const output = [];
+    [/(?:包含|包括|内容包括|要求包括|重点包括)[：:]([^。；;]+)/g, /(?:分别为|包括以下内容)[：:]([^。；;]+)/g].forEach((pattern) => {
+      let match;
+      while ((match = pattern.exec(text))) {
+        String(match[1]).split(/[、，,；;]/).map((item) => item.replace(/（[^）]*）|\([^)]*\)/g, "").trim())
+          .filter((item) => item.length >= 2 && item.length <= 32 && !/^(等|以及|相关内容)$/.test(item))
+          .forEach((item) => { if (!output.some((existing) => existing.replace(/\s+/g, "") === item.replace(/\s+/g, ""))) output.push(item); });
+      }
+    });
+    return output.slice(0, 12);
+  };
+
+  const deriveBusinessScoringOutline = (raw) => {
+    const output = [];
+    (Array.isArray(raw?.scoringReview) ? raw.scoringReview : []).forEach((row) => {
+      if (scoreRowSection(row, raw) !== "business") return;
+      const candidate = String(row.item || row.category || row.step || "")
+        .replace(/^(?:商务部分|商务分资料|商务分|商务评分|评分项|评分标准)[：:、，,；;\-\s]*/i, "")
+        .replace(/(?:（满分[^）]*）|\(满分[^)]*\))$/g, "").trim();
+      if (!candidate || candidate.length > 60 || /^(?:商务部分|评分|综合评分)$/.test(candidate)) return;
+      const children = scoringSubtopics(row);
+      const value = children.length ? `${candidate}（${children.join("、")}）` : candidate;
+      if (!output.some((existing) => compactOutlineLabel(existing).replace(/\s+/g, "") === compactOutlineLabel(value).replace(/\s+/g, ""))) output.push(value);
+    });
+    return output;
+  };
+
+  // 技术目录严格按评分项归并：一个评分项一个二级目录，评分细则中的材料/维度归为三级目录。
+  const technicalScoringParentPatterns = [
+    "项目负责人", "技术负责人", "网络安全负责人", "数据安全负责人", "团队其他成员",
+    "项目理解与实施计划", "项目理解与实施方案", "项目理解", "实施计划", "运维服务方案",
+    "运维服务", "应急保障方案", "应急保障", "项目管理方案", "质量控制方案", "风险保障方案",
+    "项目经理", "安全负责人", "质量负责人", "运维负责人"
+  ];
+  const deriveTechnicalScoringOutline = (raw) => {
+    const groups = new Map();
+    const clean = (value) => compactOutlineLabel(value)
+      .replace(/^(?:商务部分|商务分资料|商务分|商务评分|技术部分|技术分资料|技术分|技术评分|评分项|评分标准)[：:、，,；;\-\s]*/i, "")
+      .replace(/^(?:拟派|拟任|派驻|拟配备)[\s\-]*/, "")
+      .replace(/(?:（满分[^）]*）|\(满分[^)]*\))$/g, "")
+      .replace(/^[\s\-:：]+|[\s\-:：]+$/g, "")
+      .trim();
+    const addChild = (bucket, value, parent) => {
+      const label = clean(value);
+      if (!label || label === parent || label.length < 2 || label.length > 48) return;
+      if (!bucket.some((item) => compactOutlineLabel(item).replace(/\s+/g, "") === label.replace(/\s+/g, ""))) bucket.push(label);
+    };
+    (Array.isArray(raw?.scoringReview) ? raw.scoringReview : []).forEach((row) => {
+      if (scoreRowSection(row, raw) !== "technical") return;
+      const explicitSource = [row?.category, row?.item, row?.step, row?.section, row?.part].filter(Boolean).map(clean).join("；");
+      // 容器标题不能被评分细则拆成多个二级目录，二级目录只认明确评分项。
+      if (/(?:^|；)(?:技术分资料|技术资料|技术部分资料|技术响应资料|技术方案资料|技术评分资料)(?:$|；)/.test(explicitSource.trim())) return;
+      const source = [explicitSource, row?.criteria].filter(Boolean).map(clean).join("；");
+      let parent = technicalScoringParentPatterns.find((pattern) => explicitSource.includes(pattern));
+      if (/项目理解/.test(explicitSource) && /实施计划|实施方案/.test(explicitSource)) parent = "项目理解与实施计划";
+      else if (/运维服务/.test(explicitSource)) parent = "运维服务方案";
+      else if (/应急保障/.test(explicitSource)) parent = "应急保障方案";
+      if (!parent && /项目理解/.test(source) && /实施计划|实施方案/.test(source)) parent = "项目理解与实施计划";
+      else if (!parent && /运维服务/.test(source)) parent = "运维服务方案";
+      else if (!parent && /应急保障/.test(source)) parent = "应急保障方案";
+      if (!parent) parent = technicalScoringParentPatterns.find((pattern) => source.includes(pattern));
+      if (!parent || /^(?:技术分资料|技术资料|技术部分资料|技术响应资料|技术方案资料|技术评分资料)$/.test(parent)) return;
+      if (!groups.has(parent)) groups.set(parent, []);
+      const bucket = groups.get(parent);
+      [row?.item, row?.step].filter(Boolean).map(clean).forEach((value) => {
+        if (value.includes(parent) && value.replace(/\s+/g, "") !== parent.replace(/\s+/g, "")) addChild(bucket, value, parent);
+      });
+      scoringSubtopics(row).forEach((value) => addChild(bucket, value, parent));
+      const text = [row?.criteria, row?.responsePoint, row?.responseStrategy, row?.requirement].filter(Boolean).join("；");
+      const pattern = /项目负责人简历及证明材料|项目负责人证书|项目负责人社保证明|技术负责人简历及证明材料|技术负责人证书|技术负责人社保证明|网络安全负责人简历及证明材料|网络安全负责人证书|网络安全负责人社保证明|数据安全负责人简历及证明材料|数据安全负责人证书|数据安全负责人社保证明|团队成员证明材料|运维服务方式|运维服务交付物|服务响应时限|应急响应流程/g;
+      for (const match of text.matchAll(pattern)) addChild(bucket, match[0], parent);
+    });
+    return [...groups.entries()].map(([parent, children]) => children.length ? `${parent}（${children.join("、")}）` : parent);
+  };
+
   const expandTechnicalOutline = (raw, technicalItems, rangeValue) => {
     const range = bidPageRangeMeta(rangeValue);
     const base = (Array.isArray(technicalItems) ? technicalItems : []).filter(Boolean);
@@ -510,11 +644,6 @@
     const scoringText = JSON.stringify(raw?.scoringReview || []);
     const technicalText = JSON.stringify(raw?.technicalReview || []);
     const allText = `${scoringText}\n${technicalText}`;
-
-    const scoringNames = (raw?.scoringReview || [])
-      .map((item) => item.category || item.item || "")
-      .filter((item) => /技术|方案|服务|质量|人员|团队|项目|实施|培训|运维|售后|响应|安全|保密|进度|业绩|能力/.test(item));
-    scoringNames.forEach((item) => pushUniqueOutline(expanded, `${compactOutlineLabel(item)}专项响应`));
 
     const pools = [
       ["项目理解与需求分析", "技术响应总体说明", "采购需求逐条响应表", "评分项逐项响应索引"],
@@ -913,6 +1042,8 @@
     document.title = `${project?.name || "招标文件"} - 招标文件解析中`;
     const nextButton = document.querySelector("[data-purpose='analysis-next-action']");
     if (nextButton) nextButton.hidden = true;
+    const reparseButton = document.querySelector("[data-purpose='analysis-reparse']");
+    if (reparseButton) reparseButton.hidden = true;
     const message = project?.message || "AI正在解析招标文件，请稍候。";
     const progress = Math.max(0, Math.min(100, Number(project?.progress || 0)));
     setSectionHtml(
@@ -973,13 +1104,17 @@
     if (!button) return;
     if (!project || project.status !== "completed") {
       button.hidden = true;
+      const reparseButton = document.querySelector("[data-purpose='analysis-reparse']");
+      if (reparseButton) reparseButton.hidden = true;
       return;
     }
     const hasOutline = hasOutlineDocument(project);
     const hasBid = hasBidTechnicalChapters(project);
-    const label = !hasOutline ? "生成目录" : hasBid ? "查看标书" : "生成标书";
+    const label = !hasOutline ? "生成目录" : hasBid ? "查看标书" : "查看目录";
     button.hidden = false;
-    button.dataset.nextTarget = !hasOutline ? "outline" : "generate";
+    const reparseButton = document.querySelector("[data-purpose='analysis-reparse']");
+    if (reparseButton) reparseButton.hidden = false;
+    button.dataset.nextTarget = !hasOutline || !hasBid ? "outline" : "generate";
     button.textContent = label;
   };
 
@@ -1011,38 +1146,90 @@
     });
   };
 
-  const outlineGroups = (raw, project = null) => {
+  const responseFormatRoots = (raw = {}, project = null) => {
     const outline = raw?.bidOutline || {};
-    const bidDocument = project?.bidDocument || {};
-    const outlineDocument = project?.outlineDocument || {};
-    const selectedRange = selectedBidPageRange(project);
-    const fallback = [
-      "一、磋商函",
-      "二、法人授权书",
-      "三、报价文件",
-      "四、商务响应",
-      "五、技术响应",
-      "六、附件资料"
-    ];
-    if (outlineDocument.businessPart?.length || outlineDocument.technicalPart?.length || outlineDocument.attachmentsPart?.length) {
-      return [
-        { title: "商务部分", items: outlineDocument.businessPart || outline.businessPart || fallback.slice(0, 4) },
-        { title: "技术部分", items: outlineDocument.technicalPart || outline.technicalPart || fallback.slice(4, 5) },
-        { title: "附件部分", items: outlineDocument.attachmentsPart || outline.attachmentsPart || fallback.slice(5) }
-      ].filter((group) => group.items?.length);
-    }
-    if (bidDocument.businessDirectory?.length || bidDocument.technicalChapters?.length || bidDocument.attachmentDirectory?.length) {
-      return [
-        { title: "商务部分", items: bidDocument.businessDirectory || outline.businessPart || fallback.slice(0, 4) },
-        { title: "技术部分", items: bidDocument.technicalChapters?.length ? bidDocument.technicalChapters.map((chapter) => chapter.title).filter(Boolean) : outline.technicalPart || fallback.slice(4, 5) },
-        { title: "附件部分", items: bidDocument.attachmentDirectory || outline.attachmentsPart || fallback.slice(5) }
-      ].filter((group) => group.items?.length);
-    }
-    return [
-      { title: "商务部分", items: outline.businessPart || fallback.slice(0, 4) },
-      { title: "技术部分", items: expandTechnicalOutline(raw, outline.technicalPart || fallback.slice(4, 5), selectedRange) },
-      { title: "附件部分", items: outline.attachmentsPart || fallback.slice(5) }
-    ].filter((group) => group.items?.length);
+    const persisted = project?.outlineDocument?.responseFormat || project?.bidDocument?.responseFormat || raw?.outlineDocument?.responseFormat || raw?.submissionFormat;
+    const source = Array.isArray(persisted) ? persisted : [];
+    const normalizeNode = (item, fallbackNumber = "") => {
+      const objectItem = item && typeof item === "object" ? item : null;
+      const rawNumber = objectItem?.number || objectItem?.no || objectItem?.serial || "";
+      const rawTitle = objectItem ? objectItem.title || objectItem.label || objectItem.name || objectItem.item || objectItem.requirement : item;
+      const embedded = String(rawTitle || "").trim().match(/^\s*(\d+(?:\.\d+)*|[一二三四五六七八九十]+)[、.．]?\s*(.*)$/);
+      const number = String(rawNumber || embedded?.[1] || fallbackNumber || "").trim();
+      const title = String(embedded ? embedded[2] : rawTitle || "").trim();
+      const explicitChildren = objectItem && Array.isArray(objectItem.children) ? objectItem.children : [];
+      // The response-format outline is the authoritative numbering skeleton.
+      // Do not infer children from parentheses here: those hints belong to the
+      // scoring-derived technical/business outline, not the source format.
+      const parsedChildren = explicitChildren;
+      return {
+        number,
+        title,
+        children: parsedChildren.map((child, index) => {
+          if (child && typeof child === "object") return normalizeNode(child, number ? `${number}.${index + 1}` : "");
+          return { number: number ? `${number}.${index + 1}` : "", title: String(child).trim(), children: [] };
+        })
+      };
+    };
+    const roots = [];
+    const rootMap = new Map();
+    source.forEach((item, index) => {
+      const node = normalizeNode(item, String(index + 1));
+      if (!node.title) return;
+      if (node.number.includes(".")) {
+        const parent = rootMap.get(node.number.split(".")[0]);
+        if (parent) parent.children.push(node);
+        else roots.push(node);
+      } else {
+        rootMap.set(node.number, node);
+        roots.push(node);
+      }
+    });
+    const scoreItems = (items) => (Array.isArray(items) ? items : []).map((item) => {
+      const model = outlineItemModel(item);
+      return {
+        number: "",
+        title: model.label,
+        children: model.children.map((child) => {
+          const childModel = outlineItemModel(child);
+          return { number: "", title: childModel.label, children: childModel.children || [] };
+        })
+      };
+    }).filter((item) => item.title);
+    const appendUnique = (root, items) => {
+      if (!root) return;
+      const existing = new Set(root.children.map((child) => compactOutlineLabel(child.title).replace(/\s+/g, "")));
+      scoreItems(items).forEach((item) => {
+        const key = compactOutlineLabel(item.title).replace(/\s+/g, "");
+        if (!existing.has(key)) {
+          root.children.push(item);
+          existing.add(key);
+        }
+      });
+    };
+    const technicalItems = deriveTechnicalScoringOutline(raw);
+    const businessItems = deriveBusinessScoringOutline(raw);
+    const technicalRoot = roots.find((root) => /技术分资料|技术资料|技术部分/.test(root.title));
+    const businessRoot = roots.find((root) => /商务分资料|商务资料|商务部分/.test(root.title));
+    appendUnique(technicalRoot, technicalItems);
+    appendUnique(businessRoot, businessItems);
+    if (!technicalRoot && technicalItems.length) roots.push({ number: "1", title: "技术部分", children: scoreItems(technicalItems) });
+    if (!businessRoot && businessItems.length) roots.push({ number: "2", title: "商务部分", children: scoreItems(businessItems) });
+    return roots;
+  };
+
+  const outlineGroups = (raw, project = null) => {
+    const roots = responseFormatRoots(raw, project);
+    if (roots.length) return [{ title: "响应文件目录要求", chapterNumber: "", items: roots }];
+    const outline = raw?.bidOutline || {};
+    return [{
+      title: "响应文件目录要求",
+      chapterNumber: "",
+      items: [
+      { number: "1", title: "技术部分", children: (outline.technicalPart || []).map((item) => ({ title: outlineItemModel(item).label, children: outlineItemModel(item).children })) },
+      { number: "2", title: "商务部分", children: (outline.businessPart || []).map((item) => ({ title: outlineItemModel(item).label, children: outlineItemModel(item).children })) }
+      ]
+    }];
   };
 
   const deriveExactScoringRows = (project) => {
@@ -1108,14 +1295,25 @@
     return result;
   };
 
+  // The backend has already applied the selected-lot boundary and source-table
+  // authority. Re-scanning all extracted tables in the browser can reintroduce
+  // scoring rows from other lots, especially when a tender contains shared
+  // multi-page tables. Use the saved normalized rows as the display source.
+  const scoringRowsForDisplay = (project) => {
+    const rawRows = Array.isArray(projectMeta(project).raw?.scoringReview)
+      ? projectMeta(project).raw.scoringReview
+      : [];
+    return rawRows.length ? mergeScoringRows([], rawRows) : deriveExactScoringRows(project);
+  };
+
   const outlineTreeHtml = (groups, interactive = true) =>
     groups
       .map((group, groupIndex) => {
         const actionHtml = interactive
           ? `<div class="item-actions flex items-center gap-2">
-              <button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-primary text-xs hover:border-primary transition-colors"><i class="fas fa-pen text-[10px]"></i> 编辑</button>
-              <button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-green-600 text-xs hover:border-green-600 transition-colors"><i class="fas fa-plus text-[10px]"></i> 子项</button>
-              <button class="px-3 py-1 flex items-center justify-center gap-1.5 rounded bg-white border border-surface-200 text-red-500 text-xs hover:bg-red-50 hover:border-red-200 transition-colors"><i class="fas fa-trash-alt text-[10px]"></i> 删除</button>
+              <button type="button" data-action="edit" aria-label="编辑" title="编辑" class="w-8 h-8 flex items-center justify-center rounded bg-white border border-surface-200 text-primary text-xs hover:border-primary transition-colors"><i class="fas fa-pen text-[10px]"></i></button>
+              <button type="button" data-action="add-child" aria-label="添加子项" title="添加子项" class="w-8 h-8 flex items-center justify-center rounded bg-white border border-surface-200 text-green-600 text-xs hover:border-green-600 transition-colors"><i class="fas fa-plus text-[10px]"></i></button>
+              <button type="button" data-action="delete" aria-label="删除" title="删除" class="w-8 h-8 flex items-center justify-center rounded bg-white border border-surface-200 text-red-500 text-xs hover:bg-red-50 hover:border-red-200 transition-colors"><i class="fas fa-trash-alt text-[10px]"></i></button>
             </div>`
           : "";
         return `
@@ -1124,7 +1322,7 @@
               <div class="cursor-grab text-surface-300 hover:text-surface-500"><i class="fas fa-grip-vertical text-xs"></i></div>
               <div class="flex-1 flex items-center justify-between min-w-0">
                 <div class="flex items-center gap-3 min-w-0">
-                  <span class="text-xs font-bold ${groupIndex === 0 ? "text-primary bg-primary/10" : "text-surface-500 bg-surface-100"} px-2 py-0.5 rounded shrink-0">第${groupIndex + 1}章</span>
+                  ${group.chapterNumber ? `<span class="text-xs font-bold ${groupIndex === 0 ? "text-primary bg-primary/10" : "text-surface-500 bg-surface-100"} px-2 py-0.5 rounded shrink-0">${esc(group.chapterNumber)}</span>` : ""}
                   <span class="text-base ${groupIndex === 0 ? "font-bold text-surface-800" : "font-medium text-surface-700"} truncate">${esc(group.title)}</span>
                 </div>
                 ${actionHtml}
@@ -1140,7 +1338,7 @@
                   <div class="cursor-grab text-surface-300 pt-1.5"><i class="fas fa-grip-vertical text-xs"></i></div>
                   <div class="flex-1 flex items-center justify-between min-w-0">
                     <div class="flex items-center gap-3 min-w-0">
-                      <span class="text-xs text-surface-400 shrink-0 font-medium">${groupIndex + 1}.${itemIndex + 1}</span>
+                      <span class="text-xs text-surface-400 shrink-0 font-medium">${esc(model.number || `${groupIndex + 1}.${itemIndex + 1}`)}</span>
                       <span class="text-sm text-surface-600 truncate">${esc(model.label)}</span>
                     </div>
                     ${actionHtml}
@@ -1149,19 +1347,22 @@
               </div>
               ${model.children
                 .map(
-                  (child, childIndex) => `
+                  (child, childIndex) => {
+                    const childModel = outlineItemModel(child);
+                    return `
                   <div class="tree-item rounded-lg ml-20 cursor-pointer hover:bg-surface-50 border border-transparent hover:border-surface-200 group/item transition-colors p-2">
                     <div class="flex items-center gap-3">
                       <div class="cursor-grab text-surface-300 pt-1.5"><i class="fas fa-grip-vertical text-[10px]"></i></div>
                       <div class="flex-1 flex items-center justify-between min-w-0">
                         <div class="flex items-center gap-3 min-w-0">
-                          <span class="text-xs text-surface-400 shrink-0 font-medium">${groupIndex + 1}.${itemIndex + 1}.${childIndex + 1}</span>
-                          <span class="text-sm text-surface-600 truncate">${esc(child)}</span>
+                          <span class="text-xs text-surface-400 shrink-0 font-medium">${esc(childModel.number || `${model.number || `${groupIndex + 1}.${itemIndex + 1}`}.${childIndex + 1}`)}</span>
+                          <span class="text-sm text-surface-600 truncate">${esc(childModel.label)}</span>
                         </div>
                         ${actionHtml}
                       </div>
                     </div>
-                  </div>`
+                  </div>`;
+                  }
                 )
                 .join("")}`;
             })
@@ -1307,26 +1508,26 @@
           .map(
             (group, index) => {
               const section = bidSectionKey(group.title, index);
-              const majorNo = bidSectionMajorNo(section, index);
+              const majorNo = group.chapterNumber || (group.title === "响应文件目录要求" ? "" : bidSectionMajorNo(section, index));
               return `
             <div>
               <button type="button" data-scroll-target="${esc(bidAnchorId(section))}" class="w-full flex items-center gap-2 text-left ${index === 0 ? "text-primary font-bold" : "font-medium text-surface-800"} hover:text-primary">
                 <i class="fas fa-caret-down text-surface-400 w-3"></i>
-                <span class="text-xs rounded bg-surface-100 px-1.5 py-0.5 text-surface-500">${esc(majorNo)}</span>
+                ${majorNo ? `<span class="text-xs rounded bg-surface-100 px-1.5 py-0.5 text-surface-500">${esc(majorNo)}</span>` : ""}
                 <span class="truncate">${esc(group.title)}</span>
               </button>
               <div class="mt-3 ml-6 space-y-3 text-surface-700">
                 ${group.items
                   .map((item, itemIndex) => {
                     const model = outlineItemModel(item);
-                    const itemNo = `${majorNo}.${itemIndex + 1}`;
+                    const itemNo = model.number || (majorNo ? `${majorNo}.${itemIndex + 1}` : `${itemIndex + 1}`);
                     return `<div>
                       <button type="button" data-scroll-target="${esc(bidAnchorId(section, itemIndex + 1))}" class="w-full flex items-center gap-2 text-left hover:text-primary">
                         ${model.children.length ? `<i class="fas fa-caret-right text-surface-400 w-3"></i>` : `<span class="w-3 shrink-0"></span>`}
                         <span class="w-10 shrink-0 text-surface-400">${esc(itemNo)}</span>
                         <span class="truncate">${esc(model.label)}</span>
                       </button>
-                      ${model.children.length ? `<div class="mt-2 ml-8 space-y-2 text-xs text-surface-500">${model.children.map((child, childIndex) => `<button type="button" data-scroll-target="${esc(bidAnchorId(section, itemIndex + 1, childIndex + 1))}" class="w-full flex items-center gap-2 text-left hover:text-primary"><span class="w-12 shrink-0 text-surface-400">${esc(`${itemNo}.${childIndex + 1}`)}</span><span class="truncate">${esc(child)}</span></button>`).join("")}</div>` : ""}
+                      ${model.children.length ? `<div class="mt-2 ml-8 space-y-2 text-xs text-surface-500">${model.children.map((child, childIndex) => { const childModel = outlineItemModel(child); const childNo = childModel.number || `${itemNo}.${childIndex + 1}`; return `<button type="button" data-scroll-target="${esc(bidAnchorId(section, itemIndex + 1, childIndex + 1))}" class="w-full flex items-center gap-2 text-left hover:text-primary"><span class="w-12 shrink-0 text-surface-400">${esc(childNo)}</span><span class="truncate">${esc(childModel.label)}</span></button>`; }).join("")}</div>` : ""}
                     </div>`;
                   })
                   .join("")}
@@ -1361,9 +1562,7 @@
   const outlineScoringRows = (project) => {
     if (!project) return [];
     const meta = projectMeta(project);
-    const exactRows = deriveExactScoringRows(project);
-    const rawRows = Array.isArray(meta.raw?.scoringReview) ? meta.raw.scoringReview : [];
-    const rows = mergeScoringRows(exactRows, rawRows);
+    const rows = scoringRowsForDisplay(project);
     const normalized = rows
       .map((row) => ({
         category: row.category || row.item || row.name || row.step || "评分项",
@@ -1524,15 +1723,28 @@
       }
     }
     const bidDocument = project.bidDocument || {};
-    const technicalOutlineItems = (bidDocument.technicalChapters || []).map((chapter) => {
-      const sections = Array.isArray(chapter.sections) ? chapter.sections.map((section) => section.heading).filter(Boolean) : [];
-      return sections.length ? `${chapter.title || "技术章节"}（${sections.join("、")}）` : chapter.title;
-    }).filter(Boolean);
-    const bidGroups = [
-      { title: "商务部分", items: bidDocument.businessDirectory || groups.find((group) => group.title === "商务部分")?.items || [] },
-      { title: "技术部分", items: technicalOutlineItems.length ? technicalOutlineItems : groups.find((group) => group.title === "技术部分")?.items || [] },
-      { title: "附件部分", items: bidDocument.attachmentDirectory || groups.find((group) => group.title === "附件部分")?.items || [] }
-    ].filter((group) => group.items?.length);
+    const technicalOutlineItems = (bidDocument.technicalChapters || []).map((chapter) => ({
+      number: chapter.number || "",
+      title: chapter.title || "",
+      children: (Array.isArray(chapter.sections) ? chapter.sections : []).map((section) => ({
+        number: section.number || "",
+        title: section.heading || "",
+        children: []
+      }))
+    })).filter((item) => item.title);
+    const bidGroups = groups.map((group) => {
+      if (group.title !== "响应文件目录要求") return group;
+      return {
+        ...group,
+        items: (group.items || []).map((item) => {
+          const model = outlineItemModel(item);
+          if (/技术分资料|技术资料|技术部分/.test(`${model.number} ${model.label}`) && technicalOutlineItems.length) {
+            return { ...item, children: technicalOutlineItems };
+          }
+          return item;
+        })
+      };
+    });
     updateProjectInfoBlocks(project, meta);
     const previewPages = bidDocumentPreviewPages(project, meta, bidDocument);
     renderBidGenerationStatus(project, bidDocument, { pageCount: previewPages.length });
@@ -1723,13 +1935,14 @@
     const budgetPricing = basic.budgetPricing || [];
     const guaranteeInfo = basic.guaranteeInfo || [];
     const qualification = raw.qualificationCompliance || {};
-    const scoringReview = mergeScoringRows(deriveExactScoringRows(project), raw.scoringReview);
+    const scoringReview = scoringRowsForDisplay(project);
 
     document.title = `${meta.projectName} - 招标文件解析结果`;
     renderAnalysisNextAction(project);
 
     document.querySelector(".overview")?.remove();
 
+    const displayOutline = project.outlineDocument || raw.bidOutline || {};
     setSectionHtml(
       "section-info",
       "项目基本信息",
@@ -1753,7 +1966,7 @@
       "section-eligibility",
       "资格条件",
       `
-      ${table(["审查项目", "具体要求", "证明材料", "符合性判断"], qualification.qualificationReview, ["item", "requirement", "evidence", "judgement"])}
+      ${table(["审查项目", "具体要求", "证明材料", "符合性判断", "来源页码"], qualification.qualificationReview, ["item", "requirement", "evidence", "judgement", "sourcePage"])}
       <div style="margin-top:14px">${table(["证照名称", "是否必需", "发证机关", "有效期要求", "盖章要求", "来源"], qualification.certificateChecklist, ["name", "required", "issuer", "validity", "sealed", "source"])}</div>`
     );
 
@@ -1801,9 +2014,9 @@
       ${table(["文件要求", "具体要求", "备注"], raw.submissionFormat, ["item", "requirement", "note"])}
       <div style="margin-top:14px">${table(["资料名称", "是否必需", "来源", "备注"], raw.materialsChecklist, ["material", "required", "source", "note"])}</div>
       <div class="grid grid-3" style="margin-top:14px">
-        <div>${sectionTitle("商务部分大纲")}${bullets(raw.bidOutline?.businessPart)}</div>
-        <div>${sectionTitle("技术部分大纲")}${bullets(raw.bidOutline?.technicalPart)}</div>
-        <div>${sectionTitle("附件部分大纲")}${bullets(raw.bidOutline?.attachmentsPart)}</div>
+      <div>${sectionTitle("响应文件格式要求（从招标文件提取）")}${bullets(displayOutline.responseFormat || raw.outlineDocument?.responseFormat || raw.submissionFormat)}</div>
+      <div>${sectionTitle("技术大纲（评分表）")}${bullets(displayOutline.technicalPart)}</div>
+      <div>${sectionTitle("商务大纲（评分表）")}${bullets(displayOutline.businessPart)}</div>
       </div>`
     );
 
@@ -2112,9 +2325,26 @@
     });
   };
 
-  const openLotSelectionModal = (project) => {
-    if (!project?.lotSelectionRequired || !Array.isArray(project.lotOptions) || project.lotOptions.length <= 1) return;
+  const openLotSelectionModal = (project, options = {}) => {
+    const forceReparse = options.forceReparse === true;
+    const realLotOptions = Array.isArray(project?.lotOptions) ? project.lotOptions : [];
+    if (!project || (!forceReparse && (!project.lotSelectionRequired || realLotOptions.length <= 1))) return;
     if (document.querySelector("[data-lot-selection-modal]")) return;
+    const lotOptions = realLotOptions.length
+      ? realLotOptions
+      : [{
+          id: "",
+          label: project.selectedLot?.label || "当前项目",
+          sourceLabel: "当前解析范围",
+          name: project.selectedLot?.name || project.name || "未识别到标段信息",
+          amount: project.selectedLot?.amount || "未明确"
+        }];
+    const selectedLotId = project.selectedLot?.id || lotOptions[0]?.id || "";
+    const modalTitle = forceReparse ? "选择标段并重新解析" : "确认解析标段";
+    const modalDescription = forceReparse
+      ? "重新解析会覆盖当前解析结果，请确认本次解析范围。多标段项目请选择对应标段，系统只解析所选标段。"
+      : "当前招标文件包含多个标段，请选择本次要解析的标段。确认后系统会按所选标段重新解析，项目名称会自动追加标段号。";
+    const confirmText = forceReparse ? "确认标段并重新解析" : "确认标段并开始解析";
     const modal = document.createElement("div");
     modal.dataset.lotSelectionModal = "true";
     modal.setAttribute(
@@ -2124,15 +2354,15 @@
     modal.innerHTML = `
       <div style="width:min(720px,100%);max-height:86vh;overflow:hidden;border-radius:18px;background:#fff;border:1px solid #e5e7eb;box-shadow:0 24px 80px rgba(15,23,42,.28);">
         <div style="padding:24px;border-bottom:1px solid #eef2f7;">
-          <h3 style="margin:0;font-size:22px;line-height:1.3;font-weight:800;color:#111827;">确认解析标段</h3>
-          <p style="margin:10px 0 0;font-size:14px;line-height:1.8;color:#64748b;">当前招标文件包含多个标段，请选择本次要解析的标段。确认后系统会按所选标段重新解析，项目名称会自动追加标段号。</p>
+          <h3 style="margin:0;font-size:22px;line-height:1.3;font-weight:800;color:#111827;">${modalTitle}</h3>
+          <p style="margin:10px 0 0;font-size:14px;line-height:1.8;color:#64748b;">${modalDescription}</p>
         </div>
         <div style="padding:20px;display:grid;gap:12px;max-height:52vh;overflow:auto;">
-          ${project.lotOptions
+          ${lotOptions
             .map(
               (lot, index) => `
-              <label class="lot-selection-option" style="display:flex;gap:16px;align-items:flex-start;border:1px solid ${index === 0 ? "#3b82f6" : "#e5e7eb"};background:${index === 0 ? "#eff6ff" : "#fff"};border-radius:14px;padding:16px;cursor:pointer;transition:all .16s ease;">
-                <input style="margin-top:5px;accent-color:#2563eb;" type="radio" name="lotId" value="${esc(lot.id)}" ${index === 0 ? "checked" : ""}>
+              <label class="lot-selection-option" style="display:flex;gap:16px;align-items:flex-start;border:1px solid ${lot.id === selectedLotId ? "#3b82f6" : "#e5e7eb"};background:${lot.id === selectedLotId ? "#eff6ff" : "#fff"};border-radius:14px;padding:16px;cursor:pointer;transition:all .16s ease;">
+                <input style="margin-top:5px;accent-color:#2563eb;" type="radio" name="lotId" value="${esc(lot.id)}" ${lot.id === selectedLotId ? "checked" : ""}>
                 <span style="flex:1;min-width:0;">
                   <span style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
                     <span style="font-size:16px;font-weight:800;color:#111827;">${esc(lot.label)}</span>
@@ -2149,7 +2379,7 @@
             .join("")}
         </div>
         <div style="display:flex;justify-content:flex-end;gap:12px;padding:18px 20px;border-top:1px solid #eef2f7;background:#f8fafc;">
-          <button style="height:42px;padding:0 20px;border:0;border-radius:10px;background:#2563eb;color:#fff;font-size:14px;font-weight:800;cursor:pointer;" data-action="confirm-lot">确认标段并开始解析</button>
+          <button style="height:42px;padding:0 20px;border:0;border-radius:10px;background:#2563eb;color:#fff;font-size:14px;font-weight:800;cursor:pointer;" data-action="confirm-lot">${confirmText}</button>
         </div>
       </div>`;
     document.body.appendChild(modal);
@@ -2165,20 +2395,24 @@
       }
       const action = event.target.closest("[data-action]")?.dataset.action;
       if (action !== "confirm-lot") return;
-      const lotId = modal.querySelector("input[name='lotId']:checked")?.value || project.lotOptions[0]?.id;
+      const lotId = modal.querySelector("input[name='lotId']:checked")?.value || selectedLotId;
       const button = event.target.closest("button");
       setButtonDisabled(button, true);
       button.textContent = "正在重新解析...";
       try {
-        const data = await api(apiPath(`/api/projects/${project.id}/select-lot`), { method: "POST", body: JSON.stringify({ lotId }) });
+        const useLotSelection = realLotOptions.length > 1;
+        const data = await api(
+          apiPath(`/api/projects/${project.id}/${useLotSelection ? "select-lot" : "reparse"}`),
+          { method: "POST", body: useLotSelection ? JSON.stringify({ lotId }) : "{}" }
+        );
         writeState({ activeProjectId: data.project.id, pendingLotProjectId: "" });
         modal.remove();
-        toast(`已选择${data.selectedLot?.label || "标段"}，正在重新解析`);
+        toast(useLotSelection ? `已选择${data.selectedLot?.label || "标段"}，正在重新解析` : "已确认当前解析范围，正在重新解析");
         if (page === "analysis.html") renderAnalysisPending(data.project);
         if (page === "home.html") loadProjects().catch(() => {});
       } catch (error) {
         setButtonDisabled(button, false);
-        button.textContent = "确认标段并重新解析";
+        button.textContent = confirmText;
         toast(error.message, "error");
       }
     });
@@ -2390,13 +2624,13 @@
 
         if (text.includes("重新解析") && projectId) {
           stop(event);
-          try {
-            await api(apiPath(`/api/projects/${projectId}/reparse`), { method: "POST", body: "{}" });
-            toast("已重新提交AI解析任务");
-            await loadProjects();
-          } catch (error) {
-            toast(error.message, "error");
+          const project = projectsCache.find((item) => item.id === projectId);
+          if (!project) {
+            toast("正在读取项目标段信息，请稍候", "warn");
+            return;
           }
+          openLotSelectionModal(project, { forceReparse: true });
+          return;
         }
 
         if (text.includes("加载更多项目")) {
@@ -2436,8 +2670,20 @@
         const button = event.target.closest("button");
         if (!button) return;
         const text = textOf(button);
+        const action = button.dataset.action || "";
         const projectId = await getActiveProjectId();
         if (!projectId) return;
+
+        if (button.dataset.purpose === "analysis-reparse") {
+          stop(event);
+          const project = await getActiveProject();
+          if (!project) {
+            toast("未读取到当前项目，无法重新解析", "error");
+            return;
+          }
+          openLotSelectionModal(project, { forceReparse: true });
+          return;
+        }
 
         if (button.dataset.purpose === "analysis-next-action") {
           stop(event);
@@ -2494,10 +2740,30 @@
         if (!button) return;
         const text = textOf(button);
         const tooltip = button.getAttribute("data-tooltip") || "";
+        const action = button.dataset.action || "";
         const item = button.closest(".tree-item");
         const label = item?.querySelector(".truncate");
 
-        if (text.includes("编辑")) {
+        if (button.dataset.purpose === "regenerate-outline") {
+          stop(event);
+          const projectId = await getActiveProjectId();
+          if (!projectId) return;
+          writeState({ forceRegenerateOutlineProjectId: projectId });
+          toast("正在重新调用 DeepSeek 生成目录，请稍候", "warn");
+          await renderOutlinePage();
+          return;
+        }
+
+        if (button.dataset.purpose === "generate-bid") {
+          stop(event);
+          const projectId = await getActiveProjectId();
+          if (!projectId) return;
+          writeState({ activeProjectId: projectId });
+          window.location.href = "./generate.html";
+          return;
+        }
+
+        if (action === "edit" || text.includes("编辑")) {
           stop(event);
           if (label) {
             label.contentEditable = "true";
@@ -2506,7 +2772,7 @@
           }
         }
 
-        if (text.includes("子项")) {
+        if (action === "add-child" || text.includes("子项")) {
           stop(event);
           if (item) {
             const clone = item.cloneNode(true);
@@ -2520,7 +2786,7 @@
           }
         }
 
-        if (text.includes("删除")) {
+        if (action === "delete" || text.includes("删除")) {
           stop(event);
           if (item && document.querySelectorAll(".tree-item").length > 1) {
             item.remove();
@@ -2528,7 +2794,7 @@
           }
         }
 
-        if (text.includes("保存修改")) {
+        if (button.dataset.purpose === "save-outline" || text.includes("保存修改")) {
           stop(event);
           writeState({ outlineSavedAt: new Date().toISOString() });
           toast("目录修改已保存");

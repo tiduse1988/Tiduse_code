@@ -14,6 +14,7 @@
     if (text.includes("AI投标系统") || text.includes("智能投标系统")) return "./home.html";
     if (text.includes("查看解析") || text.includes("重新解析")) return "./analysis.html";
     if (text.includes("生成目录")) return "./outline.html";
+    if (text.includes("查看目录")) return "./outline.html";
     if (text.includes("查看标书")) return "./generate.html";
     if (text.includes("标书核验")) return "./verification.html";
     if (text.includes("生成标书")) {
